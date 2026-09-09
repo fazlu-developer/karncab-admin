@@ -1,0 +1,157 @@
+<?php
+
+use App\Http\Controllers\Api\V1\PlatformSessionController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DriversController;
+use App\Http\Controllers\Fleet\FleetWorkspaceController;
+use App\Http\Controllers\FranchisesController;
+use App\Http\Controllers\LiveMapController;
+use App\Http\Controllers\Ops\ModuleController;
+use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\State\StateAssignmentController;
+use App\Http\Controllers\State\StateWorkspaceController;
+use App\Http\Controllers\UsersController;
+use App\Http\Controllers\CustomerWorkspaceController;
+use App\Http\Controllers\CouponsController;
+use App\Http\Controllers\AdvertisingController;
+use App\Http\Controllers\WalletsController;
+use App\Http\Controllers\SafetyController;
+use App\Http\Controllers\SupportController;
+use App\Http\Controllers\NotificationsController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    return view('home');
+})->name('home');
+
+Route::get('/safety/share/{token}', [SafetyController::class, 'share'])->name('safety.share');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');
+    Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('password.update');
+    Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('/register', [RegisteredUserController::class, 'store']);
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/me', [CustomerWorkspaceController::class, 'dashboard'])->name('customer.dashboard');
+    Route::patch('/me/profile', [CustomerWorkspaceController::class, 'updateProfile'])->name('customer.profile');
+    Route::patch('/me/emergency', [CustomerWorkspaceController::class, 'updateEmergency'])->name('customer.emergency');
+    Route::post('/me/family', [CustomerWorkspaceController::class, 'storeFamily'])->name('customer.family.store');
+    Route::delete('/me/family/{member}', [CustomerWorkspaceController::class, 'destroyFamily'])->name('customer.family.destroy');
+    Route::post('/me/places', [CustomerWorkspaceController::class, 'storePlace'])->name('customer.places.store');
+    Route::delete('/me/places/{place}', [CustomerWorkspaceController::class, 'destroyPlace'])->name('customer.places.destroy');
+    Route::post('/me/complaints', [CustomerWorkspaceController::class, 'storeComplaint'])->name('customer.complaints.store');
+    Route::post('/me/ratings', [CustomerWorkspaceController::class, 'storeRating'])->name('customer.ratings.store');
+    Route::post('/me/notifications/{notification}/read', [CustomerWorkspaceController::class, 'readNotification'])->name('customer.notifications.read');
+    Route::post('/me/sos', [CustomerWorkspaceController::class, 'sos'])->name('customer.sos');
+    Route::post('/me/share', [CustomerWorkspaceController::class, 'share'])->name('customer.share');
+    Route::post('/me/contacts', [CustomerWorkspaceController::class, 'storeContact'])->name('customer.contacts.store');
+    Route::delete('/me/contacts/{contact}', [CustomerWorkspaceController::class, 'destroyContact'])->name('customer.contacts.destroy');
+    Route::get('/me/{section}', [CustomerWorkspaceController::class, 'section'])->name('customer.section');
+    Route::get('/live-map', [LiveMapController::class, 'show'])->name('live.map');
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/state-assignments', [StateAssignmentController::class, 'index'])->name('state.assignments');
+    Route::put('/state-assignments/{user}', [StateAssignmentController::class, 'update'])->name('state.assignments.update');
+    Route::get('/state', [StateWorkspaceController::class, 'dashboard'])->name('state.dashboard');
+    Route::post('/state/district-heads', [StateWorkspaceController::class, 'storeDistrictHead'])->name('state.district-heads.store');
+    Route::post('/state/franchises', [StateWorkspaceController::class, 'storeFranchise'])->name('state.franchises.store');
+    Route::post('/state/notifications', [StateWorkspaceController::class, 'notify'])->name('state.notify');
+    Route::get('/state/{section}', [StateWorkspaceController::class, 'section'])->name('state.section');
+    Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::get('/api/v1/platform/session', [PlatformSessionController::class, 'show'])->name('platform.session');
+
+    Route::get('/fleet', [FleetWorkspaceController::class, 'dashboard'])->name('fleet.dashboard');
+    Route::get('/fleet/vehicles', [FleetWorkspaceController::class, 'vehicles'])->name('fleet.vehicles');
+    Route::post('/fleet/vehicles', [FleetWorkspaceController::class, 'storeVehicle'])->name('fleet.vehicles.store');
+    Route::get('/fleet/vehicles/{vehicle}', [FleetWorkspaceController::class, 'showVehicle'])->name('fleet.vehicle');
+    Route::patch('/fleet/vehicles/{vehicle}', [FleetWorkspaceController::class, 'updateVehicle'])->name('fleet.vehicle.update');
+    Route::post('/fleet/vehicles/{vehicle}/documents', [FleetWorkspaceController::class, 'storeVehicleDocument'])->name('fleet.vehicle.documents');
+    Route::get('/fleet/drivers', [FleetWorkspaceController::class, 'drivers'])->name('fleet.drivers');
+    Route::post('/fleet/drivers', [FleetWorkspaceController::class, 'storeDriver'])->name('fleet.drivers.store');
+    Route::get('/fleet/drivers/{driver}', [FleetWorkspaceController::class, 'showDriver'])->name('fleet.driver');
+    Route::post('/fleet/drivers/{driver}/assign', [FleetWorkspaceController::class, 'assign'])->name('fleet.driver.assign');
+    Route::post('/fleet/drivers/{driver}/unassign', [FleetWorkspaceController::class, 'unassign'])->name('fleet.driver.unassign');
+    Route::post('/fleet/drivers/{driver}/remove', [FleetWorkspaceController::class, 'removeDriver'])->name('fleet.driver.remove');
+    Route::post('/fleet/drivers/{driver}/kyc', [FleetWorkspaceController::class, 'driverKyc'])->name('fleet.driver.kyc');
+    Route::post('/fleet/drivers/{driver}/documents', [FleetWorkspaceController::class, 'driverDocument'])->name('fleet.driver.documents');
+    Route::post('/fleet/drivers/{driver}/status', [FleetWorkspaceController::class, 'driverStatus'])->name('fleet.driver.status');
+    Route::get('/fleet/reports', [FleetWorkspaceController::class, 'reports'])->name('fleet.reports');
+
+    Route::resource('users', UsersController::class)->parameters(['users' => 'platformUser']);
+    Route::resource('drivers', DriversController::class);
+    Route::post('/drivers/{driver}/documents/{document}', [DriversController::class, 'reviewDocument'])->name('drivers.documents.review');
+    Route::post('/drivers/{driver}/kyc', [DriversController::class, 'reviewApplication'])->name('drivers.kyc.review');
+
+    Route::get('/coupons', [CouponsController::class, 'index'])->name('coupons.index');
+    Route::post('/coupons', [CouponsController::class, 'store'])->name('coupons.store');
+    Route::post('/coupons/preview', [CouponsController::class, 'preview'])->name('coupons.preview');
+    Route::patch('/coupons/{coupon}', [CouponsController::class, 'update'])->name('coupons.update');
+    Route::get('/coupons/{coupon}', [CouponsController::class, 'show'])->name('coupons.show');
+    Route::get('/safety', [SafetyController::class, 'index'])->name('safety.index');
+    Route::patch('/safety/{incident}', [SafetyController::class, 'review'])->name('safety.review');
+    Route::get('/safety/{incident}', [SafetyController::class, 'show'])->name('safety.show')->whereNumber('incident');
+    Route::get('/support', [SupportController::class, 'index'])->name('support.index');
+    Route::post('/support/{ticket}/assign', [SupportController::class, 'assign'])->name('support.assign');
+    Route::post('/support/{ticket}/transition', [SupportController::class, 'transition'])->name('support.transition');
+    Route::post('/support/{ticket}/reply', [SupportController::class, 'reply'])->name('support.reply');
+    Route::post('/support/{ticket}/attachments', [SupportController::class, 'attach'])->name('support.attach');
+    Route::get('/support/{ticket}/attachments/{attachment}', [SupportController::class, 'file'])->name('support.file');
+    Route::get('/support/{ticket}', [SupportController::class, 'show'])->name('support.show')->whereNumber('ticket');
+    Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/dispatch', [NotificationsController::class, 'dispatch'])->name('notifications.dispatch');
+    Route::get('/ads', [AdvertisingController::class, 'index'])->name('ads.index');
+    Route::post('/ads', [AdvertisingController::class, 'store'])->name('ads.store');
+    Route::get('/ads/{ad}/banner', [AdvertisingController::class, 'bannerFile'])->name('ads.banner.file');
+    Route::post('/ads/{ad}/banner', [AdvertisingController::class, 'banner'])->name('ads.banner');
+    Route::post('/ads/{ad}/review', [AdvertisingController::class, 'review'])->name('ads.review');
+    Route::post('/ads/{ad}/pause', [AdvertisingController::class, 'pause'])->name('ads.pause');
+    Route::post('/ads/{ad}/resume', [AdvertisingController::class, 'resume'])->name('ads.resume');
+    Route::patch('/ads/{ad}', [AdvertisingController::class, 'update'])->name('ads.update');
+    Route::get('/ads/{ad}', [AdvertisingController::class, 'show'])->name('ads.show');
+    Route::get('/payments', [PaymentsController::class, 'index'])->name('payments.index');
+    Route::post('/payments', [PaymentsController::class, 'store'])->name('payments.store');
+    Route::get('/payments/invoices/{invoice}', [PaymentsController::class, 'invoice'])->name('payments.invoice');
+    Route::post('/payments/{payment}/cash', [PaymentsController::class, 'confirmCash'])->name('payments.cash');
+    Route::post('/payments/{payment}/fail', [PaymentsController::class, 'fail'])->name('payments.fail');
+    Route::post('/payments/{payment}/refund', [PaymentsController::class, 'refund'])->name('payments.refund');
+    Route::post('/payments/{payment}/refund/{step}', [PaymentsController::class, 'refundStep'])->name('payments.refund-step');
+    Route::get('/payments/{payment}', [PaymentsController::class, 'show'])->name('payments.show');
+    Route::get('/wallets', [WalletsController::class, 'index'])->name('wallets.index');
+    Route::get('/wallets/commission', [WalletsController::class, 'commission'])->name('wallets.commission');
+    Route::put('/wallets/commission', [WalletsController::class, 'updateCommission'])->name('wallets.commission.update');
+    Route::post('/wallets/post', [WalletsController::class, 'post'])->name('wallets.post');
+    Route::post('/wallets/settle', [WalletsController::class, 'settle'])->name('wallets.settle');
+    Route::get('/wallets/{wallet}', [WalletsController::class, 'show'])->name('wallets.show');
+    Route::get('/franchises', [FranchisesController::class, 'index'])->name('franchises.index');
+    Route::post('/franchises', [FranchisesController::class, 'store'])->name('franchises.store');
+    Route::get('/franchises/{franchise}', [FranchisesController::class, 'show'])->name('franchises.show');
+    Route::post('/franchises/{franchise}/lifecycle', [FranchisesController::class, 'lifecycle'])->name('franchises.lifecycle');
+    Route::post('/franchises/{franchise}/kyc', [FranchisesController::class, 'kyc'])->name('franchises.kyc');
+    Route::post('/franchises/{franchise}/documents', [FranchisesController::class, 'document'])->name('franchises.document');
+    Route::post('/franchises/{franchise}/agreement', [FranchisesController::class, 'agreement'])->name('franchises.agreement');
+    Route::post('/franchises/{franchise}/fees', [FranchisesController::class, 'fee'])->name('franchises.fees');
+    Route::post('/franchises/{franchise}/fees/{fee}/pay', [FranchisesController::class, 'payFee'])->name('franchises.fees.pay');
+    Route::post('/franchises/{franchise}/renewals', [FranchisesController::class, 'renewal'])->name('franchises.renewals');
+    Route::post('/franchises/{franchise}/renewals/{renewal}/decide', [FranchisesController::class, 'decideRenewal'])->name('franchises.renewals.decide');
+    Route::post('/franchises/{franchise}/commission', [FranchisesController::class, 'commission'])->name('franchises.commission');
+    Route::post('/franchises/{franchise}/territory', [FranchisesController::class, 'territory'])->name('franchises.territory');
+
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/reports/{report}/export', [ReportsController::class, 'export'])->name('reports.export');
+    Route::get('/reports/{report}', [ReportsController::class, 'show'])->name('reports.show');
+
+    Route::get('/ops/{module}/export', [ModuleController::class, 'export'])->name('ops.export');
+    Route::get('/ops/{module}', [ModuleController::class, 'show'])->name('ops.module');
+    Route::get('/bookings/{id}', [ModuleController::class, 'showBooking'])->name('ops.bookings.show');
+    Route::post('/notifications/announce', [ModuleController::class, 'announce'])->name('ops.notify');
+});
