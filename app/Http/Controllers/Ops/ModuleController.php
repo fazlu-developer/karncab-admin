@@ -80,6 +80,11 @@ class ModuleController extends Controller
 
             return redirect()->route('reports.index');
         }
+        if ($module === 'fare') {
+            abort_unless($request->user()?->can('fare.manage'), 403);
+
+            return redirect()->route('fare.index');
+        }
 
         $def = OpsNav::find($module);
         abort_if($def === null, 404);

@@ -8,7 +8,8 @@
         $user = $driver->user;
         $vehicle = $driver->vehicles->first();
         $docsByType = $driver->documents->keyBy('type');
-        $requiredReady = collect($requiredDocs)->every(fn ($type) => optional($docsByType->get($type))->status === 'verified');
+        $requiredReady = collect($requiredDocs)->every(fn ($type) => in_array(optional($docsByType->get($type))->status, ['verified', 'approved'], true));
+        $expiredDocs = $driver->documents->filter(fn ($doc) => $doc->status === 'expired' || ($doc->expires_at && $doc->expires_at->isPast()));
     @endphp
     <div class="hero">
         <div>
@@ -25,7 +26,7 @@
 
     <section class="card">
         <p>
-            <span class="pill {{ $driver->kyc_status === 'verified' ? 'ok' : ($driver->kyc_status === 'rejected' ? 'bad' : 'warn') }}">
+            <span class="pill {{ in_array($driver->kyc_status, ['verified', 'approved'], true) ? 'ok' : ($driver->kyc_status === 'rejected' ? 'bad' : 'warn') }}">
                 {{ str_replace('_', ' ', $driver->kyc_status) }}
             </span>
             <span class="pill {{ $user?->status === 'ACTIVE' ? 'ok' : 'muted' }}">{{ $user->status ?? '—' }}</span>
@@ -51,7 +52,10 @@
                 <div><dt>Date of birth</dt><dd>{{ $user->date_of_birth ?? '—' }}</dd></div>
                 <div><dt>Gender</dt><dd>{{ $user->gender ?? '—' }}</dd></div>
                 <div><dt>Address</dt><dd>{{ $user->last_address ?? '—' }}</dd></div>
-                <div><dt>ID</dt><dd>{{ $driver->id_type ?: '—' }} {{ $driver->id_last4 ? '••••'.$driver->id_last4 : '' }}</dd></div>
+                <div><dt>State / city</dt><dd>{{ $user->state_id ?? '—' }} / {{ $driver->city ?: '—' }}</dd></div>
+                <div><dt>Aadhaar</dt><dd>{{ $driver->aadhaar_last4 ? '••••'.$driver->aadhaar_last4 : '—' }}</dd></div>
+                <div><dt>PAN</dt><dd>{{ $driver->pan_last4 ? '••••'.$driver->pan_last4 : '—' }}</dd></div>
+                <div><dt>Licence expiry</dt><dd>{{ $driver->license_expires_at ?: '—' }}</dd></div>
                 <div><dt>Licence</dt><dd>{{ $driver->license_no }}</dd></div>
                 <div><dt>Emergency</dt><dd>{{ $driver->emergency_name ?: '—' }} {{ $driver->emergency_phone }}</dd></div>
             </dl>
@@ -59,7 +63,7 @@
         <section class="card">
             <h2>Vehicle &amp; payout</h2>
             <dl class="dl">
-                <div><dt>Category</dt><dd>{{ $vehicle->category ?? '—' }}</dd></div>
+                <div><dt>Family / category</dt><dd>{{ $driver->vehicle_family ?? '—' }} / {{ $vehicle->category ?? '—' }}</dd></div>
                 <div><dt>Registration</dt><dd>{{ $vehicle->registration_no ?? '—' }}</dd></div>
                 <div><dt>Make / model</dt><dd>{{ trim(($vehicle->brand ?? '').' '.($vehicle->model ?? '')) ?: '—' }}</dd></div>
                 <div><dt>Year / colour</dt><dd>{{ $vehicle->year ?? '—' }} · {{ $vehicle->color ?? '—' }}</dd></div>
@@ -82,6 +86,9 @@
                         <strong>{{ $doc->label() }}</strong>
                         <span class="pill {{ $doc->status === 'verified' ? 'ok' : ($doc->status === 'rejected' ? 'bad' : 'warn') }}">{{ $doc->status }}</span>
                     </div>
+                    @if ($doc->expires_at)
+                        <p class="muted">Expires {{ $doc->expires_at->toDateString() }}</p>
+                    @endif
                     @if ($doc->fileUrl())
                         @if ($doc->isImage())
                             <a href="{{ $doc->fileUrl() }}" target="_blank" rel="noopener">
@@ -91,7 +98,7 @@
                             <a class="btn ghost" href="{{ $doc->fileUrl() }}" target="_blank" rel="noopener">Open file</a>
                         @endif
                     @else
-                        <p class="muted">No Cloudinary preview. File is stored privately.</p>
+                        <p class="muted">No preview available.</p>
                     @endif
                     <p class="muted">{{ $doc->original_name }} · {{ $doc->mime }}</p>
                     @if ($doc->rejection_reason)
@@ -120,12 +127,19 @@
     @can('drivers.approve')
         <section class="card">
             <h2>Update driver status</h2>
-            <p class="muted">{{ $requiredReady ? 'Required files are verified. Approving sends the driver to Home after the app refreshes.' : 'Verify required attachments before approving the application.' }}</p>
+            <p class="muted">{{ $requiredReady ? 'Required files are verified. Approving opens Home in the driver app after refresh.' : 'Review images below. You can still approve the application if the profile is complete enough.' }}</p>
+            @if (isset($expiredDocs) && $expiredDocs->isNotEmpty())
+                <p class="error">Expired: {{ $expiredDocs->map->label()->implode(', ') }}</p>
+            @endif
             <div class="row-actions" style="margin-top:12px">
                 <form method="POST" action="{{ route('drivers.kyc.review', $driver) }}">
                     @csrf
                     <input type="hidden" name="status" value="verified">
-                    <button class="btn" type="submit" @disabled(! $requiredReady)>Approve application</button>
+                    <label class="muted" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                        <input type="checkbox" name="force" value="1" {{ $requiredReady ? '' : 'checked' }}>
+                        Approve anyway
+                    </label>
+                    <button class="btn" type="submit">Approve application</button>
                 </form>
                 <form method="POST" action="{{ route('drivers.kyc.review', $driver) }}" class="filters" style="flex:1">
                     @csrf

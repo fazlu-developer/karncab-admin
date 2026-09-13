@@ -20,7 +20,7 @@
     <div class="kpis">
         @foreach ([
             ['totalUsers', 'Total users', 'users'],
-            ['activeUsers', 'Active users', 'user-check'],
+            ['activeUsers', 'Using KarnaCab now', 'user-check'],
             ['totalDrivers', 'Drivers', 'id-card'],
             ['onlineDrivers', 'Online now', 'radio'],
             ['activeRides', 'Active rides', 'navigation'],
@@ -38,6 +38,33 @@
             </div>
         @endforeach
     </div>
+    <section class="card" style="margin-bottom:18px">
+        <div class="toolbar">
+            <h3 style="margin:0">Customers using KarnaCab now</h3>
+            <span class="muted">Seen in the last 5 minutes</span>
+        </div>
+        <table class="data">
+            <tbody>
+            @forelse ($liveCustomers ?? [] as $row)
+                <tr>
+                    <td>
+                        <div class="person">
+                            <div class="avatar">{{ strtoupper(substr($row['name'] ?? 'C', 0, 1)) }}</div>
+                            <div>
+                                <strong>{{ $row['name'] ?? 'Customer' }}</strong>
+                                <div class="muted">{{ $row['phone'] }} · {{ $row['address'] ?: 'Location pending' }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="pill ok">Live</span></td>
+                    <td class="muted">{{ $row['lastSeenAt'] }}</td>
+                </tr>
+            @empty
+                <tr><td class="muted">No customers are using the app right now.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </section>
     <div class="grid-2">
         <section class="card">
             <div class="toolbar">

@@ -15,7 +15,10 @@ use Illuminate\View\View;
 
 class DriversController extends Controller
 {
-    private const REQUIRED_DOCS = ['LICENSE', 'RC', 'INSURANCE', 'SELFIE', 'ID_PROOF'];
+    private const REQUIRED_DOCS = [
+        'AADHAAR_FRONT', 'AADHAAR_BACK', 'PAN', 'LICENSE_FRONT', 'LICENSE_BACK',
+        'RC', 'INSURANCE', 'SELFIE',
+    ];
 
     public function index(Request $request): View
     {
@@ -161,6 +164,7 @@ class DriversController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(['verified', 'rejected', 'under_review'])],
             'reason' => ['nullable', 'string', 'max:500'],
+            'force' => ['nullable', 'boolean'],
         ]);
         if ($data['status'] === 'verified') {
             abort_unless($request->user()?->can('drivers.approve'), 403);
@@ -168,15 +172,15 @@ class DriversController extends Controller
             $missing = collect(self::REQUIRED_DOCS)->filter(function (string $type) use ($driver) {
                 $doc = $driver->documents->firstWhere('type', $type);
 
-                return ! $doc || $doc->status !== 'verified';
+                return ! $doc || ! in_array($doc->status, ['verified', 'approved'], true);
             });
-            if ($missing->isNotEmpty()) {
+            if ($missing->isNotEmpty() && ! $request->boolean('force')) {
                 return back()->withErrors([
-                    'status' => 'Approve every required file first: '.$missing->implode(', '),
+                    'status' => 'Missing verified files: '.$missing->implode(', ').'. Tick “Approve anyway” if you have reviewed the profile.',
                 ]);
             }
             $driver->update([
-                'kyc_status' => 'verified',
+                'kyc_status' => 'approved',
                 'kyc_rejected_reason' => null,
             ]);
             $driver->user?->update(['status' => 'ACTIVE']);
@@ -231,11 +235,11 @@ class DriversController extends Controller
         $driver->load('documents');
         $byType = $driver->documents->keyBy('type');
         $allVerified = collect(self::REQUIRED_DOCS)->every(
-            fn (string $type) => ($byType[$type]->status ?? null) === 'verified',
+            fn (string $type) => ($byType[$type]->status ?? null) === 'verified' || ($byType[$type]->status ?? null) === 'approved',
         );
         if ($allVerified) {
             $driver->update([
-                'kyc_status' => 'verified',
+                'kyc_status' => 'approved',
                 'kyc_rejected_reason' => null,
             ]);
             $driver->user?->update(['status' => 'ACTIVE']);
@@ -251,7 +255,7 @@ class DriversController extends Controller
 
     private function assertCanSetKyc(Request $request, string $kyc, ?string $previous = null): void
     {
-        if ($kyc === 'verified' && $previous !== 'verified') {
+        if ($kyc === 'verified' || $kyc === 'approved') {
             abort_unless($request->user()?->can('drivers.approve'), 403);
         }
     }
@@ -267,7 +271,7 @@ class DriversController extends Controller
             'phone' => ['nullable', 'string', 'max:20', Rule::unique(PlatformUser::class, 'phone')->ignore($userId)],
             'status' => ['required', Rule::in(['ACTIVE', 'PENDING', 'SUSPENDED'])],
             'license_no' => ['required', 'string', 'max:40'],
-            'kyc_status' => ['required', Rule::in(['pending', 'under_review', 'verified', 'rejected'])],
+            'kyc_status' => ['required', Rule::in(['pending', 'under_review', 'verified', 'approved', 'rejected'])],
             'online' => ['nullable', 'boolean'],
             'password' => [$creating ? 'required' : 'nullable', 'string', 'min:8'],
         ]);

@@ -33,11 +33,25 @@ class PlatformOpsService
         $monthPaise = (int) (clone $completed)->where('created_at', '>=', $startMonth)->sum('quote_paise');
         $earnPaise = (int) $this->q('wallet_ledger')->where('account', 'DRIVER')->where('direction', 'CREDIT')->sum('amount_paise');
         $commissionPaise = (int) $this->q('wallet_ledger')->sum('commission_paise');
+        $liveCustomersQuery = (clone $users)->where('role', 'CUSTOMER');
+        $schema = \Illuminate\Support\Facades\Schema::connection('platform');
+        if ($schema->hasColumn('users', 'last_seen_at')) {
+            $liveCustomersQuery->where('last_seen_at', '>=', now()->subMinutes(5));
+        } else {
+            $liveCustomersQuery->whereRaw('1 = 0');
+        }
+        $liveCount = (clone $liveCustomersQuery)->count();
+        $liveSelect = ['id', 'name', 'phone', 'email', 'last_seen_at'];
+        if ($schema->hasColumn('users', 'last_address')) {
+            $liveSelect[] = 'last_address';
+        }
+        $liveCustomers = (clone $liveCustomersQuery)->orderByDesc('last_seen_at')->limit(20)->get($liveSelect);
 
         return [
             'kpis' => [
                 'totalUsers' => (clone $users)->count(),
-                'activeUsers' => (clone $users)->where('status', 'ACTIVE')->count(),
+                'activeUsers' => $liveCount,
+                'liveCustomers' => $liveCount,
                 'totalDrivers' => (clone $drivers)->count(),
                 'onlineDrivers' => (clone $drivers)->where('online', 1)->count(),
                 'activeRides' => (clone $bookings)->whereIn('status', self::LIVE)->count(),
@@ -60,6 +74,14 @@ class PlatformOpsService
                 'expiringDocuments' => $this->q('driver_documents')->whereNotNull('expires_at')->where('expires_at', '<=', $expiry)->count(),
                 'activeAdvertisements' => $this->q('ad_campaigns')->where('status', 'published')->where('starts_on', '<=', now())->where('ends_on', '>=', now())->count(),
             ],
+            'liveCustomers' => $liveCustomers->map(fn ($row) => [
+                'id' => $row->id,
+                'name' => $row->name,
+                'phone' => $row->phone,
+                'email' => $row->email,
+                'lastSeenAt' => $row->last_seen_at,
+                'address' => $row->last_address ?? null,
+            ])->all(),
         ];
     }
 
@@ -193,7 +215,20 @@ class PlatformOpsService
                 'body' => $row->body,
                 'kind' => $row->kind,
             ])],
-            'fare' => ['fareRules' => $this->q('fare_rules')->orderBy('id')->limit(500)->get()->toArray()],
+            'fare' => ['fareRules' => $this->map($this->q('fare_rules')->orderBy('product')->orderBy('category')->limit(500)->get(), fn ($row) => [
+                'id' => (string) $row->id,
+                'districtId' => $row->district_id,
+                'product' => $row->product,
+                'category' => $row->category,
+                'minKm' => $row->min_km,
+                'includedKm' => $row->included_km,
+                'perKmRupees' => ((int) $row->per_km_paise) / 100,
+                'extraKmRupees' => ((int) $row->extra_km_paise) / 100,
+                'waitingPerMinRupees' => ((int) $row->waiting_paise_per_min) / 100,
+                'nightPercent' => $row->night_percent,
+                'gstPercent' => $row->gst_percent,
+                'active' => (bool) $row->active,
+            ])],
             'locations' => ['states' => $this->listLocations()],
             'roles' => [
                 'roles' => collect(OperatorRole::all())->map(fn ($role) => [
@@ -583,7 +618,10 @@ class PlatformOpsService
         return $this->map($states, fn ($state) => [
             'id' => $state->id,
             'name' => $state->name,
-            'districts' => $this->q('districts')->where('state_id', $state->id)->orderBy('name')->get(['id', 'name'])->toArray(),
+            'districts' => $this->q('districts')->where('state_id', $state->id)->orderBy('name')->get(['id', 'name'])->map(fn ($row) => [
+                'id' => $row->id,
+                'name' => $row->name,
+            ])->values()->all(),
         ]);
     }
 

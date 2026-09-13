@@ -23,8 +23,11 @@ class DashboardController extends Controller
         }
         $error = null;
         $kpis = [];
+        $liveCustomers = [];
         try {
-            $kpis = $ops->dashboard($request->user())['kpis'] ?? [];
+            $dash = $ops->dashboard($request->user());
+            $kpis = $dash['kpis'] ?? [];
+            $liveCustomers = $dash['liveCustomers'] ?? [];
         } catch (Throwable $exception) {
             $error = $exception->getMessage();
         }
@@ -32,6 +35,7 @@ class DashboardController extends Controller
         return view('dashboard', [
             'kpis' => $kpis,
             'error' => $error,
+            'liveCustomers' => $liveCustomers,
             'recentUsers' => tap(PlatformUser::query()->orderByDesc('id'), fn ($q) => \App\Platform\TerritoryScope::applyUsers($q, $request->user()))->limit(6)->get(),
             'recentDrivers' => tap(PlatformDriver::query()->with('user')->orderByDesc('id'), fn ($q) => \App\Platform\TerritoryScope::applyDrivers($q, $request->user()))->limit(6)->get(),
         ]);

@@ -35,9 +35,7 @@ return [
         ],
     ],
 
-    'cloudinary' => [
-        'cloud' => env('CLOUDINARY_CLOUD_NAME', 'fjq1hs8g'),
-        'url' => env('CLOUDINARY_URL'),
-    ],
+    'api' => env('API_URL', env('NEST_API_URL', 'http://127.0.0.1:8003/api/v1')),
+    'api_public' => env('API_PUBLIC_URL', 'https://api.karnacab.in'),
 
 ];

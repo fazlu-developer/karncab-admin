@@ -1,7 +1,7 @@
 <?php
 
 return [
-    // Management console talks to MySQL platform tables. Flutter apps still use Nest.
+    // Admin reads platform MySQL. Flutter apps and website call the Laravel API.
     'google_maps_key' => env('GOOGLE_MAPS_API_KEY', env('GOOGLE_MAPS_API')),
     'website_booking_secret' => env('WEBSITE_BOOKING_SECRET', 'karnacab-dev-website'),
     'firebase_database_url' => env('FIREBASE_DATABASE_URL'),

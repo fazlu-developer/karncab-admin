@@ -38,7 +38,8 @@ final class OpsNav
             ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Operations', 'ability' => 'reports.view', 'route' => 'reports.index'],
             ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'notifications.index'],
-            ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage'],
+            ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
+            ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ride-settings.index'],
             ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'platform.admin'],
             ['key' => 'locations', 'label' => 'Locations', 'icon' => 'globe', 'group' => 'System', 'ability' => 'platform.admin'],
             ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin'],
@@ -115,6 +116,12 @@ final class OpsNav
         }
         if (($item['key'] ?? '') === 'notifications') {
             return request()->routeIs('notifications.*');
+        }
+        if (($item['key'] ?? '') === 'fare') {
+            return request()->routeIs('fare.*');
+        }
+        if (($item['key'] ?? '') === 'ride-settings') {
+            return request()->routeIs('ride-settings.*');
         }
         if (($item['key'] ?? '') === 'reports') {
             return request()->routeIs('reports.*');
