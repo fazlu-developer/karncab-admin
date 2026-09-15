@@ -3,6 +3,7 @@
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
 
     RewriteRule ^\.env - [F,L]
     RewriteRule ^\.env\.production - [F,L]
