@@ -36,6 +36,8 @@
                     <tr>
                         <th>Person</th>
                         <th>Role</th>
+                        <th>State</th>
+                        <th>District</th>
                         <th>Status</th>
                         <th>Phone</th>
                         <th></th>
@@ -54,6 +56,8 @@
                             </div>
                         </td>
                         <td><span class="pill muted"><i data-lucide="shield"></i> {{ $row->role }}</span></td>
+                        <td>{{ $row->state_name ?: '—' }}</td>
+                        <td>{{ $row->district_name ?: '—' }}</td>
                         <td>
                             <span class="pill {{ $row->status === 'ACTIVE' ? 'ok' : ($row->status === 'PENDING' ? 'warn' : 'bad') }}">{{ $row->status }}</span>
                         </td>
@@ -72,7 +76,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="muted">No users match those filters.</td></tr>
+                    <tr><td colspan="7" class="muted">No users match those filters.</td></tr>
                 @endforelse
                 </tbody>
             </table>

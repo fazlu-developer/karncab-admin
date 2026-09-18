@@ -52,7 +52,7 @@ class ExclusiveDistrictFranchiseTest extends TestCase
         $this->actingAs($admin)
             ->patchJson("/api/v1/franchises/{$second}/lifecycle", ['status' => 'ACTIVE'])
             ->assertStatus(409)
-            ->assertSee('already has an active District Head', false);
+            ->assertSee('An active franchise already exists for this district.', false);
 
         $this->assertSame('10', DB::connection('platform')->table('franchises')->where('id', $first)->value('active_district_key'));
         $this->assertNull(DB::connection('platform')->table('franchises')->where('id', $second)->value('active_district_key'));

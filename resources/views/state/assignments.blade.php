@@ -18,16 +18,19 @@
                 <tr>
                     <td>{{ $operator->name }}</td>
                     <td>{{ $operator->email }}</td>
-                    <td>{{ $operator->state_id ?: '—' }}</td>
+                    <td>{{ optional($states->firstWhere('id', $operator->state_id))->name ?: '—' }}</td>
                     <td>
                         <form method="POST" action="{{ route('state.assignments.update', $operator) }}" class="filters">
                             @csrf @method('PUT')
                             <select name="state_id" required>
                                 <option value="">Select state</option>
                                 @foreach ($states as $state)
-                                    <option value="{{ $state->id }}" @selected((int) $operator->state_id === (int) $state->id)>{{ $state->name }}</option>
+                                    <option value="{{ $state->id }}" @selected((int) $operator->state_id === (int) $state->id)>
+                                        {{ $state->name }}{{ !empty($occupied[$state->id]) && (int) $operator->state_id !== (int) $state->id ? ' (active: '.$occupied[$state->id].')' : '' }}
+                                    </option>
                                 @endforeach
                             </select>
+                            <label style="white-space:nowrap"><input type="checkbox" name="transfer" value="1"> Transfer (disable current head)</label>
                             <button class="btn" type="submit">Assign</button>
                         </form>
                     </td>

@@ -171,6 +171,62 @@ class ManagementConsoleTest extends TestCase
             ->assertOk()
             ->assertSee('Amit')
             ->assertSee('BR-01-2026');
+
+        $driverId = (int) DB::connection('platform')->table('drivers')->where('license_no', 'BR-01-2026')->value('id');
+        $this->actingAs($admin)
+            ->get('/drivers/'.$driverId)
+            ->assertOk()
+            ->assertSee('Onboarding information')
+            ->assertSee('Attachments')
+            ->assertSee('Upload attachment')
+            ->assertDontSee('State ID');
+    }
+
+    public function test_admin_vehicles_page_lists_bike_auto_car(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        $this->actingAs($admin)
+            ->get('/vehicles')
+            ->assertOk()
+            ->assertSee('Bike')
+            ->assertSee('Auto')
+            ->assertSee('Car');
+        $this->actingAs($admin)
+            ->get('/ops/vehicles')
+            ->assertRedirect('/vehicles');
+    }
+
+    public function test_state_head_list_shows_state_and_district_names(): void
+    {
+        $stateId = DB::connection('platform')->table('states')->insertGetId(['name' => 'Bihar']);
+        $districtId = DB::connection('platform')->table('districts')->insertGetId([
+            'state_id' => $stateId,
+            'name' => 'Patna',
+            'status' => 'ACTIVE',
+        ]);
+        DB::connection('platform')->table('users')->insert([
+            'role' => 'STATE_HEAD',
+            'status' => 'ACTIVE',
+            'name' => 'Bihar State Head',
+            'email' => 'statehead@karnacab.local',
+            'phone' => '9100000099',
+            'password_hash' => 'x',
+            'state_id' => $stateId,
+            'district_id' => $districtId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+
+        $this->actingAs($admin)
+            ->get('/ops/state-heads')
+            ->assertOk()
+            ->assertSee('Bihar State Head')
+            ->assertSee('Bihar')
+            ->assertSee('Patna')
+            ->assertDontSee('State Id')
+            ->assertDontSee('District Id');
     }
 
     public function test_api_v1_dashboard_uses_the_same_laravel_controller(): void

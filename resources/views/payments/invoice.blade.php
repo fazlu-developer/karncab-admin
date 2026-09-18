@@ -19,6 +19,30 @@
     </section>
     <section class="card">
         <h2>Linked payments</h2>
-        <pre class="muted" style="white-space:pre-wrap;font-size:12px">{{ json_encode($invoice['payments'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+        @php $payments = $invoice['payments'] ?? []; @endphp
+        @if (empty($payments))
+            <p class="muted">No linked payments.</p>
+        @else
+            <div class="table-wrap">
+                <table class="data">
+                    <thead>
+                        <tr>
+                            @foreach (array_keys($payments[0] ?? ['id' => '', 'status' => '']) as $col)
+                                <th>{{ $col }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($payments as $row)
+                            <tr>
+                                @foreach ($row as $value)
+                                    <td>{{ is_array($value) ? implode(', ', $value) : $value }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 @endsection

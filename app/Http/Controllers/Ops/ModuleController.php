@@ -30,10 +30,26 @@ class ModuleController extends Controller
         if (in_array($module, ['fleet', 'vehicles'], true) && $request->user()?->isFleetOwner()) {
             return redirect()->route($module === 'vehicles' ? 'fleet.vehicles' : 'fleet.dashboard');
         }
-        if ($module === 'map') {
+        if ($module === 'vehicles') {
             abort_unless($request->user()?->can('vehicles.view'), 403);
 
+            return redirect()->route('vehicles.index', $request->query());
+        }
+        if ($module === 'trips') {
+            abort_unless($request->user()?->can('bookings.view'), 403);
+
+            return redirect()->route('ops.module', 'bookings');
+        }
+        if ($module === 'map') {
+            abort_unless($request->user()?->can('vehicles.view') || $request->user()?->can('tracking.view'), 403);
+
             return redirect()->route('live.map');
+        }
+        if ($module === 'assignments' || $module === 'driver-leave') {
+            abort_unless($request->user()?->can('fleet.view'), 403);
+            if ($request->user()?->isFleetOwner()) {
+                return redirect()->route($module === 'driver-leave' ? 'fleet.drivers' : 'fleet.vehicles');
+            }
         }
         if ($module === 'wallets') {
             abort_unless($request->user()?->can('wallet.view'), 403);
@@ -157,12 +173,80 @@ class ModuleController extends Controller
     private function rows(array $payload): array
     {
         foreach ($payload as $value) {
-            if (is_array($value) && $value !== [] && array_is_list($value) && is_array($value[0] ?? null)) {
-                return $value;
+            if (is_array($value) && array_is_list($value)) {
+                return array_map(fn ($row) => is_array($row) ? $this->flattenRow($row) : ['value' => $row], $value);
             }
         }
 
-        return [];
+        $kv = [];
+        foreach ($payload as $key => $value) {
+            if (is_array($value)) {
+                continue;
+            }
+            $kv[] = ['Field' => $this->label($key), 'Value' => $this->cell($value)];
+        }
+
+        return $kv;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function flattenRow(array $row): array
+    {
+        $out = [];
+        foreach ($row as $key => $value) {
+            if (in_array($key, ['stateId', 'districtId'], true)) {
+                continue;
+            }
+            $out[$this->label((string) $key)] = $this->cell($value);
+        }
+
+        return $out;
+    }
+
+    private function label(string $key): string
+    {
+        $spaced = preg_replace('/([a-z])([A-Z])/', '$1 $2', str_replace('_', ' ', $key)) ?? $key;
+
+        return ucwords($spaced);
+    }
+
+    private function cell(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '—';
+        }
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+        if (! is_array($value)) {
+            return (string) $value;
+        }
+        if ($value === []) {
+            return '—';
+        }
+        if (array_is_list($value)) {
+            $parts = [];
+            foreach ($value as $item) {
+                if (! is_array($item)) {
+                    $parts[] = (string) $item;
+                    continue;
+                }
+                $parts[] = (string) ($item['name'] ?? $item['title'] ?? $item['label'] ?? $item['key'] ?? reset($item) ?: '');
+            }
+
+            return implode(', ', array_filter($parts, fn ($part) => $part !== ''));
+        }
+        $parts = [];
+        foreach ($value as $k => $v) {
+            if (is_scalar($v) || $v === null) {
+                $parts[] = $this->label((string) $k).': '.$this->cell($v);
+            }
+        }
+
+        return $parts === [] ? '—' : implode(' · ', $parts);
     }
 
     /**

@@ -50,6 +50,10 @@
                 <input name="password" type="password" {{ $user->exists ? '' : 'required' }}>
                 @error('password') <div class="error">{{ $message }}</div> @enderror
             </div>
+            @include('partials.geo-fields', [
+                'stateValue' => (string) old('state_id', $user->state_id),
+                'districtValue' => (string) old('district_id', $user->district_id),
+            ])
             <button class="btn" type="submit"><i data-lucide="save"></i> Save</button>
         </form>
     </section>

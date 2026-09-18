@@ -22,7 +22,7 @@
                             ? \App\Platform\CustomerNav::grouped()
                             : \App\Platform\OpsNav::grouped($user))));
         @endphp
-        <a class="logo" href="{{ route($user->homeRoute()) }}"><i data-lucide="car"></i> Karna<span>Cab</span></a>
+        <a class="logo" href="{{ route($user->homeRoute()) }}"><i data-lucide="car"></i> <span class="logo-name">Karna<span>Cab</span></span></a>
         @foreach ($navGroups as $group => $items)
             <div class="group">{{ $group }}</div>
             @foreach ($items as $item)
@@ -78,6 +78,8 @@
 </div>
 <script src="https://unpkg.com/lucide@0.469.0"></script>
 <script>window.lucide && lucide.createIcons();</script>
+<script>window.KarnaCabGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
+<script src="{{ asset('js/geo-select.js') }}"></script>
 @livewireScripts
 @stack('scripts')
 </body>

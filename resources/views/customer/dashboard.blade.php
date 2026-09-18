@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Karna Cab')
+@section('title', 'My KarnaCab')
 @section('heading', 'Customer')
 
 @section('content')

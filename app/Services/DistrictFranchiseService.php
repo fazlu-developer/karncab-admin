@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Hash;
 
 class DistrictFranchiseService
 {
-    public const CONFLICT = 'This district already has an active District Head or exclusive franchise.';
+    public const CONFLICT = 'An active franchise already exists for this district.';
 
     /**
      * @param  array<string, mixed>  $query

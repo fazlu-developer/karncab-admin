@@ -15,7 +15,7 @@ class RideSettingsController extends Controller
         $db = DB::connection('platform');
         $radius = $db->table('system_settings')->where('key', 'driver_search_radius_km')->value('value')
             ?? $db->table('system_settings')->where('key', 'driver_offer_radius_km')->value('value')
-            ?? '10';
+            ?? '20';
         $timeout = $db->table('system_settings')->where('key', 'ride_request_timeout_seconds')->value('value') ?? '30';
 
         return view('ride-settings.index', [

@@ -14,7 +14,7 @@ class LiveMapController extends Controller
     public function show(Request $request): View
     {
         abort_unless(LiveFleetMapAccess::canUseMap($request->user()), 403);
-        abort_unless($request->user()?->can('vehicles.view'), 403);
+        abort_unless($request->user()?->can('vehicles.view') || $request->user()?->can('tracking.view'), 403);
 
         return view('live.map', [
             'snapshot' => $this->map->snapshot($request->user(), $request->query('status')),

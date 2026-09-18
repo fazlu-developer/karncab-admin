@@ -49,24 +49,14 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label>Target state</label>
-                        <select name="state_id">
-                            <option value="">All states</option>
-                            @foreach ($states as $state)
-                                <option value="{{ $state->id }}" @selected(($campaign['targetState']['id'] ?? null) == $state->id)>{{ $state->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>Target district</label>
-                        <select name="district_id">
-                            <option value="">All districts</option>
-                            @foreach ($districts as $district)
-                                <option value="{{ $district->id }}" @selected(($campaign['targetDistrict']['id'] ?? null) == $district->id)>{{ $district->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @include('partials.geo-fields', [
+                        'stateLabel' => 'Target state',
+                        'districtLabel' => 'Target district',
+                        'emptyState' => 'All states',
+                        'emptyDistrict' => 'All districts',
+                        'stateValue' => (string) ($campaign['targetState']['id'] ?? ''),
+                        'districtValue' => (string) ($campaign['targetDistrict']['id'] ?? ''),
+                    ])
                     <div><label>Target city</label><input name="target_city" value="{{ $campaign['targetCity'] }}"></div>
                     <div><label>Start date</label><input name="starts_on" type="date" value="{{ $campaign['startDate'] }}"></div>
                     <div><label>End date</label><input name="ends_on" type="date" value="{{ $campaign['endDate'] }}"></div>

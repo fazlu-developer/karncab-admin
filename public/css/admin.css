@@ -52,7 +52,8 @@ a { color: var(--forest-2); }
   overflow: auto;
 }
 .side .logo { display: flex; gap: 10px; align-items: center; padding: 8px 22px 22px; color: #fff; text-decoration: none; font-weight: 700; }
-.side .logo span { color: var(--amber); }
+.side .logo-name { white-space: nowrap; }
+.side .logo-name span { color: var(--amber); }
 .side .group { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #7d9a8e; padding: 18px 22px 8px; }
 .side a.nav {
   display: flex; align-items: center; gap: 10px;

@@ -9,8 +9,10 @@ final class LiveFleetMapAccess
     public const ROLES = [
         OperatorRole::ADMIN,
         OperatorRole::SUPER_ADMIN,
+        OperatorRole::MANAGER,
         OperatorRole::STATE_HEAD,
         OperatorRole::DISTRICT_HEAD,
+        OperatorRole::FRANCHISE,
         OperatorRole::FLEET_OWNER,
     ];
 
@@ -34,7 +36,7 @@ final class LiveFleetMapAccess
 
     public static function canUseMap(User $user): bool
     {
-        return in_array($user->role, self::ROLES, true);
+        return in_array($user->role, self::ROLES, true) && $user->can('vehicles.view');
     }
 
     /**

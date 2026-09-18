@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="radar"></i> Driver Search Radius</h1>
-            <p class="muted">Customer booking search uses this global radius. Apps do not hardcode the distance. Typical values: 5, 10, 15 or 20 km.</p>
+            <p class="muted">Customer booking search uses this global radius. Apps do not hardcode the distance. Default is 20 km.</p>
         </div>
     </div>
 

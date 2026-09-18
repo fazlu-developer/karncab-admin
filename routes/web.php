@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriversController;
+use App\Http\Controllers\VehiclesController;
 use App\Http\Controllers\Fleet\FleetWorkspaceController;
 use App\Http\Controllers\FranchisesController;
 use App\Http\Controllers\LiveMapController;
@@ -15,6 +16,9 @@ use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\State\StateAssignmentController;
 use App\Http\Controllers\State\StateWorkspaceController;
+use App\Http\Controllers\ManagersController;
+use App\Http\Controllers\FleetOwnersController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\CustomerWorkspaceController;
 use App\Http\Controllers\CouponsController;
@@ -88,9 +92,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/fleet/reports', [FleetWorkspaceController::class, 'reports'])->name('fleet.reports');
 
     Route::resource('users', UsersController::class)->parameters(['users' => 'platformUser']);
+    Route::get('/organization/states', [OrganizationController::class, 'states'])->name('organization.states');
+    Route::get('/organization/districts', [OrganizationController::class, 'districts'])->name('organization.districts');
+    Route::resource('managers', ManagersController::class)->except(['show', 'destroy']);
+    Route::get('/fleet-owners', [FleetOwnersController::class, 'index'])->name('fleet-owners.index');
+    Route::get('/fleet-owners/create', [FleetOwnersController::class, 'create'])->name('fleet-owners.create');
+    Route::post('/fleet-owners', [FleetOwnersController::class, 'store'])->name('fleet-owners.store');
     Route::resource('drivers', DriversController::class);
+    Route::post('/drivers/{driver}/onboarding', [DriversController::class, 'updateOnboarding'])->name('drivers.onboarding');
+    Route::post('/drivers/{driver}/documents', [DriversController::class, 'storeDocument'])->name('drivers.documents.store');
+    Route::get('/drivers/{driver}/documents/{document}/file', [DriversController::class, 'documentFile'])->name('drivers.documents.file');
     Route::post('/drivers/{driver}/documents/{document}', [DriversController::class, 'reviewDocument'])->name('drivers.documents.review');
     Route::post('/drivers/{driver}/kyc', [DriversController::class, 'reviewApplication'])->name('drivers.kyc.review');
+
+    Route::get('/vehicles', [VehiclesController::class, 'index'])->name('vehicles.index');
+    Route::post('/vehicles', [VehiclesController::class, 'store'])->name('vehicles.store');
 
     Route::get('/coupons', [CouponsController::class, 'index'])->name('coupons.index');
     Route::post('/coupons', [CouponsController::class, 'store'])->name('coupons.store');

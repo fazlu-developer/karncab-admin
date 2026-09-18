@@ -53,10 +53,58 @@
 
     <section class="card">
         <h2>Events</h2>
-        <pre class="muted" style="white-space:pre-wrap;font-size:12px">{{ json_encode($payment['events'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+        @php $events = $payment['events'] ?? []; @endphp
+        @if (empty($events))
+            <p class="muted">No payment events yet.</p>
+        @else
+            <div class="table-wrap">
+                <table class="data">
+                    <thead>
+                        <tr>
+                            @foreach (array_keys($events[0] ?? ['event' => '', 'at' => '']) as $col)
+                                <th>{{ $col }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($events as $row)
+                            <tr>
+                                @foreach ($row as $value)
+                                    <td>{{ is_array($value) ? implode(', ', $value) : $value }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
     <section class="card">
         <h2>Refunds</h2>
-        <pre class="muted" style="white-space:pre-wrap;font-size:12px">{{ json_encode($payment['refunds'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+        @php $refunds = $payment['refunds'] ?? []; @endphp
+        @if (empty($refunds))
+            <p class="muted">No refunds.</p>
+        @else
+            <div class="table-wrap">
+                <table class="data">
+                    <thead>
+                        <tr>
+                            @foreach (array_keys($refunds[0] ?? ['id' => '', 'status' => '']) as $col)
+                                <th>{{ $col }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($refunds as $row)
+                            <tr>
+                                @foreach ($row as $value)
+                                    <td>{{ is_array($value) ? implode(', ', $value) : $value }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </section>
 @endsection

@@ -50,6 +50,17 @@ final class PlatformPermission
             'notifications.send',
             'state.operate',
             'platform.admin',
+            'dashboard.view',
+            'state.view', 'state.create', 'state.update',
+            'district.view', 'district.create', 'district.update',
+            'state_head.view', 'state_head.create', 'state_head.update',
+            'fleet_owner.view', 'fleet_owner.create', 'fleet_owner.update',
+            'vehicle.create', 'vehicle.update',
+            'driver.view', 'driver.create', 'driver.update',
+            'tracking.view',
+            'kyc.view', 'kyc.approve',
+            'commission.view',
+            'manager.view', 'manager.manage',
         ];
     }
 
@@ -80,6 +91,7 @@ final class PlatformPermission
 
         return match ($role) {
             OperatorRole::ADMIN, OperatorRole::SUPER_ADMIN => $all,
+            OperatorRole::MANAGER => ['dashboard.view'],
             OperatorRole::STATE_HEAD => $territoryOps,
             OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE => array_values(array_filter(
                 $territoryOps,
@@ -148,6 +160,24 @@ final class PlatformPermission
     public static function expand(string $ability): array
     {
         return match ($ability) {
+            'dashboard.view' => ['users.view', 'reports.view'],
+            'state.view' => ['state.operate'],
+            'state.create', 'state.update' => ['platform.admin'],
+            'district.view' => ['users.view', 'state.operate'],
+            'district.create', 'district.update' => ['platform.admin', 'state.operate'],
+            'state_head.view' => ['users.view'],
+            'state_head.create', 'state_head.update' => ['users.create', 'users.edit', 'platform.admin'],
+            'fleet_owner.view' => ['fleet.view'],
+            'fleet_owner.create', 'fleet_owner.update' => ['fleet.manage'],
+            'driver.view' => ['drivers.view'],
+            'driver.create' => ['drivers.create'],
+            'driver.update' => ['drivers.edit'],
+            'vehicle.view' => ['vehicles.view'],
+            'vehicle.create', 'vehicle.update' => ['vehicles.edit'],
+            'tracking.view' => ['vehicles.view'],
+            'kyc.view' => ['drivers.view'],
+            'kyc.approve' => ['drivers.approve'],
+            'commission.view' => ['payments.view'],
             'users.read' => ['users.view'],
             'users.write' => ['users.create', 'users.edit'],
             'customers.read' => ['customers.view'],

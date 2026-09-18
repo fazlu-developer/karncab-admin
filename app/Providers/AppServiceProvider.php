@@ -4,10 +4,12 @@ namespace App\Providers;
 
 use App\Events\OperatorRegistered;
 use App\Listeners\HandleOperatorRegistered;
-use App\Platform\PlatformPermission;
+use App\Models\User;
+use App\Platform\GeoCatalog;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,14 +28,19 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(OperatorRegistered::class, HandleOperatorRegistered::class);
 
         Gate::before(function ($user, string $ability) {
-            if (! is_object($user) || ! isset($user->role)) {
+            if (! $user instanceof User) {
                 return null;
             }
-            if (PlatformPermission::allows((string) $user->role, $ability)) {
+            if ($user->hasPlatformAbility($ability)) {
                 return true;
             }
 
             return null;
+        });
+
+        View::composer('*', function ($view) {
+            $user = auth()->user();
+            $view->with('kcGeo', GeoCatalog::payload($user instanceof User ? $user : null));
         });
     }
 }

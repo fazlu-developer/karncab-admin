@@ -10,33 +10,39 @@ final class OpsNav
     public static function items(): array
     {
         return [
-            ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'group' => 'Overview', 'ability' => null, 'route' => 'dashboard'],
-            ['key' => 'state-workspace', 'label' => 'State workspace', 'icon' => 'landmark', 'group' => 'Overview', 'ability' => 'state.operate', 'route' => 'state.dashboard'],
-            ['key' => 'state-assignments', 'label' => 'State assignment', 'icon' => 'map', 'group' => 'Overview', 'ability' => 'platform.admin', 'route' => 'state.assignments'],
+            ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'group' => 'Dashboard', 'ability' => null, 'route' => 'dashboard'],
+            ['key' => 'state-workspace', 'label' => 'State workspace', 'icon' => 'landmark', 'group' => 'Dashboard', 'ability' => 'state.operate', 'route' => 'state.dashboard'],
+            ['key' => 'states', 'label' => 'States', 'icon' => 'globe', 'group' => 'Organization', 'ability' => 'state.view', 'route' => 'organization.states'],
+            ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
+            ['key' => 'state-assignments', 'label' => 'State Heads', 'icon' => 'map', 'group' => 'Organization', 'ability' => 'state_head.view', 'route' => 'state.assignments'],
+            ['key' => 'managers', 'label' => 'Managers', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'manager.view', 'route' => 'managers.index'],
+            ['key' => 'franchise', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Organization', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
+            ['key' => 'state-heads', 'label' => 'State Head users', 'icon' => 'landmark', 'group' => 'Organization', 'ability' => 'users.view'],
+            ['key' => 'district-heads', 'label' => 'District Heads', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'users.view'],
+            ['key' => 'fleet', 'label' => 'Fleet Owners / Operators', 'icon' => 'warehouse', 'group' => 'Fleet Management', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
+            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet Management', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
+            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet Management', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
+            ['key' => 'assignments', 'label' => 'Assignments', 'icon' => 'link', 'group' => 'Fleet Management', 'ability' => 'fleet.view'],
+            ['key' => 'driver-leave', 'label' => 'Driver Leave', 'icon' => 'calendar-off', 'group' => 'Fleet Management', 'ability' => 'fleet.view'],
             ['key' => 'users', 'label' => 'Users', 'icon' => 'users', 'group' => 'People', 'ability' => 'users.view', 'route' => 'users.index'],
-            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'People', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
-            ['key' => 'fleet', 'label' => 'Fleet Owners', 'icon' => 'warehouse', 'group' => 'People', 'ability' => 'fleet.view'],
-            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'People', 'ability' => 'vehicles.view'],
-            ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Rides', 'ability' => 'bookings.view'],
-            ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Rides', 'ability' => 'parcels.view'],
-            ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Rides', 'ability' => 'travel.view'],
-            ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Rides', 'ability' => 'travel.view'],
-            ['key' => 'bulk', 'label' => 'Bulk Booking', 'icon' => 'layers', 'group' => 'Rides', 'ability' => 'bookings.view'],
+            ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
+            ['key' => 'trips', 'label' => 'Trips', 'icon' => 'navigation', 'group' => 'Operations', 'ability' => 'bookings.view'],
+            ['key' => 'map', 'label' => 'Live Tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
+            ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.view'],
+            ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view'],
+            ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view'],
+            ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
             ['key' => 'corporate', 'label' => 'Corporate', 'icon' => 'building-2', 'group' => 'Partners', 'ability' => 'corporate.view'],
-            ['key' => 'state-heads', 'label' => 'State Heads', 'icon' => 'landmark', 'group' => 'Partners', 'ability' => 'users.view'],
-            ['key' => 'district-heads', 'label' => 'District Heads', 'icon' => 'map-pinned', 'group' => 'Partners', 'ability' => 'users.view'],
-            ['key' => 'franchise', 'label' => 'Franchise', 'icon' => 'store', 'group' => 'Partners', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
-            ['key' => 'kyc', 'label' => 'KYC', 'icon' => 'badge-check', 'group' => 'Trust', 'ability' => 'drivers.view'],
+            ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC & Documents', 'ability' => 'kyc.view'],
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'wallets.commission'],
+            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
             ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Finance', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
             ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Growth', 'ability' => 'advertising.view', 'route' => 'ads.index'],
-            ['key' => 'map', 'label' => 'Live Map', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'vehicles.view', 'route' => 'live.map'],
             ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
             ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.index'],
             ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'bookings.view'],
-            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Operations', 'ability' => 'reports.view', 'route' => 'reports.index'],
+            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Reports', 'ability' => 'reports.view', 'route' => 'reports.index'],
             ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'notifications.index'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
             ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ride-settings.index'],
@@ -79,11 +85,26 @@ final class OpsNav
         if (($item['route'] ?? '') === 'state.assignments') {
             return request()->routeIs('state.assignments*');
         }
+        if (($item['key'] ?? '') === 'managers') {
+            return request()->routeIs('managers.*');
+        }
+        if (($item['key'] ?? '') === 'states') {
+            return request()->routeIs('organization.states');
+        }
+        if (($item['key'] ?? '') === 'districts') {
+            return request()->routeIs('organization.districts');
+        }
+        if (($item['key'] ?? '') === 'fleet') {
+            return request()->routeIs('fleet-owners.*') || request()->route('module') === 'fleet';
+        }
         if (($item['key'] ?? '') === 'users') {
             return request()->routeIs('users.*');
         }
         if (($item['key'] ?? '') === 'drivers') {
             return request()->routeIs('drivers.*');
+        }
+        if (($item['key'] ?? '') === 'vehicles') {
+            return request()->routeIs('vehicles.*');
         }
 
         if (($item['key'] ?? '') === 'franchise') {

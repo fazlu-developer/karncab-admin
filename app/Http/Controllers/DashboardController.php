@@ -25,19 +25,31 @@ class DashboardController extends Controller
         $kpis = [];
         $liveCustomers = [];
         try {
-            $dash = $ops->dashboard($request->user());
+            $dash = $ops->dashboard($request->user(), $request->integer('stateId') ?: null, $request->integer('districtId') ?: null);
             $kpis = $dash['kpis'] ?? [];
             $liveCustomers = $dash['liveCustomers'] ?? [];
         } catch (Throwable $exception) {
             $error = $exception->getMessage();
         }
 
+        $states = collect();
+        try {
+            $states = \Illuminate\Support\Facades\DB::connection('platform')->table('states')->orderBy('name')->get();
+        } catch (Throwable) {
+            $states = collect();
+        }
+
         return view('dashboard', [
             'kpis' => $kpis,
             'error' => $error,
             'liveCustomers' => $liveCustomers,
-            'recentUsers' => tap(PlatformUser::query()->orderByDesc('id'), fn ($q) => \App\Platform\TerritoryScope::applyUsers($q, $request->user()))->limit(6)->get(),
+            'recentUsers' => tap(PlatformUser::query()->orderByDesc('id'), function ($q) use ($request) {
+                \App\Platform\TerritoryScope::applyUsers($q, $request->user());
+                \App\Platform\TerritoryScope::applyAdminGeo($q, $request->user(), $request->integer('stateId') ?: null, $request->integer('districtId') ?: null);
+            })->limit(6)->get(),
             'recentDrivers' => tap(PlatformDriver::query()->with('user')->orderByDesc('id'), fn ($q) => \App\Platform\TerritoryScope::applyDrivers($q, $request->user()))->limit(6)->get(),
+            'states' => $states,
+            'selectedStateId' => $request->integer('stateId') ?: null,
         ]);
     }
 

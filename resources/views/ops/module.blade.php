@@ -27,8 +27,14 @@
                 <div><label>Booking type</label><input name="product" value="{{ $query['product'] ?? '' }}" placeholder="ONE_WAY"></div>
                 <div><label>Status</label><input name="status" value="{{ $query['status'] ?? '' }}"></div>
                 <div><label>Payment status</label><input name="paymentStatus" value="{{ $query['paymentStatus'] ?? '' }}"></div>
-                <div><label>State ID</label><input name="stateId" value="{{ $query['stateId'] ?? '' }}"></div>
-                <div><label>District ID</label><input name="districtId" value="{{ $query['districtId'] ?? '' }}"></div>
+                @include('partials.geo-fields', [
+                    'stateName' => 'stateId',
+                    'districtName' => 'districtId',
+                    'stateValue' => (string) ($query['stateId'] ?? ''),
+                    'districtValue' => (string) ($query['districtId'] ?? ''),
+                    'emptyState' => 'All states',
+                    'emptyDistrict' => 'All districts',
+                ])
                 <div><label>Fleet ID</label><input name="fleetId" value="{{ $query['fleetId'] ?? '' }}"></div>
                 <div><label>Franchise ID</label><input name="franchiseId" value="{{ $query['franchiseId'] ?? '' }}"></div>
                 <div><label>From</label><input type="date" name="from" value="{{ $query['from'] ?? '' }}"></div>
@@ -60,16 +66,14 @@
 
     <section class="card">
         @if ($rows === [])
-            <pre class="muted" style="white-space:pre-wrap;font-size:12px">{{ json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+            <p class="muted">No records in this module yet.</p>
         @else
             <div class="table-wrap">
                 <table class="data">
                     <thead>
                         <tr>
                             @foreach (array_keys($rows[0]) as $col)
-                                @if (!is_array($rows[0][$col]))
-                                    <th>{{ $col }}</th>
-                                @endif
+                                <th>{{ $col }}</th>
                             @endforeach
                             <th></th>
                         </tr>
@@ -77,14 +81,12 @@
                     <tbody>
                         @foreach ($rows as $row)
                             <tr>
-                                @foreach ($row as $col => $value)
-                                    @if (!is_array($value))
-                                        <td>{{ is_bool($value) ? ($value ? 'yes' : 'no') : $value }}</td>
-                                    @endif
+                                @foreach ($row as $value)
+                                    <td>{{ $value }}</td>
                                 @endforeach
                                 <td>
-                                    @if (($def['key'] ?? '') === 'bookings' && !empty($row['id']))
-                                        <a class="icon-btn" href="{{ route('ops.bookings.show', $row['id']) }}" title="Lifecycle"><i data-lucide="eye"></i></a>
+                                    @if (($def['key'] ?? '') === 'bookings' && !empty($row['Id'] ?? $row['id']))
+                                        <a class="icon-btn" href="{{ route('ops.bookings.show', $row['Id'] ?? $row['id']) }}" title="Lifecycle"><i data-lucide="eye"></i></a>
                                     @endif
                                 </td>
                             </tr>

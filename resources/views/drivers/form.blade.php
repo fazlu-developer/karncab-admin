@@ -37,6 +37,30 @@
                 </select>
             </div>
             <div class="field">
+                <label>Driver type</label>
+                <select name="driver_type">
+                    <option value="individual_driver" @selected(old('driver_type', $driver->fleet_owner_id ? 'fleet_driver' : 'individual_driver') === 'individual_driver')>Individual Driver (no fleet owner)</option>
+                    <option value="fleet_driver" @selected(old('driver_type', $driver->fleet_owner_id ? 'fleet_driver' : 'individual_driver') === 'fleet_driver')>Fleet Driver</option>
+                </select>
+            </div>
+            <div class="field">
+                <label>Fleet owner</label>
+                <select name="fleet_owner_id">
+                    <option value="">None</option>
+                    @foreach ($fleetOwners ?? [] as $fleet)
+                        <option value="{{ $fleet->id }}" @selected((string) old('fleet_owner_id', $driver->fleet_owner_id) === (string) $fleet->id)>
+                            {{ $fleet->trade_name ?: ($fleet->owner_name ?: 'Fleet #'.$fleet->id) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @include('partials.geo-fields', [
+                'stateValue' => (string) old('state_id', $user->state_id),
+                'districtValue' => (string) old('district_id', $user->district_id),
+                'emptyState' => 'Select state',
+                'emptyDistrict' => 'Select district',
+            ])
+            <div class="field">
                 <label>License number</label>
                 <input name="license_no" value="{{ old('license_no', $driver->license_no) }}" required>
             </div>

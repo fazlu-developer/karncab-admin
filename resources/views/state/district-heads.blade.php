@@ -33,7 +33,7 @@
         <div class="table-wrap">
             <table class="data">
                 <thead>
-                    <tr><th>Name</th><th>Email</th><th>Phone</th><th>District</th><th>Status</th></tr>
+                    <tr><th>Name</th><th>Email</th><th>Phone</th><th>State</th><th>District</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                 @forelse ($rows as $row)
@@ -41,11 +41,12 @@
                         <td>{{ $row['name'] }}</td>
                         <td>{{ $row['email'] }}</td>
                         <td>{{ $row['phone'] }}</td>
-                        <td>{{ $row['districtId'] }}</td>
+                        <td>{{ $row['state'] ?? '—' }}</td>
+                        <td>{{ $row['district'] ?? '—' }}</td>
                         <td><span class="pill muted">{{ $row['status'] }}</span></td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="muted">No District Heads in this state.</td></tr>
+                    <tr><td colspan="6" class="muted">No District Heads in this state.</td></tr>
                 @endforelse
                 </tbody>
             </table>

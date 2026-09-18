@@ -153,11 +153,11 @@
             <form method="POST" action="{{ route('franchises.territory', $row['id']) }}">
                 @csrf
                 <div class="filters">
-                    <select name="district_id" required>
-                        @foreach ($districts as $district)
-                            <option value="{{ $district['id'] }}" @selected($district['id'] === $row['districtId'])>{{ $district['name'] }}</option>
-                        @endforeach
-                    </select>
+                    @include('partials.geo-fields', [
+                        'required' => true,
+                        'stateValue' => (string) ($row['stateId'] ?? ''),
+                        'districtValue' => (string) ($row['districtId'] ?? ''),
+                    ])
                     <button class="btn" type="submit">Reassign district</button>
                 </div>
             </form>

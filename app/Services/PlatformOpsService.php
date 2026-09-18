@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Platform\GeoCatalog;
 use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
 use App\Platform\TerritoryScope;
@@ -17,11 +18,14 @@ class PlatformOpsService
         'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'ONGOING', 'STARTED',
     ];
 
-    public function dashboard(?User $operator = null): array
+    public function dashboard(?User $operator = null, ?int $stateId = null, ?int $districtId = null): array
     {
-        $users = $this->scopedUsers($operator);
-        $drivers = $this->scopedDrivers($operator);
+        $users = $this->scopedUsers($operator, $stateId, $districtId);
+        $drivers = $this->scopedDrivers($operator, $stateId, $districtId);
         $bookings = $this->bookingsQuery($operator);
+        if ($stateId && TerritoryScope::isUnrestricted($operator)) {
+            TerritoryScope::restrictBookingsToStateId($bookings, $stateId);
+        }
         $parcels = $this->scopedParcels($operator);
         $fleets = $this->scopedFleets($operator);
         $completed = (clone $bookings)->where('status', 'COMPLETED');
@@ -111,13 +115,7 @@ class PlatformOpsService
                 'tradeName' => $row->trade_name ?? null,
                 'userId' => (string) $row->user_id,
             ])],
-            'vehicles' => ['vehicles' => $this->map($this->scopedVehicles($operator)->orderByDesc('id')->limit(100)->get(), fn ($row) => [
-                'id' => (string) $row->id,
-                'registrationNo' => $row->registration_no,
-                'status' => $row->status,
-                'category' => $row->category,
-                'districtId' => $row->district_id,
-            ])],
+            'vehicles' => ['vehicles' => $this->listVehicles($operator)],
             'bookings' => ['bookings' => $this->listBookings($query, $operator)],
             'parcels' => ['parcels' => $this->map($this->scopedParcels($operator)->orderByDesc('id')->limit(100)->get(), fn ($row) => [
                 'id' => (string) $row->id,
@@ -229,11 +227,11 @@ class PlatformOpsService
                 'gstPercent' => $row->gst_percent,
                 'active' => (bool) $row->active,
             ])],
-            'locations' => ['states' => $this->listLocations()],
+            'locations' => ['locations' => $this->listLocationRows()],
             'roles' => [
                 'roles' => collect(OperatorRole::all())->map(fn ($role) => [
                     'role' => $role,
-                    'permissions' => PlatformPermission::forRole($role),
+                    'permissions' => implode(', ', PlatformPermission::forRole($role)),
                 ])->all(),
             ],
             'settings' => ['settings' => $this->q('system_settings')->orderBy('key')->get()
@@ -292,26 +290,30 @@ class PlatformOpsService
         $q = $this->scopedUsers($operator);
         $role = $role ?? ($query['role'] ?? null);
         if (is_string($role) && $role !== '') {
-            $q->where('role', $role);
+            $q->where('users.role', $role);
         }
         if (! empty($query['status'])) {
-            $q->where('status', $query['status']);
+            $q->where('users.status', $query['status']);
         }
         if (! empty($query['q'])) {
             $term = $query['q'];
             $q->where(function (Builder $inner) use ($term) {
-                $inner->where('name', 'like', "%{$term}%")
-                    ->orWhere('email', 'like', "%{$term}%")
-                    ->orWhere('phone', 'like', "%{$term}%");
+                $inner->where('users.name', 'like', "%{$term}%")
+                    ->orWhere('users.email', 'like', "%{$term}%")
+                    ->orWhere('users.phone', 'like', "%{$term}%");
             });
         }
 
-        return $this->map($q->orderByDesc('id')->limit(200)->get(), fn ($row) => $this->presentUser($row));
+        $q->leftJoin('states', 'states.id', '=', 'users.state_id')
+            ->leftJoin('districts', 'districts.id', '=', 'users.district_id')
+            ->select('users.*', 'states.name as state_name', 'districts.name as district_name');
+
+        return $this->map($q->orderByDesc('users.id')->limit(200)->get(), fn ($row) => $this->presentUser($row));
     }
 
     public function user(int $id, ?User $operator = null): array
     {
-        $row = $this->scopedUsers($operator)->where('id', $id)->first();
+        $row = $this->scopedUsers($operator)->where('users.id', $id)->first();
         abort_if($row === null, 404, 'User not found');
         $payload = $this->presentUser($row);
         $payload['bookings'] = $this->map($this->q('bookings')->where('customer_id', $id)->orderByDesc('id')->limit(30)->get(), fn ($b) => [
@@ -625,6 +627,52 @@ class PlatformOpsService
         ]);
     }
 
+    private function listVehicles(?User $operator): array
+    {
+        $q = $this->scopedVehicles($operator)
+            ->leftJoin('drivers', 'drivers.id', '=', 'vehicles.driver_id')
+            ->leftJoin('users', 'users.id', '=', 'drivers.user_id')
+            ->leftJoin('districts', 'districts.id', '=', 'vehicles.district_id')
+            ->orderByDesc('vehicles.id')
+            ->limit(200)
+            ->select(
+                'vehicles.id',
+                'vehicles.registration_no',
+                'vehicles.category',
+                'vehicles.status',
+                'vehicles.district_id',
+                'users.name as driver_name',
+                'users.phone as driver_phone',
+                'districts.name as district_name',
+            );
+
+        return $this->map($q->get(), fn ($row) => [
+            'id' => (string) $row->id,
+            'registrationNo' => $row->registration_no,
+            'category' => $row->category,
+            'status' => $row->status,
+            'driver' => $row->driver_name,
+            'phone' => $row->driver_phone,
+            'district' => $row->district_name,
+        ]);
+    }
+
+    private function listLocationRows(): array
+    {
+        $rows = $this->q('districts')
+            ->leftJoin('states', 'states.id', '=', 'districts.state_id')
+            ->orderBy('states.name')
+            ->orderBy('districts.name')
+            ->select('districts.id', 'districts.name as district', 'states.name as state')
+            ->get();
+
+        return $this->map($rows, fn ($row) => [
+            'id' => (string) $row->id,
+            'state' => $row->state,
+            'district' => $row->district,
+        ]);
+    }
+
     private function presentUser(object $row): array
     {
         return [
@@ -634,8 +682,8 @@ class PlatformOpsService
             'name' => $row->name,
             'email' => $row->email,
             'phone' => $row->phone,
-            'stateId' => $row->state_id ?? null,
-            'districtId' => $row->district_id ?? null,
+            'state' => ($row->state_name ?? null) ?: (GeoCatalog::stateName(isset($row->state_id) ? (int) $row->state_id : null) ?: null),
+            'district' => ($row->district_name ?? null) ?: (GeoCatalog::districtName(isset($row->district_id) ? (int) $row->district_id : null) ?: null),
             'lastAddress' => $row->last_address ?? null,
             'emergencyName' => $row->emergency_name ?? null,
         ];
@@ -682,18 +730,27 @@ class PlatformOpsService
         ];
     }
 
-    private function scopedUsers(?User $operator): Builder
+    private function scopedUsers(?User $operator, ?int $stateId = null, ?int $districtId = null): Builder
     {
         $q = $this->q('users');
         TerritoryScope::applyUsers($q, $operator);
+        TerritoryScope::applyAdminGeo($q, $operator, $stateId, $districtId);
 
         return $q;
     }
 
-    private function scopedDrivers(?User $operator): Builder
+    private function scopedDrivers(?User $operator, ?int $stateId = null, ?int $districtId = null): Builder
     {
         $q = $this->q('drivers');
         TerritoryScope::applyDrivers($q, $operator);
+        if ($stateId && TerritoryScope::isUnrestricted($operator)) {
+            $ids = TerritoryScope::districtIdsForState($stateId);
+            if ($ids !== []) {
+                $q->whereExists(function ($sub) use ($ids) {
+                    $sub->selectRaw('1')->from('users')->whereColumn('users.id', 'drivers.user_id')->whereIn('users.district_id', $ids);
+                });
+            }
+        }
 
         return $q;
     }

@@ -27,8 +27,8 @@ class StateHeadService
             $stateId = (int) $operator->state_id;
         } else {
             abort_unless($operator->isPrivilegedOperator(), 403);
-            $stateId = (int) ($requestedStateId ?: $operator->state_id);
-            abort_if($stateId < 1, 422, 'stateId is required.');
+            $stateId = (int) ($requestedStateId ?: $operator->state_id ?: $this->defaultStateId());
+            abort_if($stateId < 1, 409, 'No states in the catalog yet.');
         }
 
         $state = $this->db()->table('states')->where('id', $stateId)->first();
@@ -53,6 +53,7 @@ class StateHeadService
 
         return [
             'state' => $ctx,
+            'states' => $operator->isPrivilegedOperator() ? $this->stateOptions() : [],
             'kpis' => [
                 'districts' => count($ctx['districtIds']),
                 'districtHeads' => $this->users($ctx)->where('role', 'DISTRICT_HEAD')->count(),
@@ -194,14 +195,22 @@ class StateHeadService
      */
     private function districtHeadRows(array $ctx): array
     {
-        return $this->users($ctx)->where('role', 'DISTRICT_HEAD')->orderBy('name')->get()->map(fn ($row) => [
-            'id' => $row->id,
-            'name' => $row->name,
-            'email' => $row->email,
-            'phone' => $row->phone,
-            'districtId' => $row->district_id,
-            'status' => $row->status,
-        ])->all();
+        return $this->users($ctx)
+            ->leftJoin('districts', 'districts.id', '=', 'users.district_id')
+            ->leftJoin('states', 'states.id', '=', 'users.state_id')
+            ->where('users.role', 'DISTRICT_HEAD')
+            ->orderBy('users.name')
+            ->select('users.*', 'districts.name as district_name', 'states.name as state_name')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'name' => $row->name,
+                'email' => $row->email,
+                'phone' => $row->phone,
+                'state' => $row->state_name,
+                'district' => $row->district_name,
+                'status' => $row->status,
+            ])->all();
     }
 
     /**
@@ -529,6 +538,26 @@ class StateHeadService
         }
 
         return $q->whereIn('user_id', $userIds);
+    }
+
+    private function defaultStateId(): int
+    {
+        $bihar = $this->db()->table('states')->where('name', 'like', 'Bihar%')->value('id');
+        if ($bihar) {
+            return (int) $bihar;
+        }
+
+        return (int) ($this->db()->table('states')->orderBy('name')->value('id') ?: 0);
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function stateOptions(): array
+    {
+        return $this->db()->table('states')->orderBy('name')->get(['id', 'name'])
+            ->map(fn ($row) => ['id' => (int) $row->id, 'name' => (string) $row->name])
+            ->all();
     }
 
     private function db()

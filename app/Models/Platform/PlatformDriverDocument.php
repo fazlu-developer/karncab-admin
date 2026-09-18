@@ -25,6 +25,15 @@ class PlatformDriverDocument extends Model
 
     public function fileUrl(): ?string
     {
+        if ($this->id && $this->driver_id) {
+            return route('drivers.documents.file', [$this->driver_id, $this->id]);
+        }
+
+        return $this->externalUrl();
+    }
+
+    public function externalUrl(): ?string
+    {
         $key = (string) $this->storage_key;
         if ($key === '') {
             return null;

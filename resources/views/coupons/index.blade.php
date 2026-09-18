@@ -47,24 +47,10 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label>State</label>
-                        <select name="state_id">
-                            <option value="">All states</option>
-                            @foreach ($states as $state)
-                                <option value="{{ $state->id }}">{{ $state->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>District</label>
-                        <select name="district_id">
-                            <option value="">All districts</option>
-                            @foreach ($districts as $district)
-                                <option value="{{ $district->id }}">{{ $district->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @include('partials.geo-fields', [
+                        'emptyState' => 'All states',
+                        'emptyDistrict' => 'All districts',
+                    ])
                     <div><label>Usage limit</label><input name="usage_limit" type="number" min="0" value="0"></div>
                     <div><label>User limit</label><input name="user_limit" type="number" min="0" value="1"></div>
                     <div><label>Starts</label><input name="starts_on" type="date" required></div>

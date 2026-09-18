@@ -11,7 +11,37 @@ final class TerritoryScope
 {
     public static function isUnrestricted(?User $operator): bool
     {
-        return $operator !== null && $operator->isPrivilegedOperator();
+        if ($operator === null) {
+            return false;
+        }
+        if ($operator->isPrivilegedOperator()) {
+            return true;
+        }
+
+        return $operator->isManager()
+            && ! $operator->state_id
+            && ! $operator->district_id
+            && ! $operator->fleet_owner_id;
+    }
+
+    public static function effectiveRole(?User $operator): string
+    {
+        if ($operator === null) {
+            return '';
+        }
+        if ($operator->isManager()) {
+            if ($operator->fleet_owner_id) {
+                return OperatorRole::FLEET_OWNER;
+            }
+            if ($operator->district_id) {
+                return OperatorRole::FRANCHISE;
+            }
+            if ($operator->state_id) {
+                return OperatorRole::STATE_HEAD;
+            }
+        }
+
+        return (string) $operator->role;
     }
 
     public static function canAccessDistrict(?int $actorDistrictId, string $role, ?int $districtId): bool
@@ -62,7 +92,7 @@ final class TerritoryScope
             return $query;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if (in_array($role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)) {
             $query['districtId'] = $operator->district_id;
@@ -95,7 +125,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if (in_array($role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)) {
             if (! $operator->district_id) {
@@ -156,7 +186,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if ($role === OperatorRole::FLEET_OWNER) {
             if (! $operator->fleet_owner_id) {
@@ -219,7 +249,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if (in_array($role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)) {
             if (! $operator->district_id) {
@@ -286,7 +316,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if (in_array($role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)) {
             if (! $operator->district_id) {
@@ -323,7 +353,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if ($role === OperatorRole::FLEET_OWNER) {
             if (! $operator->fleet_owner_id) {
@@ -371,7 +401,7 @@ final class TerritoryScope
             return;
         }
 
-        if ((string) $operator->role === OperatorRole::FLEET_OWNER) {
+        if (self::effectiveRole($operator) === OperatorRole::FLEET_OWNER) {
             if (! $operator->fleet_owner_id) {
                 $query->whereRaw('0 = 1');
 
@@ -382,7 +412,7 @@ final class TerritoryScope
             return;
         }
 
-        if (in_array((string) $operator->role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE, OperatorRole::STATE_HEAD], true)) {
+        if (in_array(self::effectiveRole($operator), [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE, OperatorRole::STATE_HEAD], true)) {
             $query->whereExists(function ($sub) use ($table, $operator) {
                 $sub->selectRaw('1')
                     ->from('users')
@@ -405,7 +435,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if (in_array($role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)) {
             if (! $operator->district_id) {
@@ -447,7 +477,7 @@ final class TerritoryScope
             return;
         }
 
-        $role = (string) $operator->role;
+        $role = self::effectiveRole($operator);
 
         if ($role === OperatorRole::FLEET_OWNER) {
             if (! $operator->fleet_owner_id) {
@@ -533,5 +563,45 @@ final class TerritoryScope
             return;
         }
         $query->whereIn($table.'.district_id', $districtIds);
+    }
+
+    /**
+     * @param  EloquentBuilder<\Illuminate\Database\Eloquent\Model>|QueryBuilder  $query
+     */
+    public static function restrictBookingsToStateId($query, int $stateId, string $table = 'bookings'): void
+    {
+        $districtIds = self::districtIdsForState($stateId);
+        if ($districtIds === []) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+        $query->whereIn($table.'.district_id', $districtIds);
+    }
+
+    /**
+     * Super Admin / unrestricted Manager may narrow lists. Never widens scoped roles.
+     *
+     * @param  EloquentBuilder<\Illuminate\Database\Eloquent\Model>|QueryBuilder  $query
+     */
+    public static function applyAdminGeo($query, ?User $operator, ?int $stateId, ?int $districtId, string $stateCol = 'state_id', string $districtCol = 'district_id'): void
+    {
+        if (! self::isUnrestricted($operator)) {
+            return;
+        }
+        if ($districtId) {
+            $query->where($districtCol, $districtId);
+
+            return;
+        }
+        if ($stateId) {
+            $ids = self::districtIdsForState($stateId);
+            $query->where(function ($inner) use ($stateCol, $districtCol, $stateId, $ids) {
+                $inner->where($stateCol, $stateId);
+                if ($ids !== []) {
+                    $inner->orWhereIn($districtCol, $ids);
+                }
+            });
+        }
     }
 }

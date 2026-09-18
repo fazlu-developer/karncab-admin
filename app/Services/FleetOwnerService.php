@@ -8,6 +8,7 @@ use App\Platform\OperatorRole;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class FleetOwnerService
 {
@@ -249,6 +250,7 @@ class FleetOwnerService
         $this->requireDriver($fleet, $driverId);
         $vehicle = $this->requireVehicle($fleet, $vehicleId);
         abort_if(FleetVehicleStatus::isLocked($vehicle->status), 422, 'Vehicle is in maintenance or suspended.');
+        $this->closeActiveAssignment($fleet, (int) $vehicleId, 'replaced', (int) $operator->id);
         $this->db()->table('vehicles')
             ->where('fleet_owner_id', $fleet->id)
             ->where('driver_id', $driverId)
@@ -259,6 +261,8 @@ class FleetOwnerService
             'status' => $vehicle->status === 'offline' ? 'available' : $vehicle->status,
             'updated_at' => now(),
         ]);
+        $this->openAssignment($fleet, (int) $vehicleId, $driverId, (int) $operator->id, 'assigned');
+        OrganizationAudit::record($operator, 'driver.assigned', 'vehicle', $vehicleId, ['driverId' => $vehicle->driver_id], ['driverId' => $driverId]);
 
         return $this->driver($operator, $driverId);
     }
@@ -270,8 +274,15 @@ class FleetOwnerService
         $q = $this->db()->table('vehicles')->where('fleet_owner_id', $fleet->id)->where('driver_id', $driverId);
         if ($vehicleId) {
             $q->where('id', $vehicleId);
+            $this->closeActiveAssignment($fleet, (int) $vehicleId, 'unassigned', (int) $operator->id);
+        } else {
+            $ids = (clone $q)->pluck('id');
+            foreach ($ids as $id) {
+                $this->closeActiveAssignment($fleet, (int) $id, 'unassigned', (int) $operator->id);
+            }
         }
         $q->update(['driver_id' => null, 'status' => 'available', 'updated_at' => now()]);
+        OrganizationAudit::record($operator, 'driver.unassigned', 'driver', $driverId, null, ['vehicleId' => $vehicleId]);
 
         return $this->driver($operator, $driverId);
     }
@@ -775,6 +786,42 @@ class FleetOwnerService
                 'balance_paise' => 0,
             ]);
         }
+    }
+
+    private function openAssignment(object $fleet, int $vehicleId, int $driverId, int $by, string $reason): void
+    {
+        if (! Schema::connection('platform')->hasTable('vehicle_driver_assignments')) {
+            return;
+        }
+        $this->db()->table('vehicle_driver_assignments')->insert([
+            'fleet_owner_id' => $fleet->id,
+            'vehicle_id' => $vehicleId,
+            'driver_id' => $driverId,
+            'assigned_by' => $by,
+            'status' => 'ACTIVE',
+            'reason' => $reason,
+            'assigned_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function closeActiveAssignment(object $fleet, int $vehicleId, string $reason, int $by): void
+    {
+        if (! Schema::connection('platform')->hasTable('vehicle_driver_assignments')) {
+            return;
+        }
+        $this->db()->table('vehicle_driver_assignments')
+            ->where('fleet_owner_id', $fleet->id)
+            ->where('vehicle_id', $vehicleId)
+            ->where('status', 'ACTIVE')
+            ->update([
+                'status' => 'ENDED',
+                'reason' => $reason,
+                'unassigned_at' => now(),
+                'updated_at' => now(),
+                'assigned_by' => $by,
+            ]);
     }
 
     private function isUniqueConflict(QueryException $exception): bool

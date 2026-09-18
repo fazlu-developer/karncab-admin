@@ -24,14 +24,11 @@
                     </select>
                 </div>
                 <div class="field"><label>Trade name</label><input name="trade_name" required></div>
-                <div class="field">
-                    <label>District</label>
-                    <select name="district_id" required>
-                        @foreach ($districts as $district)
-                            <option value="{{ $district['id'] }}">{{ $district['name'] }} (#{{ $district['id'] }})</option>
-                        @endforeach
-                    </select>
-                </div>
+                @include('partials.geo-fields', [
+                    'required' => true,
+                    'emptyState' => 'Select state',
+                    'emptyDistrict' => 'Select district',
+                ])
                 <div class="field"><label>Owner name</label><input name="name" required></div>
                 <div class="field"><label>Owner email</label><input name="email" type="email" required></div>
                 <div class="field"><label>Phone</label><input name="phone"></div>

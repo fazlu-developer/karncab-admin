@@ -12,9 +12,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $operators = [
-            ['email' => 'admin@karnacab.local', 'name' => 'KarnaCab Admin', 'role' => OperatorRole::ADMIN],
+            ['email' => 'manager@karnacab.local', 'name' => 'KarnaCab Manager', 'role' => OperatorRole::MANAGER],
             ['email' => 'super@karnacab.local', 'name' => 'KarnaCab Super Admin', 'role' => OperatorRole::SUPER_ADMIN],
             ['email' => 'statehead@karnacab.local', 'name' => 'Bihar State Head', 'role' => OperatorRole::STATE_HEAD],
+            ['email' => 'delhihead@karnacab.local', 'name' => 'Delhi State Head', 'role' => OperatorRole::STATE_HEAD],
             ['email' => 'district@karnacab.local', 'name' => 'Patna District Head', 'role' => OperatorRole::DISTRICT_HEAD],
             ['email' => 'fleet@karnacab.local', 'name' => 'Patna Fleet', 'role' => OperatorRole::FLEET_OWNER],
             ['email' => 'franchise@karnacab.local', 'name' => 'Gaya Franchise Applicant', 'role' => OperatorRole::FRANCHISE],
@@ -31,7 +32,14 @@ class DatabaseSeeder extends Seeder
             ];
             if ($row['role'] === OperatorRole::STATE_HEAD) {
                 try {
-                    $stateId = DB::connection('platform')->table('states')->orderBy('id')->value('id');
+                    $query = DB::connection('platform')->table('states')->orderBy('id');
+                    if (str_contains(strtolower($row['email']), 'delhi')) {
+                        $stateId = $query->where('name', 'like', 'Delhi%')->value('id')
+                            ?: DB::connection('platform')->table('states')->where('code', 'DL')->value('id');
+                    } else {
+                        $stateId = $query->where('name', 'like', 'Bihar%')->value('id')
+                            ?: DB::connection('platform')->table('states')->orderBy('id')->value('id');
+                    }
                     if ($stateId) {
                         $values['state_id'] = $stateId;
                     }

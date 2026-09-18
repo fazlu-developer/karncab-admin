@@ -73,6 +73,17 @@ class StateHeadManagementTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_admin_state_workspace_defaults_without_state_id(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+
+        $this->actingAs($admin)
+            ->get('/state')
+            ->assertOk()
+            ->assertSee('Bihar')
+            ->assertDontSee('stateId is required');
+    }
+
     public function test_unassigned_state_head_sees_assignment_message(): void
     {
         $head = User::factory()->create([

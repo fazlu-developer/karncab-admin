@@ -17,20 +17,24 @@ class UsersController extends Controller
     {
         abort_unless($request->user()?->can('users.view'), 403);
 
-        $query = PlatformUser::query()->orderByDesc('id');
+        $query = PlatformUser::query()
+            ->leftJoin('states', 'states.id', '=', 'users.state_id')
+            ->leftJoin('districts', 'districts.id', '=', 'users.district_id')
+            ->select('users.*', 'states.name as state_name', 'districts.name as district_name')
+            ->orderByDesc('users.id');
         TerritoryScope::applyUsers($query, $request->user());
         if ($search = trim((string) $request->get('q', ''))) {
             $query->where(function ($inner) use ($search) {
-                $inner->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                $inner->where('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.email', 'like', "%{$search}%")
+                    ->orWhere('users.phone', 'like', "%{$search}%");
             });
         }
         if ($role = $request->get('role')) {
-            $query->where('role', $role);
+            $query->where('users.role', $role);
         }
         if ($status = $request->get('status')) {
-            $query->where('status', $status);
+            $query->where('users.status', $status);
         }
 
         return view('users.index', [
@@ -131,6 +135,8 @@ class UsersController extends Controller
             'role' => ['required', Rule::in(OperatorRole::all())],
             'status' => ['required', Rule::in(['ACTIVE', 'PENDING', 'SUSPENDED'])],
             'password' => [$creating ? 'required' : 'nullable', 'string', 'min:8'],
+            'state_id' => ['nullable', 'integer'],
+            'district_id' => ['nullable', 'integer'],
         ]);
     }
 }

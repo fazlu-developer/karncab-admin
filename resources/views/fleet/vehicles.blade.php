@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1>Vehicles</h1>
-            <p class="muted">Add and edit fleet vehicles. Statuses Available / Online / On Trip are derived from assignment and live trips. Maintenance and Suspended are set by you.</p>
+            <p class="muted">All fleet vehicles by type: Bike, Auto and Car.</p>
         </div>
     </div>
     @can('fleet.manage')
@@ -19,9 +19,19 @@
                 <div class="field">
                     <label>Vehicle type</label>
                     <select name="category" required>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category }}">{{ $category }}</option>
-                        @endforeach
+                        <optgroup label="Bike">
+                            <option value="BIKE">Bike</option>
+                        </optgroup>
+                        <optgroup label="Auto">
+                            <option value="AUTO">Auto</option>
+                            <option value="E_RICKSHAW">E-Rickshaw</option>
+                        </optgroup>
+                        <optgroup label="Car">
+                            <option value="MINI">Mini / Hatchback</option>
+                            <option value="SEDAN">Sedan</option>
+                            <option value="SUV">SUV</option>
+                            <option value="TRAVELLER">Traveller / XL</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="field"><label>Brand</label><input name="brand"></div>

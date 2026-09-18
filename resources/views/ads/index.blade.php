@@ -6,7 +6,7 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1><i data-lucide="megaphone"></i> Karna Cab ads</h1>
+            <h1><i data-lucide="megaphone"></i> KarnaCab ads</h1>
             <p class="muted">{{ $catalog['placements']['note'] }} Impressions {{ number_format($totals['impressions']) }} · Clicks {{ number_format($totals['clicks']) }} · Revenue ₹{{ number_format($totals['revenuePaise'] / 100, 2) }}.</p>
         </div>
     </div>
@@ -35,24 +35,12 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label>Target state</label>
-                        <select name="state_id">
-                            <option value="">All states</option>
-                            @foreach ($states as $state)
-                                <option value="{{ $state->id }}">{{ $state->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>Target district</label>
-                        <select name="district_id">
-                            <option value="">All districts</option>
-                            @foreach ($districts as $district)
-                                <option value="{{ $district->id }}">{{ $district->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @include('partials.geo-fields', [
+                        'stateLabel' => 'Target state',
+                        'districtLabel' => 'Target district',
+                        'emptyState' => 'All states',
+                        'emptyDistrict' => 'All districts',
+                    ])
                     <div><label>Target city</label><input name="target_city"></div>
                     <div><label>Start date</label><input name="starts_on" type="date" required></div>
                     <div><label>End date</label><input name="ends_on" type="date" required></div>

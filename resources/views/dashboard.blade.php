@@ -9,6 +9,18 @@
             <h1>Good {{ now()->format('A') === 'AM' ? 'morning' : 'afternoon' }}, {{ auth()->user()->name }}</h1>
             <p class="muted">Live snapshot from the platform database — users, drivers, rides and revenue.</p>
         </div>
+        @can('platform.admin')
+            @if (!empty($states) && $states->count())
+                <form method="GET" class="filters">
+                    <select name="stateId" onchange="this.form.submit()">
+                        <option value="">All States</option>
+                        @foreach ($states as $state)
+                            <option value="{{ $state->id }}" @selected((int) ($selectedStateId ?? 0) === (int) $state->id)>{{ $state->name }}</option>
+                        @endforeach
+                    </select>
+                </form>
+            @endif
+        @endcan
         @can('users.create')
             <a class="btn" href="{{ route('users.create') }}"><i data-lucide="user-plus"></i> New user</a>
         @endcan

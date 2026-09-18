@@ -16,7 +16,7 @@ final class StateHeadNav
             ['key' => 'franchises', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Network', 'route' => 'franchises.index'],
             ['key' => 'fleets', 'label' => 'Fleets', 'icon' => 'warehouse', 'group' => 'Network', 'route' => 'state.section'],
             ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Network', 'route' => 'state.section'],
-            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Network', 'route' => 'state.section'],
+            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Network', 'route' => 'vehicles.index'],
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'route' => 'state.section'],
             ['key' => 'parcels', 'label' => 'Parcels', 'icon' => 'package', 'group' => 'Operations', 'route' => 'state.section'],
             ['key' => 'map', 'label' => 'Live fleet map', 'icon' => 'radar', 'group' => 'Operations', 'route' => 'live.map'],
@@ -36,6 +36,9 @@ final class StateHeadNav
         }
         if ($item['key'] === 'franchises') {
             return route('franchises.index');
+        }
+        if ($item['key'] === 'vehicles') {
+            return route('vehicles.index');
         }
         if ($item['key'] === 'map') {
             return route('live.map');
@@ -60,6 +63,9 @@ final class StateHeadNav
         }
         if ($item['key'] === 'franchises') {
             return request()->routeIs('franchises.*');
+        }
+        if ($item['key'] === 'vehicles') {
+            return request()->routeIs('vehicles.*');
         }
         if ($item['key'] === 'map') {
             return request()->routeIs('live.map');

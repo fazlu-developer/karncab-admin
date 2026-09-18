@@ -11,6 +11,7 @@ final class OperatorRole
     public const STATE_HEAD = 'STATE_HEAD';
     public const FRANCHISE = 'FRANCHISE';
     public const ADMIN = 'ADMIN';
+    public const MANAGER = 'MANAGER';
     public const SUPER_ADMIN = 'SUPER_ADMIN';
     public const CORPORATE = 'CORPORATE';
     public const ADVERTISER = 'ADVERTISER';
@@ -22,6 +23,7 @@ final class OperatorRole
         self::STATE_HEAD,
         self::FRANCHISE,
         self::ADMIN,
+        self::MANAGER,
         self::SUPER_ADMIN,
         self::CORPORATE,
         self::ADVERTISER,

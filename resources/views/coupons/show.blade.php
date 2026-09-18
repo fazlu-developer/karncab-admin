@@ -48,24 +48,12 @@
                             @endforeach
                         </select>
                     </div>
-                    <div>
-                        <label>State</label>
-                        <select name="state_id">
-                            <option value="">All states</option>
-                            @foreach ($states as $state)
-                                <option value="{{ $state->id }}" @selected(($coupon['state']['id'] ?? null) == $state->id)>{{ $state->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>District</label>
-                        <select name="district_id">
-                            <option value="">All districts</option>
-                            @foreach ($districts as $district)
-                                <option value="{{ $district->id }}" @selected(($coupon['district']['id'] ?? null) == $district->id)>{{ $district->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @include('partials.geo-fields', [
+                        'emptyState' => 'All states',
+                        'emptyDistrict' => 'All districts',
+                        'stateValue' => (string) ($coupon['state']['id'] ?? ''),
+                        'districtValue' => (string) ($coupon['district']['id'] ?? ''),
+                    ])
                     <div><label>Usage limit</label><input name="usage_limit" type="number" min="0" value="{{ $coupon['usageLimit'] }}"></div>
                     <div><label>User limit</label><input name="user_limit" type="number" min="0" value="{{ $coupon['userLimit'] }}"></div>
                     <div><label>Starts</label><input name="starts_on" type="date" value="{{ \Illuminate\Support\Carbon::parse($coupon['startsOn'])->toDateString() }}" required></div>

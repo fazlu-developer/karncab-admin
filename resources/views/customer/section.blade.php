@@ -102,14 +102,34 @@
     @else
         <section class="card">
             @php $rows = $data['rows'] ?? []; @endphp
-            @forelse ($rows as $row)
-                <p>{{ $row['publicRef'] ?? $row['title'] ?? $row['code'] ?? $row['name'] ?? json_encode($row) }}
-                    @if(isset($row['status'])) · {{ $row['status'] }}@endif
-                    @if(isset($row['cta'])) — {{ $row['cta'] }}@endif
-                </p>
-            @empty
+            @if ($rows === [])
                 <p class="muted">Nothing here yet.</p>
-            @endforelse
+            @else
+                <div class="table-wrap">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                @foreach (array_keys($rows[0]) as $col)
+                                    @if (!is_array($rows[0][$col]))
+                                        <th>{{ $col }}</th>
+                                    @endif
+                                @endforeach
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($rows as $row)
+                                <tr>
+                                    @foreach ($row as $value)
+                                        @if (!is_array($value))
+                                            <td>{{ is_bool($value) ? ($value ? 'Yes' : 'No') : $value }}</td>
+                                        @endif
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </section>
     @endif
 @endsection

@@ -35,6 +35,9 @@ trait CreatesPlatformSchema
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('fleet_owner_id')->nullable();
+            $table->string('driver_type')->nullable();
+            $table->unsignedInteger('state_id')->nullable();
+            $table->unsignedInteger('district_id')->nullable();
             $table->boolean('online')->default(false);
             $table->string('duty_status')->default('offline');
             $table->decimal('rating_avg', 3, 2)->default(0);
@@ -54,6 +57,8 @@ trait CreatesPlatformSchema
             $table->id();
             $table->unsignedInteger('state_id');
             $table->string('name');
+            $table->string('code')->nullable();
+            $table->string('status')->default('ACTIVE');
         });
         $schema->create('bookings', function (Blueprint $table) {
             $table->id();
@@ -143,6 +148,11 @@ trait CreatesPlatformSchema
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->string('trade_name')->nullable();
                 $table->string('gstin')->nullable();
+                $table->unsignedInteger('state_id')->nullable();
+                $table->unsignedInteger('district_id')->nullable();
+                $table->unsignedBigInteger('franchise_id')->nullable();
+                $table->string('status')->default('ACTIVE');
+                $table->string('address')->nullable();
             },
             'support_tickets' => function (Blueprint $table) {
                 $table->id();
@@ -263,7 +273,9 @@ trait CreatesPlatformSchema
                 $table->string('status')->nullable();
                 $table->string('category')->nullable();
                 $table->unsignedInteger('district_id')->nullable();
+                $table->unsignedInteger('state_id')->nullable();
                 $table->unsignedBigInteger('fleet_owner_id')->nullable();
+                $table->unsignedBigInteger('individual_driver_id')->nullable();
                 $table->unsignedBigInteger('driver_id')->nullable();
                 $table->string('brand')->nullable();
                 $table->string('model')->nullable();
@@ -415,6 +427,9 @@ trait CreatesPlatformSchema
                 $table->string('action')->nullable();
                 $table->string('entity_type')->nullable();
                 $table->string('entity_id')->nullable();
+                $table->string('actor_role')->nullable();
+                $table->json('old_data')->nullable();
+                $table->json('new_data')->nullable();
                 $table->timestamp('created_at')->nullable();
             },
             'user_notifications' => function (Blueprint $table) {
@@ -603,6 +618,18 @@ trait CreatesPlatformSchema
                 $table->string('phone');
                 $table->string('relation')->nullable();
                 $table->boolean('is_primary')->default(false);
+                $table->timestamps();
+            },
+            'vehicle_driver_assignments' => function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('fleet_owner_id');
+                $table->unsignedBigInteger('vehicle_id');
+                $table->unsignedBigInteger('driver_id');
+                $table->unsignedBigInteger('assigned_by')->nullable();
+                $table->string('status')->default('ACTIVE');
+                $table->string('reason')->nullable();
+                $table->timestamp('assigned_at')->nullable();
+                $table->timestamp('unassigned_at')->nullable();
                 $table->timestamps();
             },
         ] as $table => $fn) {

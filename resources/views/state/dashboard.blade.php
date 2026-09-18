@@ -6,10 +6,20 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1>{{ $state['stateName'] }}</h1>
-            <p class="muted">State Head workspace. Data is limited to this state: districts, fleets, drivers, vehicles and bookings.</p>
+            <h1>Hello, {{ auth()->user()->name }}</h1>
+            <p class="muted">State: {{ $state['stateName'] }}. This workspace is limited to the selected state.</p>
         </div>
-        <span class="pill ok"><i data-lucide="shield-check"></i> Assigned state #{{ $state['stateId'] }}</span>
+        @if (!empty($states))
+            <form method="GET" class="filters">
+                <select name="stateId" onchange="this.form.submit()">
+                    @foreach ($states as $opt)
+                        <option value="{{ $opt['id'] }}" @selected((int) $state['stateId'] === (int) $opt['id'])>{{ $opt['name'] }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @else
+            <span class="pill ok"><i data-lucide="shield-check"></i> {{ $state['stateName'] }}</span>
+        @endif
     </div>
     <div class="kpis">
         @foreach ([
