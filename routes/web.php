@@ -26,6 +26,7 @@ use App\Http\Controllers\AdvertisingController;
 use App\Http\Controllers\WalletsController;
 use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\LeadsController;
 use App\Http\Controllers\NotificationsController;
 use Illuminate\Support\Facades\Route;
 
@@ -123,6 +124,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/support/{ticket}/attachments', [SupportController::class, 'attach'])->name('support.attach');
     Route::get('/support/{ticket}/attachments/{attachment}', [SupportController::class, 'file'])->name('support.file');
     Route::get('/support/{ticket}', [SupportController::class, 'show'])->name('support.show')->whereNumber('ticket');
+    Route::get('/leads', [LeadsController::class, 'index'])->name('leads.index');
+    Route::patch('/leads/{lead}', [LeadsController::class, 'update'])->name('leads.update')->whereNumber('lead');
+    Route::get('/leads/{lead}', [LeadsController::class, 'show'])->name('leads.show')->whereNumber('lead');
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/dispatch', [NotificationsController::class, 'dispatch'])->name('notifications.dispatch');
     Route::get('/ads', [AdvertisingController::class, 'index'])->name('ads.index');

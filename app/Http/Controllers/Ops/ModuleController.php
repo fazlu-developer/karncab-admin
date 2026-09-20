@@ -86,6 +86,11 @@ class ModuleController extends Controller
 
             return redirect()->route('support.index');
         }
+        if ($module === 'leads') {
+            abort_unless($request->user()?->can('customers.view') || $request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('leads.index');
+        }
         if ($module === 'notifications') {
             abort_unless($request->user()?->can('platform.admin'), 403);
 

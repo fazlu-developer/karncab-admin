@@ -172,6 +172,19 @@ trait CreatesPlatformSchema
                 $table->timestamp('closed_at')->nullable();
                 $table->timestamps();
             },
+            'leads' => function (Blueprint $table) {
+                $table->id();
+                $table->string('type');
+                $table->string('status')->default('NEW');
+                $table->string('name');
+                $table->string('phone', 20);
+                $table->string('email', 180)->nullable();
+                $table->string('district', 80)->nullable();
+                $table->text('message');
+                $table->text('payload')->nullable();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->timestamp('created_at')->nullable();
+            },
             'support_messages' => function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('ticket_id');

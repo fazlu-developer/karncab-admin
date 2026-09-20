@@ -338,8 +338,12 @@ class DriversController extends Controller
         abort_unless((int) $document->driver_id === (int) $driver->id, 404);
         $key = (string) $document->storage_key;
         abort_if($key === '', 404);
-        if (Storage::disk('public')->exists($key)) {
-            return response()->file(Storage::disk('public')->path($key), [
+        $paths = array_filter([
+            Storage::disk('public')->exists($key) ? Storage::disk('public')->path($key) : null,
+            is_file(base_path('../api/storage/app/public/'.$key)) ? base_path('../api/storage/app/public/'.$key) : null,
+        ]);
+        foreach ($paths as $path) {
+            return response()->file($path, [
                 'Content-Type' => $document->mime ?: 'application/octet-stream',
             ]);
         }

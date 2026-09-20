@@ -41,8 +41,9 @@ class ManagementConsoleTest extends TestCase
             ->assertSee('Total users')
             ->assertSee('Pending KYC')
             ->assertSee('Users')
-            ->assertSee('Live Map')
+            ->assertSee('Live Tracking')
             ->assertSee('Audit Logs')
+            ->assertSee('Website leads')
             ->assertSee('Fazlu');
     }
 

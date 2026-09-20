@@ -10,6 +10,7 @@ use App\Platform\TerritoryScope;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PlatformOpsService
@@ -75,6 +76,9 @@ class PlatformOpsService
                 'activeFleet' => (clone $fleets)->count(),
                 'pendingKyc' => (clone $drivers)->whereIn('kyc_status', ['pending', 'under_review'])->count(),
                 'pendingComplaints' => $this->q('support_tickets')->whereNotIn('status', ['resolved', 'closed'])->count(),
+                'pendingLeads' => \Illuminate\Support\Facades\Schema::connection('platform')->hasTable('leads')
+                    ? $this->q('leads')->where('status', 'NEW')->count()
+                    : 0,
                 'expiringDocuments' => $this->q('driver_documents')->whereNotNull('expires_at')->where('expires_at', '<=', $expiry)->count(),
                 'activeAdvertisements' => $this->q('ad_campaigns')->where('status', 'published')->where('starts_on', '<=', now())->where('ends_on', '>=', now())->count(),
             ],
@@ -190,6 +194,19 @@ class PlatformOpsService
                 'lng' => $row->last_lng,
                 'status' => $row->status,
             ])],
+            'leads' => ['leads' => Schema::connection('platform')->hasTable('leads')
+                ? $this->map($this->q('leads')->orderByDesc('id')->limit(200)->get(), fn ($row) => [
+                    'id' => (string) $row->id,
+                    'type' => $row->type,
+                    'status' => $row->status,
+                    'name' => $row->name,
+                    'phone' => $row->phone,
+                    'email' => $row->email,
+                    'district' => $row->district,
+                    'message' => $row->message,
+                    'createdAt' => $row->created_at,
+                ])
+                : []],
             'complaints' => ['tickets' => $this->map($this->q('support_tickets')->orderByDesc('id')->limit(100)->get(), fn ($row) => [
                 'id' => (string) $row->id,
                 'ticketId' => $row->public_ref,

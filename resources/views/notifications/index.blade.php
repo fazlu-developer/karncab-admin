@@ -55,6 +55,20 @@
         </section>
     @endcan
     <section class="card">
+        <h2>Expired driver documents</h2>
+        @forelse ($expiredDocuments ?? [] as $row)
+            <p>
+                <a href="{{ route('drivers.show', $row['driverId']) }}">{{ $row['driver'] }}</a>
+                · {{ $row['phone'] }} · {{ $row['type'] }} · {{ $row['status'] }}
+                @if (!empty($row['expiresAt']))
+                    · expires {{ $row['expiresAt'] }}
+                @endif
+            </p>
+        @empty
+            <p class="muted">No expired driver documents right now.</p>
+        @endforelse
+    </section>
+    <section class="card">
         <h2>Delivery log</h2>
         @forelse ($deliveries as $row)
             <p>{{ $row['createdAt'] }} · {{ $row['event'] }} · {{ $row['channel'] }} · {{ $row['status'] }} · {{ $row['title'] }}</p>

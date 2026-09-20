@@ -24,11 +24,44 @@ class NotificationService
      */
     public function workspace(User $operator, array $query = []): array
     {
-        abort_unless($operator->can('platform.admin') || $operator->can('notifications.send'), 403);
+        abort_unless(
+            $operator->can('platform.admin')
+            || $operator->can('notifications.send')
+            || $operator->can('notifications.view'),
+            403
+        );
+
+        $expired = [];
+        try {
+            $expired = $this->db()->table('driver_documents as dd')
+                ->join('drivers as d', 'd.id', '=', 'dd.driver_id')
+                ->join('users as u', 'u.id', '=', 'd.user_id')
+                ->where(function ($q) {
+                    $q->where('dd.status', 'expired')
+                        ->orWhere(function ($inner) {
+                            $inner->whereNotNull('dd.expires_at')->whereDate('dd.expires_at', '<=', now()->toDateString());
+                        });
+                })
+                ->orderByDesc('dd.id')
+                ->limit(40)
+                ->get(['dd.id', 'dd.type', 'dd.expires_at', 'dd.status', 'u.name', 'u.phone', 'd.id as driver_id'])
+                ->map(fn ($row) => [
+                    'driverId' => $row->driver_id,
+                    'driver' => $row->name,
+                    'phone' => $row->phone,
+                    'type' => $row->type,
+                    'status' => $row->status,
+                    'expiresAt' => $row->expires_at,
+                ])
+                ->all();
+        } catch (\Throwable) {
+            $expired = [];
+        }
 
         return [
             'catalog' => $this->catalog(),
             'deliveries' => $this->deliveries($operator, $query),
+            'expiredDocuments' => $expired,
         ];
     }
 
