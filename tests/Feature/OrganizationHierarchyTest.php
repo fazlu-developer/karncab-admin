@@ -104,6 +104,37 @@ class OrganizationHierarchyTest extends TestCase
         $this->assertSame(2, DB::connection('platform')->table('fleet_owners')->where('district_id', 10)->count());
     }
 
+    public function test_admin_can_verify_pending_fleet_owner(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+        $userId = DB::connection('platform')->table('users')->insertGetId([
+            'name' => 'Pending Fleet',
+            'email' => 'pending-fleet@karnacab.local',
+            'phone' => '9100000099',
+            'password_hash' => Hash::make('secret'),
+            'role' => OperatorRole::FLEET_OWNER,
+            'status' => 'PENDING',
+            'state_id' => 1,
+            'district_id' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $fleetId = DB::connection('platform')->table('fleet_owners')->insertGetId([
+            'user_id' => $userId,
+            'trade_name' => 'Pending Cabs',
+            'company_type' => 'PROPRIETORSHIP',
+            'state_id' => 1,
+            'district_id' => 10,
+            'status' => 'PENDING',
+            'kyc_status' => 'under_review',
+        ]);
+
+        $this->actingAs($admin)->post('/fleet-owners/'.$fleetId.'/verify', ['approve' => 1])->assertRedirect();
+        $this->assertSame('ACTIVE', DB::connection('platform')->table('fleet_owners')->where('id', $fleetId)->value('status'));
+        $this->assertSame('approved', DB::connection('platform')->table('fleet_owners')->where('id', $fleetId)->value('kyc_status'));
+        $this->assertSame('ACTIVE', DB::connection('platform')->table('users')->where('id', $userId)->value('status'));
+    }
+
     public function test_individual_driver_has_null_fleet_owner(): void
     {
         $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);

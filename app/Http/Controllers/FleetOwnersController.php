@@ -48,4 +48,22 @@ class FleetOwnersController extends Controller
 
         return redirect()->route('fleet-owners.index')->with('status', 'Fleet Owner created. Multiple fleet owners are allowed in the same district.');
     }
+
+    public function show(Request $request, int $id): View
+    {
+        abort_unless($request->user()?->can('fleet.view') || $request->user()?->can('fleet_owner.view'), 403);
+
+        return view('fleet_owners.show', [
+            'owner' => $this->fleets->find($request->user(), $id),
+        ]);
+    }
+
+    public function verify(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->can('fleet.manage') || $request->user()?->can('fleet_owner.create'), 403);
+        $approve = $request->boolean('approve');
+        $this->fleets->verify($request->user(), $id, $approve, $request->input('reason'));
+
+        return redirect()->route('fleet-owners.show', $id)->with('status', $approve ? 'Fleet owner verified. They can now use the fleet app.' : 'Fleet owner application rejected.');
+    }
 }

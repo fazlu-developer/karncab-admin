@@ -90,12 +90,66 @@ class FleetOwnerDirectoryService
             $payload['franchise_id'] = $data['franchise_id'] ?? null;
             $payload['status'] = $data['status'] ?? 'ACTIVE';
             $payload['address'] = $data['address'] ?? null;
+            if (Schema::connection('platform')->hasColumn('fleet_owners', 'kyc_status')) {
+                $payload['kyc_status'] = ($payload['status'] ?? 'ACTIVE') === 'ACTIVE' ? 'approved' : 'pending';
+            }
         }
 
         $fleetId = $this->db()->table('fleet_owners')->insertGetId($payload);
         OrganizationAudit::record($actor, 'fleet_owner.created', 'fleet_owner', $fleetId, null, $payload);
 
         return $fleetId;
+    }
+
+    public function find(User $actor, int $id): object
+    {
+        $row = $this->db()->table('fleet_owners')
+            ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
+            ->leftJoin('states', 'states.id', '=', 'fleet_owners.state_id')
+            ->leftJoin('districts', 'districts.id', '=', 'fleet_owners.district_id')
+            ->select(
+                'fleet_owners.*',
+                'users.name as owner_name',
+                'users.email',
+                'users.phone',
+                'users.status as user_status',
+                'states.name as state_name',
+                'districts.name as district_name',
+            )
+            ->where('fleet_owners.id', $id)
+            ->first();
+        abort_if($row === null, 404);
+        $visible = $this->db()->table('fleet_owners')->where('id', $id);
+        TerritoryScope::applyFleets($visible, $actor);
+        abort_unless($visible->exists(), 404);
+
+        return $row;
+    }
+
+    public function verify(User $actor, int $id, bool $approve, ?string $reason = null): void
+    {
+        $row = $this->find($actor, $id);
+        $patch = [
+            'status' => $approve ? 'ACTIVE' : 'PENDING',
+        ];
+        $schema = Schema::connection('platform');
+        if ($schema->hasColumn('fleet_owners', 'updated_at')) {
+            $patch['updated_at'] = now();
+        }
+        if ($schema->hasColumn('fleet_owners', 'kyc_status')) {
+            $patch['kyc_status'] = $approve ? 'approved' : 'rejected';
+        }
+        if ($approve && $schema->hasColumn('fleet_owners', 'verified_at')) {
+            $patch['verified_at'] = now();
+        }
+        $this->db()->table('fleet_owners')->where('id', $id)->update($patch);
+        if ($row->user_id) {
+            $this->db()->table('users')->where('id', $row->user_id)->update([
+                'status' => $approve ? 'ACTIVE' : 'PENDING',
+                'updated_at' => now(),
+            ]);
+        }
+        OrganizationAudit::record($actor, $approve ? 'fleet_owner.verified' : 'fleet_owner.rejected', 'fleet_owner', $id, null, $patch);
     }
 
     private function assertGeo(User $actor, int $stateId, int $districtId): void

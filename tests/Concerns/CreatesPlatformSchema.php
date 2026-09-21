@@ -52,6 +52,9 @@ trait CreatesPlatformSchema
         $schema->create('states', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('code')->nullable();
+            $table->string('status')->default('ACTIVE');
+            $table->timestamps();
         });
         $schema->create('districts', function (Blueprint $table) {
             $table->id();
@@ -59,6 +62,7 @@ trait CreatesPlatformSchema
             $table->string('name');
             $table->string('code')->nullable();
             $table->string('status')->default('ACTIVE');
+            $table->timestamps();
         });
         $schema->create('bookings', function (Blueprint $table) {
             $table->id();
@@ -84,6 +88,7 @@ trait CreatesPlatformSchema
             $table->unsignedBigInteger('family_member_id')->nullable();
             $table->string('start_otp')->nullable();
             $table->string('end_otp')->nullable();
+            $table->string('payment_mode')->nullable();
             $table->string('share_token')->nullable()->unique();
             $table->timestamp('share_expires_at')->nullable();
             $table->decimal('pickup_lat', 10, 7)->nullable();
@@ -153,6 +158,14 @@ trait CreatesPlatformSchema
                 $table->unsignedBigInteger('franchise_id')->nullable();
                 $table->string('status')->default('ACTIVE');
                 $table->string('address')->nullable();
+                $table->string('company_type')->nullable();
+                $table->string('kyc_status')->nullable();
+                $table->string('pan')->nullable();
+                $table->string('contact_email')->nullable();
+                $table->string('contact_phone')->nullable();
+                $table->text('documents_json')->nullable();
+                $table->timestamp('submitted_at')->nullable();
+                $table->timestamp('verified_at')->nullable();
             },
             'support_tickets' => function (Blueprint $table) {
                 $table->id();
@@ -432,6 +445,7 @@ trait CreatesPlatformSchema
                 $table->id();
                 $table->string('key');
                 $table->text('value')->nullable();
+                $table->timestamps();
             },
             'platform_audit_events' => function (Blueprint $table) {
                 $table->id();
@@ -597,7 +611,22 @@ trait CreatesPlatformSchema
             'travel_packages' => function (Blueprint $table) {
                 $table->id();
                 $table->string('title')->nullable();
+                $table->string('name')->nullable();
+                $table->string('destination')->nullable();
+                $table->bigInteger('price_paise')->default(0);
                 $table->string('status')->nullable();
+                $table->timestamps();
+            },
+            'catalog_services' => function (Blueprint $table) {
+                $table->id();
+                $table->string('slug', 80);
+                $table->string('title', 120);
+                $table->string('subtitle', 180)->nullable();
+                $table->string('service_group', 24)->default('RIDE');
+                $table->string('category_key', 40)->nullable();
+                $table->unsignedInteger('sort_order')->default(0);
+                $table->boolean('active')->default(true);
+                $table->timestamps();
             },
             'travel_bookings' => function (Blueprint $table) {
                 $table->id();

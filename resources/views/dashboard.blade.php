@@ -42,7 +42,7 @@
             ['monthlyRevenueRupees', 'Month ₹', 'wallet'],
             ['pendingKyc', 'Pending KYC', 'badge-alert'],
             ['pendingComplaints', 'Complaints', 'message-circle-warning'],
-            ['pendingLeads', 'Website leads', 'inbox'],
+            ['pendingLeads', 'Website enquiries', 'inbox'],
             ['activeAdvertisements', 'Ads live', 'megaphone'],
         ] as [$key, $label, $icon])
             <div class="kpi">

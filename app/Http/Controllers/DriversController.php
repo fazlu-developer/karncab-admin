@@ -8,6 +8,7 @@ use App\Models\Platform\PlatformUser;
 use App\Platform\GeoCatalog;
 use App\Platform\RideCatalog;
 use App\Platform\TerritoryScope;
+use App\Services\KycFileStore;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,10 +16,9 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DriversController extends Controller
 {
@@ -310,10 +310,14 @@ class DriversController extends Controller
         }
         $file = $request->file('file');
         abort_unless($file, 422, 'Upload a file.');
+        $binary = file_get_contents($file->getRealPath() ?: $file->getPathname()) ?: '';
+        abort_unless($binary !== '', 422, 'Upload a file.');
         $mime = $file->getMimeType() ?: 'application/octet-stream';
-        $ext = $file->getClientOriginalExtension() ?: (str_contains($mime, 'png') ? 'png' : (str_contains($mime, 'pdf') ? 'pdf' : 'jpg'));
-        $path = 'kyc/'.$driver->id.'/'.Str::uuid().'.'.$ext;
-        Storage::disk('public')->put($path, file_get_contents($file->getRealPath()) ?: '');
+        $ext = strtolower((string) ($file->getClientOriginalExtension() ?: ''));
+        if ($ext === '') {
+            $ext = str_contains($mime, 'png') ? 'png' : (str_contains($mime, 'pdf') ? 'pdf' : (str_contains($mime, 'webp') ? 'webp' : 'jpg'));
+        }
+        $path = app(KycFileStore::class)->put((int) $driver->id, $ext, $binary);
         if (! in_array($type, self::MULTI_DOCS, true)) {
             PlatformDriverDocument::query()->where('driver_id', $driver->id)->where('type', $type)->delete();
         }
@@ -331,26 +335,23 @@ class DriversController extends Controller
         return redirect()->route('drivers.show', $driver)->with('status', 'Attachment uploaded.');
     }
 
-    public function documentFile(Request $request, PlatformDriver $driver, PlatformDriverDocument $document): Response|RedirectResponse
+    public function documentFile(Request $request, PlatformDriver $driver, PlatformDriverDocument $document): BinaryFileResponse|Response|RedirectResponse
     {
         abort_unless($request->user()?->can('drivers.view'), 403);
         $this->assertVisible($request, $driver);
         abort_unless((int) $document->driver_id === (int) $driver->id, 404);
-        $key = (string) $document->storage_key;
-        abort_if($key === '', 404);
-        $paths = array_filter([
-            Storage::disk('public')->exists($key) ? Storage::disk('public')->path($key) : null,
-            is_file(base_path('../api/storage/app/public/'.$key)) ? base_path('../api/storage/app/public/'.$key) : null,
-        ]);
-        foreach ($paths as $path) {
+        $path = app(KycFileStore::class)->absolutePath((string) $document->storage_key);
+        if ($path) {
             return response()->file($path, [
                 'Content-Type' => $document->mime ?: 'application/octet-stream',
+                'Cache-Control' => 'private, max-age=120',
             ]);
         }
         $url = $document->externalUrl();
-        abort_unless($url, 404);
-
-        return redirect()->away($url);
+        if ($url && (str_starts_with((string) $document->storage_key, 'http://') || str_starts_with((string) $document->storage_key, 'https://'))) {
+            return redirect()->away($url);
+        }
+        abort(404, 'Attachment file is missing. Upload it again.');
     }
 
     public function reviewDocument(Request $request, PlatformDriver $driver, PlatformDriverDocument $document): RedirectResponse

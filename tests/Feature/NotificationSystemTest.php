@@ -78,7 +78,7 @@ class NotificationSystemTest extends TestCase
             ->assertOk()
             ->assertJsonFragment(['channels' => ['in_app', 'push', 'sms', 'email']])
             ->assertJsonFragment(['otp']);
-        $this->actingAs($admin)->get('/notifications')->assertOk()->assertSee('Notification system');
+        $this->actingAs($admin)->get('/notifications')->assertOk()->assertSee('Event templates');
         $this->actingAs($admin)->get('/ops/notifications')->assertRedirect(route('notifications.index'));
         $this->actingAs($admin)->postJson('/api/v1/notifications/dispatch', [
             'user_id' => 800,

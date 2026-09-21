@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'KarnaCab Admin')</title>
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
-    <link rel="icon" type="image/png" href="{{ asset('favicon-32.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+    <title>@yield('title', ($kcBrand['name'] ?? 'KarnaCab').' Admin')</title>
+    <link rel="icon" href="{{ $kcBrand['icoUrl'] ?? asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" href="{{ $kcBrand['faviconUrl'] ?? asset('favicon-32.png') }}">
+    <link rel="apple-touch-icon" href="{{ $kcBrand['faviconUrl'] ?? asset('apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
     @livewireStyles
 </head>
@@ -26,8 +26,7 @@
                             : \App\Platform\OpsNav::grouped($user))));
         @endphp
         <a class="logo" href="{{ route($user->homeRoute()) }}">
-            <img src="{{ asset('branding/karnacab-logo.png') }}" alt="KarnaCab" class="logo-img" width="36" height="36">
-            <span class="logo-name">Karna<span>Cab</span></span>
+            <img src="{{ $kcBrand['logoUrl'] ?? asset('branding/karnacab-logo-full.png') }}" alt="{{ $kcBrand['name'] ?? 'KarnaCab' }}" class="logo-img">
         </a>
         @foreach ($navGroups as $group => $items)
             <div class="group">{{ $group }}</div>

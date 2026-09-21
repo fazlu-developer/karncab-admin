@@ -46,7 +46,7 @@ class WebsiteLeadsTest extends TestCase
         $this->actingAs($admin)
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('Website leads');
+            ->assertSee('Website enquiries');
 
         $id = (int) DB::connection('platform')->table('leads')->value('id');
         $this->actingAs($admin)

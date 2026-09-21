@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Website leads')
-@section('heading', 'Website leads')
+@section('title', 'Website enquiries')
+@section('heading', 'Website enquiries')
 
 @section('content')
     <div class="hero">
         <div>
             <h1><i data-lucide="inbox"></i> Website enquiries</h1>
-            <p class="muted">Contact and product forms from karnacab.in. Each submission is emailed to ops and stored here.</p>
+            <p class="muted">Contact and product forms from the public website. Each row is one submitted enquiry.</p>
         </div>
     </div>
     <form class="card" method="GET">
@@ -38,15 +38,37 @@
         </div>
     </form>
     <section class="card">
-        @forelse ($leads as $row)
-            <p>
-                <a href="{{ route('leads.show', $row['id']) }}">#{{ $row['id'] }}</a>
-                · {{ $row['type'] }} · {{ $row['status'] }}
-                · {{ $row['name'] }} · {{ $row['phone'] }}
-                · {{ \Illuminate\Support\Str::limit($row['message'], 80) }}
-            </p>
-        @empty
-            <p class="muted">No website leads yet.</p>
-        @endforelse
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>When</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>District</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse ($leads as $row)
+                <tr>
+                    <td><a href="{{ route('leads.show', $row['id']) }}">#{{ $row['id'] }}</a></td>
+                    <td>{{ $row['createdAt'] }}</td>
+                    <td>{{ $row['type'] }}</td>
+                    <td>{{ $row['status'] }}</td>
+                    <td>{{ $row['name'] }}</td>
+                    <td>{{ $row['phone'] }}</td>
+                    <td>{{ $row['email'] ?: '—' }}</td>
+                    <td>{{ $row['district'] ?: '—' }}</td>
+                    <td>{{ \Illuminate\Support\Str::limit($row['message'], 80) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="9" class="muted">No website enquiries yet.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
     </section>
 @endsection

@@ -22,15 +22,13 @@ final class OpsNav
             ['key' => 'fleet', 'label' => 'Fleet Owners / Operators', 'icon' => 'warehouse', 'group' => 'Fleet Management', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
             ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet Management', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
             ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet Management', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
-            ['key' => 'assignments', 'label' => 'Assignments', 'icon' => 'link', 'group' => 'Fleet Management', 'ability' => 'fleet.view'],
-            ['key' => 'driver-leave', 'label' => 'Driver Leave', 'icon' => 'calendar-off', 'group' => 'Fleet Management', 'ability' => 'fleet.view'],
             ['key' => 'users', 'label' => 'Users', 'icon' => 'users', 'group' => 'People', 'ability' => 'users.view', 'route' => 'users.index'],
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'trips', 'label' => 'Trips', 'icon' => 'navigation', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'map', 'label' => 'Live Tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
-            ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.view'],
-            ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view'],
-            ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view'],
+            ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.manual-bookings'],
+            ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'ops.parcels'],
+            ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.travel'],
             ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
             ['key' => 'corporate', 'label' => 'Corporate', 'icon' => 'building-2', 'group' => 'Partners', 'ability' => 'corporate.view'],
             ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC & Documents', 'ability' => 'kyc.view'],
@@ -41,17 +39,19 @@ final class OpsNav
             ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Growth', 'ability' => 'advertising.view', 'route' => 'ads.index'],
             ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
             ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.index'],
-            ['key' => 'leads', 'label' => 'Website leads', 'icon' => 'inbox', 'group' => 'Growth', 'ability' => 'customers.view', 'route' => 'leads.index'],
+            ['key' => 'faqs', 'label' => 'FAQ & support copy', 'icon' => 'circle-help', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.faqs'],
+            ['key' => 'leads', 'label' => 'Website enquiries', 'icon' => 'inbox', 'group' => 'Growth', 'ability' => 'customers.view', 'route' => 'leads.index'],
             ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Reports', 'ability' => 'reports.view', 'route' => 'reports.index'],
             ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'notifications.view', 'route' => 'notifications.index'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
             ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ride-settings.index'],
-            ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'platform.admin'],
+            ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.services'],
+            ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.branding'],
             ['key' => 'locations', 'label' => 'Locations', 'icon' => 'globe', 'group' => 'System', 'ability' => 'platform.admin'],
-            ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin'],
-            ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'platform.admin'],
-            ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin'],
+            ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.roles'],
+            ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.settings'],
+            ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.audit'],
         ];
     }
 
@@ -90,10 +90,10 @@ final class OpsNav
             return request()->routeIs('managers.*');
         }
         if (($item['key'] ?? '') === 'states') {
-            return request()->routeIs('organization.states');
+            return request()->routeIs('organization.states*');
         }
         if (($item['key'] ?? '') === 'districts') {
-            return request()->routeIs('organization.districts');
+            return request()->routeIs('organization.districts*');
         }
         if (($item['key'] ?? '') === 'fleet') {
             return request()->routeIs('fleet-owners.*') || request()->route('module') === 'fleet';
@@ -134,7 +134,10 @@ final class OpsNav
             return request()->routeIs('safety.*') && ! request()->routeIs('safety.share');
         }
         if (($item['key'] ?? '') === 'complaints') {
-            return request()->routeIs('support.*');
+            return request()->routeIs('support.index', 'support.show', 'support.assign', 'support.transition', 'support.reply', 'support.attach', 'support.file');
+        }
+        if (($item['key'] ?? '') === 'faqs') {
+            return request()->routeIs('support.faqs', 'support.faqs.store', 'support.faqs.update');
         }
         if (($item['key'] ?? '') === 'leads') {
             return request()->routeIs('leads.*');
@@ -150,6 +153,30 @@ final class OpsNav
         }
         if (($item['key'] ?? '') === 'reports') {
             return request()->routeIs('reports.*');
+        }
+        if (($item['key'] ?? '') === 'services') {
+            return request()->routeIs('ops.services*');
+        }
+        if (($item['key'] ?? '') === 'branding') {
+            return request()->routeIs('ops.branding*');
+        }
+        if (($item['key'] ?? '') === 'roles') {
+            return request()->routeIs('ops.roles*');
+        }
+        if (($item['key'] ?? '') === 'settings') {
+            return request()->routeIs('ops.settings*');
+        }
+        if (($item['key'] ?? '') === 'audit') {
+            return request()->routeIs('ops.audit*');
+        }
+        if (($item['key'] ?? '') === 'travel') {
+            return request()->routeIs('ops.travel*') || request()->route('module') === 'travel';
+        }
+        if (($item['key'] ?? '') === 'parcels') {
+            return request()->routeIs('ops.parcels*') || request()->route('module') === 'parcels';
+        }
+        if (($item['key'] ?? '') === 'bulk') {
+            return request()->routeIs('ops.manual-bookings*') || request()->route('module') === 'bulk';
         }
 
         return request()->route('module') === ($item['key'] ?? null);

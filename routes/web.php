@@ -12,6 +12,7 @@ use App\Http\Controllers\Fleet\FleetWorkspaceController;
 use App\Http\Controllers\FranchisesController;
 use App\Http\Controllers\LiveMapController;
 use App\Http\Controllers\Ops\ModuleController;
+use App\Http\Controllers\Ops\WorkspaceController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\State\StateAssignmentController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\AdvertisingController;
 use App\Http\Controllers\WalletsController;
 use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\SupportFaqsController;
 use App\Http\Controllers\LeadsController;
 use App\Http\Controllers\NotificationsController;
 use Illuminate\Support\Facades\Route;
@@ -94,11 +96,17 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('users', UsersController::class)->parameters(['users' => 'platformUser']);
     Route::get('/organization/states', [OrganizationController::class, 'states'])->name('organization.states');
+    Route::post('/organization/states', [OrganizationController::class, 'storeState'])->name('organization.states.store');
+    Route::put('/organization/states/{state}', [OrganizationController::class, 'updateState'])->name('organization.states.update')->whereNumber('state');
     Route::get('/organization/districts', [OrganizationController::class, 'districts'])->name('organization.districts');
+    Route::post('/organization/districts', [OrganizationController::class, 'storeDistrict'])->name('organization.districts.store');
+    Route::put('/organization/districts/{district}', [OrganizationController::class, 'updateDistrict'])->name('organization.districts.update')->whereNumber('district');
     Route::resource('managers', ManagersController::class)->except(['show', 'destroy']);
     Route::get('/fleet-owners', [FleetOwnersController::class, 'index'])->name('fleet-owners.index');
     Route::get('/fleet-owners/create', [FleetOwnersController::class, 'create'])->name('fleet-owners.create');
     Route::post('/fleet-owners', [FleetOwnersController::class, 'store'])->name('fleet-owners.store');
+    Route::get('/fleet-owners/{id}', [FleetOwnersController::class, 'show'])->name('fleet-owners.show')->whereNumber('id');
+    Route::post('/fleet-owners/{id}/verify', [FleetOwnersController::class, 'verify'])->name('fleet-owners.verify')->whereNumber('id');
     Route::resource('drivers', DriversController::class);
     Route::post('/drivers/{driver}/onboarding', [DriversController::class, 'updateOnboarding'])->name('drivers.onboarding');
     Route::post('/drivers/{driver}/documents', [DriversController::class, 'storeDocument'])->name('drivers.documents.store');
@@ -108,6 +116,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/vehicles', [VehiclesController::class, 'index'])->name('vehicles.index');
     Route::post('/vehicles', [VehiclesController::class, 'store'])->name('vehicles.store');
+    Route::post('/vehicles/{vehicle}/approve', [VehiclesController::class, 'approve'])->name('vehicles.approve');
 
     Route::get('/coupons', [CouponsController::class, 'index'])->name('coupons.index');
     Route::post('/coupons', [CouponsController::class, 'store'])->name('coupons.store');
@@ -118,6 +127,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/safety/{incident}', [SafetyController::class, 'review'])->name('safety.review');
     Route::get('/safety/{incident}', [SafetyController::class, 'show'])->name('safety.show')->whereNumber('incident');
     Route::get('/support', [SupportController::class, 'index'])->name('support.index');
+    Route::get('/support/faqs', [SupportFaqsController::class, 'index'])->name('support.faqs');
+    Route::post('/support/faqs', [SupportFaqsController::class, 'store'])->name('support.faqs.store');
+    Route::patch('/support/faqs/{faq}', [SupportFaqsController::class, 'update'])->name('support.faqs.update');
     Route::post('/support/{ticket}/assign', [SupportController::class, 'assign'])->name('support.assign');
     Route::post('/support/{ticket}/transition', [SupportController::class, 'transition'])->name('support.transition');
     Route::post('/support/{ticket}/reply', [SupportController::class, 'reply'])->name('support.reply');
@@ -176,6 +188,25 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/ops/ride-settings', [\App\Http\Controllers\RideSettingsController::class, 'index'])->name('ride-settings.index');
     Route::put('/ops/ride-settings', [\App\Http\Controllers\RideSettingsController::class, 'update'])->name('ride-settings.update');
+
+    Route::get('/ops/branding', [WorkspaceController::class, 'branding'])->name('ops.branding');
+    Route::post('/ops/branding', [WorkspaceController::class, 'saveBranding'])->name('ops.branding.save');
+    Route::get('/ops/services', [WorkspaceController::class, 'services'])->name('ops.services');
+    Route::post('/ops/services', [WorkspaceController::class, 'storeService'])->name('ops.services.store');
+    Route::put('/ops/services/{service}', [WorkspaceController::class, 'updateService'])->name('ops.services.update')->whereNumber('service');
+    Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');
+    Route::post('/ops/travel', [WorkspaceController::class, 'storeTravel'])->name('ops.travel.store');
+    Route::put('/ops/travel/{package}', [WorkspaceController::class, 'updateTravel'])->name('ops.travel.update')->whereNumber('package');
+    Route::get('/ops/parcels', [WorkspaceController::class, 'parcels'])->name('ops.parcels');
+    Route::post('/ops/parcels', [WorkspaceController::class, 'storeParcel'])->name('ops.parcels.store');
+    Route::put('/ops/parcels/{parcel}', [WorkspaceController::class, 'updateParcel'])->name('ops.parcels.update')->whereNumber('parcel');
+    Route::get('/ops/manual-bookings', [WorkspaceController::class, 'manualBookings'])->name('ops.manual-bookings');
+    Route::post('/ops/manual-bookings', [WorkspaceController::class, 'storeManualBooking'])->name('ops.manual-bookings.store');
+    Route::get('/ops/settings', [WorkspaceController::class, 'settings'])->name('ops.settings');
+    Route::post('/ops/settings', [WorkspaceController::class, 'saveSettings'])->name('ops.settings.save');
+    Route::get('/ops/roles', [WorkspaceController::class, 'roles'])->name('ops.roles');
+    Route::put('/ops/roles/{user}', [WorkspaceController::class, 'saveRoleExtras'])->name('ops.roles.extras');
+    Route::get('/ops/audit', [WorkspaceController::class, 'audit'])->name('ops.audit');
 
     Route::get('/ops/{module}/export', [ModuleController::class, 'export'])->name('ops.export');
     Route::get('/ops/{module}', [ModuleController::class, 'show'])->name('ops.module');

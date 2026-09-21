@@ -338,6 +338,7 @@ class PlatformOpsService
             'publicRef' => $b->public_ref,
             'product' => $b->product,
             'status' => $b->status,
+            'cancelReason' => $b->cancel_reason ?? null,
             'quotePaise' => $b->quote_paise,
         ]);
         $payload['payments'] = $this->map($this->q('payments')->where('customer_id', $id)->orderByDesc('id')->limit(30)->get(), fn ($p) => [

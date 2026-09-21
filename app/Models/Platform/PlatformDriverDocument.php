@@ -32,6 +32,21 @@ class PlatformDriverDocument extends Model
         return $this->externalUrl();
     }
 
+    public function storedPath(): ?string
+    {
+        return app(\App\Services\KycFileStore::class)->absolutePath((string) $this->storage_key);
+    }
+
+    public function isMissing(): bool
+    {
+        $key = (string) $this->storage_key;
+        if ($key === '' || str_starts_with($key, 'http://') || str_starts_with($key, 'https://')) {
+            return false;
+        }
+
+        return $this->storedPath() === null;
+    }
+
     public function externalUrl(): ?string
     {
         $key = (string) $this->storage_key;

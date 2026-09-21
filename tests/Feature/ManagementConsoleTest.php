@@ -43,7 +43,7 @@ class ManagementConsoleTest extends TestCase
             ->assertSee('Users')
             ->assertSee('Live Tracking')
             ->assertSee('Audit Logs')
-            ->assertSee('Website leads')
+            ->assertSee('Website enquiries')
             ->assertSee('Fazlu');
     }
 
@@ -181,6 +181,48 @@ class ManagementConsoleTest extends TestCase
             ->assertSee('Attachments')
             ->assertSee('Upload attachment')
             ->assertDontSee('State ID');
+    }
+
+    public function test_admin_can_upload_and_preview_driver_attachment(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+
+        $this->actingAs($admin)
+            ->post('/drivers', [
+                'name' => 'Naqi',
+                'email' => 'naqi.driver@karnacab.local',
+                'phone' => '8595527582',
+                'status' => 'PENDING',
+                'license_no' => 'DL-NAQI-01',
+                'kyc_status' => 'pending',
+                'password' => 'ChangeMe@123',
+            ])
+            ->assertRedirect();
+
+        $driverId = (int) DB::connection('platform')->table('drivers')->where('license_no', 'DL-NAQI-01')->value('id');
+        $upload = \Illuminate\Http\UploadedFile::fake()->image('scaled_21.png', 80, 80);
+
+        $this->actingAs($admin)
+            ->post('/drivers/'.$driverId.'/documents', [
+                'type' => 'AADHAAR_FRONT',
+                'file' => $upload,
+            ])
+            ->assertRedirect('/drivers/'.$driverId);
+
+        $doc = DB::connection('platform')->table('driver_documents')->where('driver_id', $driverId)->first();
+        $this->assertNotNull($doc);
+        $this->assertFileExists(storage_path('app/public/'.$doc->storage_key));
+
+        $this->actingAs($admin)
+            ->get('/drivers/'.$driverId.'/documents/'.$doc->id.'/file')
+            ->assertOk();
+
+        $this->actingAs($admin)
+            ->get('/drivers/'.$driverId)
+            ->assertOk()
+            ->assertSee('Aadhaar front')
+            ->assertSee('doc-thumb', false)
+            ->assertDontSee('The file is not on the server');
     }
 
     public function test_admin_vehicles_page_lists_bike_auto_car(): void

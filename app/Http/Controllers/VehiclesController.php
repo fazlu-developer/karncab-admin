@@ -107,4 +107,15 @@ class VehiclesController extends Controller
 
         return redirect()->route('vehicles.index')->with('status', 'Vehicle added.');
     }
+
+    public function approve(Request $request, PlatformVehicle $vehicle): RedirectResponse
+    {
+        abort_unless($request->user()?->can('vehicles.edit') || $request->user()?->can('fleet.manage'), 403);
+        $query = PlatformVehicle::query()->whereKey($vehicle->id);
+        TerritoryScope::applyVehicles($query, $request->user());
+        abort_unless($query->exists(), 404);
+        $vehicle->update(['status' => 'available']);
+
+        return redirect()->route('vehicles.index')->with('status', 'Vehicle approved. The fleet owner can start using it.');
+    }
 }

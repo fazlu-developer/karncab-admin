@@ -41,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view) {
             $user = auth()->user();
             $view->with('kcGeo', GeoCatalog::payload($user instanceof User ? $user : null));
+            $view->with('kcBrand', \App\Support\SiteBrand::payload());
         });
     }
 }

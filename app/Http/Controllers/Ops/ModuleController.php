@@ -106,6 +106,46 @@ class ModuleController extends Controller
 
             return redirect()->route('fare.index');
         }
+        if ($module === 'branding') {
+            abort_unless($request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.branding');
+        }
+        if ($module === 'services') {
+            abort_unless($request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.services');
+        }
+        if ($module === 'travel') {
+            abort_unless($request->user()?->can('travel.view') || $request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.travel');
+        }
+        if ($module === 'parcels') {
+            abort_unless($request->user()?->can('parcels.view') || $request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.parcels');
+        }
+        if ($module === 'bulk') {
+            abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.manual-bookings');
+        }
+        if ($module === 'settings') {
+            abort_unless($request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.settings');
+        }
+        if ($module === 'roles') {
+            abort_unless($request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.roles');
+        }
+        if ($module === 'audit') {
+            abort_unless($request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.audit');
+        }
 
         $def = OpsNav::find($module);
         abort_if($def === null, 404);

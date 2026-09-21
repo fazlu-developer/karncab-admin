@@ -126,7 +126,14 @@
                         <td>{{ $districtNames[$row->district_id] ?? '—' }}{{ !empty($stateNames[$row->state_id]) ? ' · '.$stateNames[$row->state_id] : '' }}</td>
                         <td>{{ trim(($row->brand ?? '').' '.($row->model ?? '')) ?: '—' }}</td>
                         <td>
-                            @if ($row->driver)
+                            @if (in_array(strtolower((string) $row->status), ['pending_review', 'pending'], true))
+                                @can('vehicles.edit')
+                                    <form method="POST" action="{{ route('vehicles.approve', $row) }}" style="display:inline">
+                                        @csrf
+                                        <button class="btn" type="submit">Approve</button>
+                                    </form>
+                                @endcan
+                            @elseif ($row->driver)
                                 <a class="icon-btn" href="{{ route('drivers.show', $row->driver) }}" title="Driver"><i data-lucide="eye"></i></a>
                             @endif
                         </td>
