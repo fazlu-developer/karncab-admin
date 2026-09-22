@@ -53,4 +53,19 @@ class NotificationsController extends Controller
 
         return back()->with('status', 'Event '.$data['event'].' dispatched.');
     }
+
+    public function saveTemplate(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'event' => ['required', 'in:'.implode(',', array_keys(NotificationPolicy::EVENTS))],
+            'title' => ['required', 'string', 'max:160'],
+            'body' => ['required', 'string', 'max:500'],
+            'channels' => ['required', 'array', 'min:1'],
+            'channels.*' => ['in:in_app,push,sms,email'],
+        ]);
+        $this->notifications->saveTemplate($data);
+
+        return back()->with('status', 'Template saved for '.$data['event'].'.');
+    }
 }

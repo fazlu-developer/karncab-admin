@@ -27,6 +27,7 @@
                 <div class="field">
                     <label>Wallet min % of fare</label>
                     <input name="driver_wallet_min_fare_percent" type="number" min="0" max="100" step="0.1" value="{{ $walletMinPercent }}">
+                    <p class="muted">10 means a ₹1,000 wallet can accept a ₹10,000 booking.</p>
                 </div>
                 <div class="field">
                     <label>Website enquiry notify email</label>

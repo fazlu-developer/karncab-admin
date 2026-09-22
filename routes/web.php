@@ -141,6 +141,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/leads/{lead}', [LeadsController::class, 'show'])->name('leads.show')->whereNumber('lead');
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/dispatch', [NotificationsController::class, 'dispatch'])->name('notifications.dispatch');
+    Route::post('/notifications/templates', [NotificationsController::class, 'saveTemplate'])->name('notifications.template');
     Route::get('/ads', [AdvertisingController::class, 'index'])->name('ads.index');
     Route::post('/ads', [AdvertisingController::class, 'store'])->name('ads.store');
     Route::get('/ads/{ad}/banner', [AdvertisingController::class, 'bannerFile'])->name('ads.banner.file');

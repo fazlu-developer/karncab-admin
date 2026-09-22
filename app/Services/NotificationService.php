@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\User;
 use App\Platform\NotificationPolicy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 
 class NotificationService
@@ -15,7 +17,44 @@ class NotificationService
      */
     public function catalog(): array
     {
-        return NotificationPolicy::catalog();
+        $catalog = NotificationPolicy::catalog();
+        foreach ($this->savedTemplates() as $event => $row) {
+            $channels = json_decode((string) $row->channels, true);
+            $catalog['templates'][$event] = [
+                'title' => $row->title,
+                'body' => $row->body,
+                'channels' => is_array($channels) && $channels !== [] ? array_values($channels) : ['in_app', 'push'],
+            ];
+        }
+
+        return $catalog;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function saveTemplate(array $data): void
+    {
+        $this->ensureTemplates();
+        $event = (string) $data['event'];
+        abort_unless(isset(NotificationPolicy::EVENTS[$event]), 422, 'Unknown event');
+        $channels = array_values(array_intersect((array) ($data['channels'] ?? []), NotificationPolicy::CHANNELS));
+        abort_unless($channels !== [], 422, 'Pick at least one channel');
+        $now = now();
+        $payload = [
+            'event_key' => $event,
+            'title' => $data['title'],
+            'body' => $data['body'],
+            'channels' => json_encode($channels),
+            'updated_at' => $now,
+        ];
+        $exists = $this->db()->table('notification_event_templates')->where('event_key', $event)->exists();
+        if ($exists) {
+            $this->db()->table('notification_event_templates')->where('event_key', $event)->update($payload);
+        } else {
+            $payload['created_at'] = $now;
+            $this->db()->table('notification_event_templates')->insert($payload);
+        }
     }
 
     /**
@@ -76,6 +115,15 @@ class NotificationService
             'title' => $opts['title'] ?? ($vars['title'] ?? ''),
             'body' => $opts['body'] ?? ($vars['body'] ?? ''),
         ]);
+        $saved = $this->savedTemplates()[$event] ?? null;
+        if ($saved) {
+            $channels = json_decode((string) $saved->channels, true);
+            $rendered = [
+                'title' => NotificationPolicy::fill((string) $saved->title, $vars),
+                'body' => NotificationPolicy::fill((string) $saved->body, $vars),
+                'channels' => is_array($channels) && $channels !== [] ? array_values($channels) : $rendered['channels'],
+            ];
+        }
         $title = substr((string) ($opts['title'] ?? $rendered['title'] ?: $event), 0, 160);
         $body = substr((string) ($opts['body'] ?? $rendered['body'] ?: $title), 0, 500);
         $channels = $opts['channels'] ?? $rendered['channels'];
@@ -198,11 +246,10 @@ class NotificationService
         } elseif ($channel === 'push') {
             if (! $userId) {
                 $note = 'no_user';
-            } elseif (! Schema::connection('platform')->hasTable('push_devices') || ! $this->db()->table('push_devices')->where('user_id', $userId)->exists()) {
-                $note = 'no_device';
             } else {
-                $status = 'skipped';
-                $note = 'fcm_unconfigured';
+                $sent = $this->sendPush($userId, $title, $body, ['event' => $event]);
+                $status = $sent ? 'sent' : 'skipped';
+                $note = $sent ? 'fcm' : 'no_device_or_fcm';
             }
         } elseif ($channel === 'sms') {
             if (! $phone) {
@@ -213,12 +260,20 @@ class NotificationService
                 $note = 'log_adapter';
             }
         } elseif ($channel === 'email') {
-            if (! $email) {
+            if (! $email || str_ends_with((string) $email, '@otp.karnacab.local')) {
                 $note = 'no_email';
             } else {
-                Log::info('notification.email', ['email' => $email, 'event' => $event, 'title' => $title]);
-                $status = 'sent';
-                $note = 'email_log';
+                try {
+                    Mail::html($this->brandedHtml($title, $body), function ($message) use ($email, $title) {
+                        $message->to($email)->subject($title);
+                    });
+                    $status = 'sent';
+                    $note = 'smtp';
+                } catch (\Throwable $e) {
+                    $status = 'failed';
+                    $note = substr($e->getMessage(), 0, 180);
+                    Log::warning('notification.email_failed', ['email' => $email, 'error' => $e->getMessage()]);
+                }
             }
         }
         if (Schema::connection('platform')->hasTable('notification_deliveries')) {
@@ -237,6 +292,160 @@ class NotificationService
         }
 
         return ['channel' => $channel, 'status' => $status];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function sendPush(int $userId, string $title, string $body, array $data): bool
+    {
+        if (! Schema::connection('platform')->hasTable('push_devices')) {
+            return false;
+        }
+        $tokens = $this->db()->table('push_devices')->where('user_id', $userId)->pluck('token');
+        $creds = $this->firebaseCredentials();
+        if (! $creds || $tokens->isEmpty()) {
+            return false;
+        }
+        $access = $this->firebaseAccessToken($creds);
+        if (! $access) {
+            return false;
+        }
+        $project = $creds['project_id'] ?? 'karnacab-bf930';
+        $ok = false;
+        foreach ($tokens as $token) {
+            if (! is_string($token) || strlen($token) < 20) {
+                continue;
+            }
+            $payload = [];
+            foreach ($data + ['title' => $title, 'body' => $body] as $key => $value) {
+                if ($value !== null) {
+                    $payload[(string) $key] = is_scalar($value) ? (string) $value : json_encode($value);
+                }
+            }
+            $response = Http::withToken($access)->acceptJson()->timeout(8)->post(
+                'https://fcm.googleapis.com/v1/projects/'.$project.'/messages:send',
+                ['message' => [
+                    'token' => $token,
+                    'notification' => ['title' => $title, 'body' => $body],
+                    'data' => $payload,
+                    'android' => ['priority' => 'HIGH', 'notification' => ['channel_id' => 'karnacab_default']],
+                ]],
+            );
+            $ok = $ok || $response->successful();
+        }
+
+        return $ok;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function firebaseCredentials(): ?array
+    {
+        $path = env('FCM_CREDENTIALS', base_path('../api/firebase-service-account.json'));
+        if (! is_string($path) || ! is_file($path)) {
+            return null;
+        }
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $creds
+     */
+    private function firebaseAccessToken(array $creds): ?string
+    {
+        $header = $this->b64(['alg' => 'RS256', 'typ' => 'JWT']);
+        $now = time();
+        $claim = $this->b64([
+            'iss' => $creds['client_email'],
+            'sub' => $creds['client_email'],
+            'aud' => $creds['token_uri'] ?? 'https://oauth2.googleapis.com/token',
+            'iat' => $now,
+            'exp' => $now + 3500,
+            'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+        ]);
+        $private = openssl_pkey_get_private((string) $creds['private_key']);
+        if (! $private || ! openssl_sign($header.'.'.$claim, $signature, $private, OPENSSL_ALGO_SHA256)) {
+            return null;
+        }
+        $jwt = $header.'.'.$claim.'.'.$this->b64Raw($signature);
+        try {
+            $response = Http::asForm()->timeout(8)->post($creds['token_uri'] ?? 'https://oauth2.googleapis.com/token', [
+                'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                'assertion' => $jwt,
+            ]);
+
+            return is_string($response->json('access_token')) ? $response->json('access_token') : null;
+        } catch (\Throwable $e) {
+            Log::warning('notification.fcm_token_failed', ['error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function b64(array $data): string
+    {
+        return $this->b64Raw((string) json_encode($data));
+    }
+
+    private function b64Raw(string $raw): string
+    {
+        return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+    }
+
+    private function brandedHtml(string $title, string $body): string
+    {
+        $safeTitle = e($title);
+        $safeBody = e($body);
+
+        return <<<HTML
+<!DOCTYPE html>
+<html><body style="margin:0;background:#f4f1ea;font-family:Segoe UI,Arial,sans-serif;color:#10231c">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 12px">
+    <tr><td align="center">
+      <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="background:#fff;border-radius:20px;overflow:hidden;border:1px solid #eadfcb">
+        <tr><td style="background:#123328;color:#fff;padding:22px 28px;font-size:22px;font-weight:800">Karna<span style="color:#f5a623">Cab</span></td></tr>
+        <tr><td style="padding:28px"><h1 style="margin:0 0 12px;font-size:24px">{$safeTitle}</h1><p style="margin:0;font-size:15px;line-height:1.6">{$safeBody}</p></td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>
+HTML;
+    }
+
+    /**
+     * @return array<string, object>
+     */
+    private function savedTemplates(): array
+    {
+        $this->ensureTemplates();
+        $rows = [];
+        foreach ($this->db()->table('notification_event_templates')->get() as $row) {
+            $rows[(string) $row->event_key] = $row;
+        }
+
+        return $rows;
+    }
+
+    private function ensureTemplates(): void
+    {
+        if (Schema::connection('platform')->hasTable('notification_event_templates')) {
+            return;
+        }
+        Schema::connection('platform')->create('notification_event_templates', function ($table) {
+            $table->id();
+            $table->string('event_key', 80)->unique();
+            $table->string('title', 180);
+            $table->text('body');
+            $table->json('channels');
+            $table->timestamps();
+        });
     }
 
     private function db()

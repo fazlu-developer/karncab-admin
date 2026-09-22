@@ -36,6 +36,31 @@
     </section>
     @can('platform.admin')
         <section class="card">
+            <h2>Edit an event template</h2>
+            <p class="muted">Saved templates are used for email, FCM push, and in-app alerts. Placeholders: {ref} {name} {status} {amount} {code} {note} {direction} {title} {body}</p>
+            <form method="POST" action="{{ route('notifications.template') }}">
+                @csrf
+                <div class="field">
+                    <label>Event</label>
+                    <select name="event">
+                        @foreach ($catalog['events'] as $event)
+                            <option value="{{ $event }}">{{ $event }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="field"><label>Title</label><input name="title" required maxlength="160" placeholder="Your booking is accepted"></div>
+                <div class="field"><label>Message</label><textarea name="body" rows="3" required maxlength="500" placeholder="Your booking {ref} is accepted."></textarea></div>
+                <div class="field">
+                    <label>Channels</label>
+                    <label><input type="checkbox" name="channels[]" value="in_app" checked> App notification</label>
+                    <label><input type="checkbox" name="channels[]" value="push" checked> FCM push</label>
+                    <label><input type="checkbox" name="channels[]" value="email"> Email</label>
+                    <label><input type="checkbox" name="channels[]" value="sms"> SMS</label>
+                </div>
+                <button class="btn" type="submit">Save template</button>
+            </form>
+        </section>
+        <section class="card">
             <h2>Broadcast to an audience</h2>
             <form method="POST" action="{{ route('ops.notify') }}">
                 @csrf
