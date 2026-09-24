@@ -46,13 +46,26 @@ class WorkspaceController extends Controller
             'whatsappUrl' => ['nullable', 'string', 'max:255'],
             'playStoreUrl' => ['nullable', 'string', 'max:255'],
             'appStoreUrl' => ['nullable', 'string', 'max:255'],
+            'customerPlayStoreUrl' => ['nullable', 'string', 'max:255'],
+            'driverPlayStoreUrl' => ['nullable', 'string', 'max:255'],
+            'customerAppVersion' => ['nullable', 'string', 'max:32'],
+            'driverAppVersion' => ['nullable', 'string', 'max:32'],
+            'highAlertMessage' => ['nullable', 'string', 'max:240'],
+            'highAlertUntil' => ['nullable', 'string', 'max:40'],
+            'customerMaintenance' => ['nullable', 'boolean'],
+            'driverMaintenance' => ['nullable', 'boolean'],
+            'customerForceUpdate' => ['nullable', 'boolean'],
+            'driverForceUpdate' => ['nullable', 'boolean'],
+            'highAlertEnabled' => ['nullable', 'boolean'],
             'footerBlurb' => ['nullable', 'string', 'max:400'],
-            'logo' => ['nullable', 'image', 'max:2048'],
+            'logo' => ['nullable', 'image', 'max:4096'],
+            'customer_app_logo' => ['nullable', 'image', 'max:4096'],
+            'driver_app_logo' => ['nullable', 'image', 'max:4096'],
             'admin_logo' => ['nullable', 'image', 'max:2048'],
             'favicon' => ['nullable', 'image', 'max:1024'],
             'og' => ['nullable', 'image', 'max:2048'],
         ]);
-        $this->branding->save($data, $request->file('logo'), $request->file('favicon'), $request->file('og'), $request->file('admin_logo'));
+        $this->branding->save($data, $request->file('logo'), $request->file('favicon'), $request->file('og'), $request->file('admin_logo'), $request->file('customer_app_logo'), $request->file('driver_app_logo'));
         OrganizationAudit::record($request->user(), 'branding.update', 'cms_site', 'site', null, ['name' => $data['name']], 'cms');
 
         return back()->with('status', 'Website, SEO, logo and contact details saved. Public pages pick this up from cms_site.');

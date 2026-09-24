@@ -46,11 +46,35 @@
                     <input type="file" name="favicon" accept="image/*">
                 </div>
                 <div class="field">
+                    <label>Customer app icon</label>
+                    @if ($site['customerAppLogoUrl'])<p><img src="{{ $site['customerAppLogoUrl'] }}" alt="" style="max-height:48px"></p>@endif
+                    <input type="file" name="customer_app_logo" accept="image/*">
+                </div>
+                <div class="field">
+                    <label>Driver app icon</label>
+                    @if ($site['driverAppLogoUrl'])<p><img src="{{ $site['driverAppLogoUrl'] }}" alt="" style="max-height:48px"></p>@endif
+                    <input type="file" name="driver_app_logo" accept="image/*">
+                </div>
+                <div class="field">
                     <label>Open Graph image</label>
                     @if ($site['ogImage'])<p><img src="{{ $site['ogImage'] }}" alt="" style="max-height:48px"></p>@endif
                     <input type="file" name="og" accept="image/*">
                 </div>
             </div>
+            <h2 style="margin-top:18px">Application control</h2>
+            <div class="grid-2">
+                <div class="field"><label>Customer app version</label><input name="customerAppVersion" value="{{ old('customerAppVersion', $site['customerAppVersion']) }}" placeholder="1.0.4"></div>
+                <div class="field"><label>Driver app version</label><input name="driverAppVersion" value="{{ old('driverAppVersion', $site['driverAppVersion']) }}" placeholder="1.0.4"></div>
+                <div class="field"><label>Customer Play Store URL</label><input name="customerPlayStoreUrl" value="{{ old('customerPlayStoreUrl', $site['customerPlayStoreUrl']) }}"></div>
+                <div class="field"><label>Driver Play Store URL</label><input name="driverPlayStoreUrl" value="{{ old('driverPlayStoreUrl', $site['driverPlayStoreUrl']) }}"></div>
+                <div class="field"><label>High alert until</label><input name="highAlertUntil" value="{{ old('highAlertUntil', $site['highAlertUntil']) }}" placeholder="12:00"></div>
+            </div>
+            <div class="field"><label>High alert message</label><textarea name="highAlertMessage" rows="2" placeholder="Application 12 bje tak chalegi. Please complete your ride before this time.">{{ old('highAlertMessage', $site['highAlertMessage']) }}</textarea></div>
+            <label class="field"><input type="checkbox" name="customerMaintenance" value="1" @checked(old('customerMaintenance', $site['customerMaintenance']))> Customer app under maintenance</label>
+            <label class="field"><input type="checkbox" name="driverMaintenance" value="1" @checked(old('driverMaintenance', $site['driverMaintenance']))> Driver app under maintenance</label>
+            <label class="field"><input type="checkbox" name="customerForceUpdate" value="1" @checked(old('customerForceUpdate', $site['customerForceUpdate']))> Customer app: ask to download the updated app when the version does not match</label>
+            <label class="field"><input type="checkbox" name="driverForceUpdate" value="1" @checked(old('driverForceUpdate', $site['driverForceUpdate']))> Driver app: ask to download the updated app when the version does not match</label>
+            <label class="field"><input type="checkbox" name="highAlertEnabled" value="1" @checked(old('highAlertEnabled', $site['highAlertEnabled']))> Show high alert in both apps</label>
             <button class="btn" type="submit">Save branding</button>
         </form>
     </section>

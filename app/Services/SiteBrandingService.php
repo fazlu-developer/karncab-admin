@@ -32,6 +32,19 @@ class SiteBrandingService
             'whatsappUrl' => $site['whatsappUrl'] ?? '',
             'playStoreUrl' => $site['playStoreUrl'] ?? '',
             'appStoreUrl' => $site['appStoreUrl'] ?? '',
+            'customerAppLogoUrl' => $site['customerAppLogoUrl'] ?? '',
+            'driverAppLogoUrl' => $site['driverAppLogoUrl'] ?? '',
+            'customerPlayStoreUrl' => $site['customerPlayStoreUrl'] ?? ($site['playStoreUrl'] ?? ''),
+            'driverPlayStoreUrl' => $site['driverPlayStoreUrl'] ?? '',
+            'customerAppVersion' => $site['customerAppVersion'] ?? '1.0.4',
+            'driverAppVersion' => $site['driverAppVersion'] ?? '1.0.4',
+            'customerMaintenance' => (bool) ($site['customerMaintenance'] ?? false),
+            'driverMaintenance' => (bool) ($site['driverMaintenance'] ?? false),
+            'customerForceUpdate' => (bool) ($site['customerForceUpdate'] ?? false),
+            'driverForceUpdate' => (bool) ($site['driverForceUpdate'] ?? false),
+            'highAlertEnabled' => (bool) ($site['highAlertEnabled'] ?? false),
+            'highAlertMessage' => $site['highAlertMessage'] ?? '',
+            'highAlertUntil' => $site['highAlertUntil'] ?? '',
             'footerBlurb' => $site['footerBlurb'] ?? '',
             'logoUrl' => $site['logoUrl'] ?? '',
             'faviconUrl' => $site['faviconUrl'] ?? '',
@@ -43,7 +56,7 @@ class SiteBrandingService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function save(array $data, ?UploadedFile $logo = null, ?UploadedFile $favicon = null, ?UploadedFile $og = null, ?UploadedFile $adminLogo = null): void
+    public function save(array $data, ?UploadedFile $logo = null, ?UploadedFile $favicon = null, ?UploadedFile $og = null, ?UploadedFile $adminLogo = null, ?UploadedFile $customerLogo = null, ?UploadedFile $driverLogo = null): void
     {
         $site = $this->form();
         foreach ($site as $key => $current) {
@@ -51,8 +64,17 @@ class SiteBrandingService
                 $site[$key] = trim($data[$key]);
             }
         }
+        foreach (['customerMaintenance', 'driverMaintenance', 'customerForceUpdate', 'driverForceUpdate', 'highAlertEnabled'] as $flag) {
+            $site[$flag] = filter_var($data[$flag] ?? false, FILTER_VALIDATE_BOOLEAN);
+        }
         if ($logo) {
             $site['logoUrl'] = $this->store($logo, 'logo');
+        }
+        if ($customerLogo) {
+            $site['customerAppLogoUrl'] = $this->store($customerLogo, 'customer-app');
+        }
+        if ($driverLogo) {
+            $site['driverAppLogoUrl'] = $this->store($driverLogo, 'driver-app');
         }
         if ($adminLogo) {
             $site['adminLogoUrl'] = $this->store($adminLogo, 'admin-logo');
