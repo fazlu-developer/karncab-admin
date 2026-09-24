@@ -321,16 +321,19 @@ class DriversController extends Controller
         if (! in_array($type, self::MULTI_DOCS, true)) {
             PlatformDriverDocument::query()->where('driver_id', $driver->id)->where('type', $type)->delete();
         }
-        PlatformDriverDocument::query()->create([
+        PlatformDriverDocument::query()->create($this->onlyExisting('driver_documents', [
             'driver_id' => $driver->id,
             'type' => $type,
             'status' => 'pending',
             'storage_key' => $path,
             'original_name' => substr($file->getClientOriginalName() ?: $type, 0, 180),
             'mime' => substr($mime, 0, 80),
-            'size_bytes' => $file->getSize() ?: 0,
+            'size_bytes' => $file->getSize() ?: strlen($binary),
+            'checksum_sha256' => hash('sha256', $binary),
             'expires_at' => $data['expires_at'] ?? null,
-        ]);
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]));
 
         return redirect()->route('drivers.show', $driver)->with('status', 'Attachment uploaded.');
     }
@@ -348,7 +351,7 @@ class DriversController extends Controller
             ]);
         }
         $url = $document->externalUrl();
-        if ($url && (str_starts_with((string) $document->storage_key, 'http://') || str_starts_with((string) $document->storage_key, 'https://'))) {
+        if ($url) {
             return redirect()->away($url);
         }
         abort(404, 'Attachment file is missing. Upload it again.');

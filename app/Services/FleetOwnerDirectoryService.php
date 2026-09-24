@@ -152,6 +152,87 @@ class FleetOwnerDirectoryService
         OrganizationAudit::record($actor, $approve ? 'fleet_owner.verified' : 'fleet_owner.rejected', 'fleet_owner', $id, null, $patch);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function update(User $actor, int $id, array $data): void
+    {
+        $row = $this->find($actor, $id);
+        $schema = Schema::connection('platform');
+        $patch = [];
+        foreach ([
+            'trade_name' => $data['trade_name'] ?? null,
+            'address' => $data['address'] ?? null,
+            'gstin' => $data['gstin'] ?? null,
+            'pan' => $data['pan'] ?? null,
+            'company_type' => $data['company_type'] ?? null,
+            'status' => $data['status'] ?? null,
+            'state_id' => $data['state_id'] ?? null,
+            'district_id' => $data['district_id'] ?? null,
+            'franchise_id' => $data['franchise_id'] ?? null,
+        ] as $column => $value) {
+            if ($value === null || $value === '' || ! $schema->hasColumn('fleet_owners', $column)) {
+                continue;
+            }
+            $patch[$column] = $value;
+        }
+        if ($schema->hasColumn('fleet_owners', 'updated_at')) {
+            $patch['updated_at'] = now();
+        }
+        if ($patch !== []) {
+            $this->db()->table('fleet_owners')->where('id', $id)->update($patch);
+        }
+        $userPatch = array_filter([
+            'name' => $data['name'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+        ], fn ($value) => $value !== null && $value !== '');
+        if (! empty($data['password'])) {
+            $userPatch['password_hash'] = Hash::make((string) $data['password']);
+        }
+        if ($row->user_id && $userPatch !== []) {
+            $userPatch['updated_at'] = now();
+            $this->db()->table('users')->where('id', $row->user_id)->update($userPatch);
+        }
+        OrganizationAudit::record($actor, 'fleet_owner.updated', 'fleet_owner', $id, null, $patch);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function storeDocument(User $actor, int $id, array $data, string $binary, string $mime, string $originalName): void
+    {
+        $row = $this->find($actor, $id);
+        $schema = Schema::connection('platform');
+        abort_unless($schema->hasColumn('fleet_owners', 'documents_json'), 500, 'Company documents are not available on this database.');
+        $type = strtoupper(trim((string) ($data['type'] ?? '')));
+        $allowed = ['GST', 'PAN', 'COMPANY_REG', 'ADDRESS_PROOF', 'BANK', 'TRADE_LICENSE'];
+        abort_unless(in_array($type, $allowed, true), 422, 'Unknown company document type.');
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION) ?: '');
+        if ($ext === '') {
+            $ext = str_contains($mime, 'png') ? 'png' : (str_contains($mime, 'pdf') ? 'pdf' : 'jpg');
+        }
+        $path = 'fleet/'.$id.'/'.bin2hex(random_bytes(16)).'.'.$ext;
+        abort_unless(app(KycFileStore::class)->write($path, $binary), 500, 'Could not save the attachment.');
+        $docs = json_decode((string) ($row->documents_json ?? '[]'), true);
+        $docs = is_array($docs) ? $docs : [];
+        $docs = array_values(array_filter($docs, fn ($doc) => strtoupper((string) ($doc['type'] ?? '')) !== $type));
+        $docs[] = [
+            'type' => $type,
+            'status' => 'pending',
+            'storageKey' => $path,
+            'originalName' => substr($originalName, 0, 180),
+            'mime' => substr($mime, 0, 80),
+            'uploadedAt' => now()->toIso8601String(),
+        ];
+        $patch = ['documents_json' => json_encode($docs)];
+        if ($schema->hasColumn('fleet_owners', 'updated_at')) {
+            $patch['updated_at'] = now();
+        }
+        $this->db()->table('fleet_owners')->where('id', $id)->update($patch);
+        OrganizationAudit::record($actor, 'fleet_owner.document', 'fleet_owner', $id, null, ['type' => $type]);
+    }
+
     private function assertGeo(User $actor, int $stateId, int $districtId): void
     {
         if ($actor->isPrivilegedOperator() || ($actor->isManager() && ! $actor->state_id && ! $actor->district_id)) {

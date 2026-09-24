@@ -11,7 +11,12 @@
             <h1>{{ $owner->trade_name ?: 'Incomplete company' }}</h1>
             <p class="muted">{{ $owner->owner_name }} · {{ $owner->phone ?? '—' }} · {{ $owner->email ?? '' }}</p>
         </div>
-        <a class="btn ghost" href="{{ route('fleet-owners.index') }}">List</a>
+        <div>
+            @can('fleet.manage')
+                <a class="btn" href="{{ route('fleet-owners.edit', $owner->id) }}">Edit info</a>
+            @endcan
+            <a class="btn ghost" href="{{ route('fleet-owners.index') }}">List</a>
+        </div>
     </div>
 
     <section class="card">
@@ -34,10 +39,36 @@
     <section class="card">
         <h2>Company documents</h2>
         @forelse ($docs as $doc)
-            <p>{{ $doc['type'] ?? 'Document' }} · {{ $doc['originalName'] ?? $doc['storageKey'] ?? 'file' }} · {{ $doc['status'] ?? 'pending' }}</p>
+            <p>
+                {{ $doc['type'] ?? 'Document' }} · {{ $doc['originalName'] ?? 'file' }} · {{ $doc['status'] ?? 'pending' }}
+                @if (! empty($doc['type']))
+                    <a href="{{ route('fleet-owners.documents.file', [$owner->id, $doc['type']]) }}" target="_blank" rel="noopener">View</a>
+                @endif
+            </p>
         @empty
             <p class="muted">No company documents uploaded yet.</p>
         @endforelse
+        @can('fleet.manage')
+            <form method="POST" action="{{ route('fleet-owners.documents.store', $owner->id) }}" enctype="multipart/form-data" style="margin-top:16px">
+                @csrf
+                <h3>Upload or replace attachment</h3>
+                <div class="filters">
+                    <div class="field">
+                        <label>Document type</label>
+                        <select name="type" required>
+                            @foreach (['GST', 'PAN', 'COMPANY_REG', 'ADDRESS_PROOF', 'BANK', 'TRADE_LICENSE'] as $type)
+                                <option value="{{ $type }}">{{ str_replace('_', ' ', $type) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>File</label>
+                        <input type="file" name="file" accept="image/*,application/pdf" required>
+                    </div>
+                </div>
+                <button class="btn" type="submit">Save attachment</button>
+            </form>
+        @endcan
     </section>
 
     @can('fleet.manage')

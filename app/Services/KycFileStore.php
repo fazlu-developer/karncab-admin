@@ -18,12 +18,16 @@ class KycFileStore
         abort_if($key === '' || str_contains($key, '..'), 404);
         $ok = false;
         foreach ($this->absoluteCandidates($key) as $full) {
-            $dir = dirname($full);
-            if (! is_dir($dir) && ! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+            try {
+                $dir = dirname($full);
+                if (! is_dir($dir) && ! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+                    continue;
+                }
+                if (@file_put_contents($full, $binary) !== false) {
+                    $ok = true;
+                }
+            } catch (\Throwable) {
                 continue;
-            }
-            if (@file_put_contents($full, $binary) !== false) {
-                $ok = true;
             }
         }
 
@@ -42,7 +46,7 @@ class KycFileStore
             }
         }
 
-        return null;
+        return $this->pullFromApi($key);
     }
 
     /**
@@ -50,11 +54,53 @@ class KycFileStore
      */
     private function absoluteCandidates(string $key): array
     {
-        return array_values(array_unique([
-            storage_path('app/public/'.$key),
-            storage_path('app/private/'.$key),
-            base_path('../api/storage/app/public/'.$key),
-            base_path('../api/storage/app/private/'.$key),
-        ]));
+        $roots = [
+            storage_path('app/public'),
+            storage_path('app/private'),
+            base_path('../api/storage/app/public'),
+            base_path('../api/storage/app/private'),
+            dirname(base_path()).'/api/storage/app/public',
+            dirname(base_path()).'/api/storage/app/private',
+            dirname(base_path(), 2).'/api/storage/app/public',
+            dirname(base_path(), 2).'/api/storage/app/private',
+        ];
+        $extra = trim((string) env('KYC_STORAGE_ROOT', ''));
+        if ($extra !== '') {
+            $roots[] = rtrim($extra, '/\\');
+        }
+
+        return array_values(array_unique(array_map(
+            fn ($root) => rtrim(str_replace('\\', '/', $root), '/').'/'.$key,
+            $roots,
+        )));
+    }
+
+    private function pullFromApi(string $key): ?string
+    {
+        $base = rtrim((string) config('services.api_public', 'https://api.karnacab.in'), '/');
+        $url = $base.'/storage/'.$key;
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(12)->get($url);
+        } catch (\Throwable) {
+            return null;
+        }
+        if (! $response->successful()) {
+            return null;
+        }
+        $type = strtolower((string) $response->header('Content-Type'));
+        $body = $response->body();
+        if ($body === '' || str_contains($type, 'text/html')) {
+            return null;
+        }
+        $dest = storage_path('app/public/'.$key);
+        $dir = dirname($dest);
+        if (! is_dir($dir) && ! @mkdir($dir, 0777, true) && ! is_dir($dir)) {
+            return null;
+        }
+        if (@file_put_contents($dest, $body) === false) {
+            return null;
+        }
+
+        return $dest;
     }
 }

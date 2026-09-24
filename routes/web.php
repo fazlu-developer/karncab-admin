@@ -106,6 +106,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/fleet-owners/create', [FleetOwnersController::class, 'create'])->name('fleet-owners.create');
     Route::post('/fleet-owners', [FleetOwnersController::class, 'store'])->name('fleet-owners.store');
     Route::get('/fleet-owners/{id}', [FleetOwnersController::class, 'show'])->name('fleet-owners.show')->whereNumber('id');
+    Route::get('/fleet-owners/{id}/edit', [FleetOwnersController::class, 'edit'])->name('fleet-owners.edit')->whereNumber('id');
+    Route::post('/fleet-owners/{id}', [FleetOwnersController::class, 'update'])->name('fleet-owners.update')->whereNumber('id');
+    Route::post('/fleet-owners/{id}/documents', [FleetOwnersController::class, 'storeDocument'])->name('fleet-owners.documents.store')->whereNumber('id');
+    Route::get('/fleet-owners/{id}/documents/{type}', [FleetOwnersController::class, 'documentFile'])->name('fleet-owners.documents.file')->whereNumber('id');
     Route::post('/fleet-owners/{id}/verify', [FleetOwnersController::class, 'verify'])->name('fleet-owners.verify')->whereNumber('id');
     Route::resource('drivers', DriversController::class);
     Route::post('/drivers/{driver}/onboarding', [DriversController::class, 'updateOnboarding'])->name('drivers.onboarding');
