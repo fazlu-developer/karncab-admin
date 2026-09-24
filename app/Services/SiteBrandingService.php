@@ -117,6 +117,12 @@ class SiteBrandingService
     {
         $schema = Schema::connection('platform');
         if ($schema->hasTable('catalog_services')) {
+            if (! $schema->hasColumn('catalog_services', 'image_url')) {
+                $schema->table('catalog_services', function ($table) {
+                    $table->string('image_url', 255)->nullable();
+                });
+            }
+
             return;
         }
         $schema->create('catalog_services', function ($table) {

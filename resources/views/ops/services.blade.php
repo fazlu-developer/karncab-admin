@@ -42,7 +42,7 @@
                     <td>{{ $row->sort_order }}</td>
                     <td>{{ $row->active ? 'Yes' : 'No' }}</td>
                     <td>
-                        <form method="POST" action="{{ route('ops.services.update', $row->id) }}" class="filters" style="margin:0">
+                        <form method="POST" action="{{ route('ops.services.update', $row->id) }}" class="filters" style="margin:0" enctype="multipart/form-data">
                             @csrf
                             @method('PUT')
                             <input name="title" value="{{ $row->title }}" required>
@@ -54,6 +54,7 @@
                             <input name="category_key" value="{{ $row->category_key }}" style="max-width:110px">
                             <input name="sort_order" type="number" value="{{ $row->sort_order }}" style="max-width:70px">
                             <label><input type="checkbox" name="active" value="1" @checked($row->active)> Active</label>
+                            <input type="file" name="image" accept="image/*">
                             <button class="btn ghost" type="submit">Save</button>
                         </form>
                     </td>
@@ -63,5 +64,18 @@
             @endforelse
             </tbody>
         </table>
+    </section>
+    <section class="card">
+        <h2>Home offers</h2>
+        <p class="muted">These banners show on the customer app home and the View Offers screen.</p>
+        <form method="POST" action="{{ route('ops.services.offers') }}" enctype="multipart/form-data" class="filters">
+            @csrf
+            <div><label>Title</label><input name="title" required placeholder="FLAT 10% OFF"></div>
+            <div><label>Subtitle</label><input name="subtitle" placeholder="On First Ride"></div>
+            <div><label>Code</label><input name="code" placeholder="KARNA10"></div>
+            <div><label>Link</label><input name="link_url" placeholder="https://"></div>
+            <div><label>Banner image</label><input type="file" name="image" accept="image/*"></div>
+            <button class="btn" type="submit">Add offer</button>
+        </form>
     </section>
 @endsection

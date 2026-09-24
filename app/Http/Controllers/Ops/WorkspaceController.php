@@ -122,7 +122,12 @@ class WorkspaceController extends Controller
             'category_key' => ['nullable', 'string', 'max:40'],
             'sort_order' => ['nullable', 'integer'],
             'active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
         ]);
+        $imageUrl = null;
+        if ($request->file('image')) {
+            $imageUrl = $this->storeCatalogImage($request->file('image'));
+        }
         $payload = PlatformSettings::filter('catalog_services', [
             'title' => $data['title'],
             'subtitle' => $data['subtitle'] ?? null,
@@ -130,11 +135,55 @@ class WorkspaceController extends Controller
             'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'active' => $request->boolean('active'),
+            'image_url' => $imageUrl,
             'updated_at' => now(),
         ]);
+        if ($imageUrl === null) {
+            unset($payload['image_url']);
+        }
         DB::connection('platform')->table('catalog_services')->where('id', $service)->update($payload);
 
         return back()->with('status', 'Service updated.');
+    }
+
+    public function storeOffer(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:80'],
+            'subtitle' => ['nullable', 'string', 'max:160'],
+            'code' => ['nullable', 'string', 'max:32'],
+            'link_url' => ['nullable', 'string', 'max:255'],
+            'image' => ['nullable', 'image', 'max:4096'],
+        ]);
+        $rows = PlatformSettings::json('cms_home_offers');
+        $rows[] = [
+            'title' => $data['title'],
+            'subtitle' => $data['subtitle'] ?? '',
+            'code' => $data['code'] ?? '',
+            'linkUrl' => $data['link_url'] ?? '',
+            'imageUrl' => $request->file('image') ? $this->absoluteUpload($this->storeCatalogImage($request->file('image'))) : '',
+        ];
+        PlatformSettings::put('cms_home_offers', json_encode(array_values($rows), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+
+        return back()->with('status', 'Offer added. The customer app home and offers screen will show it.');
+    }
+
+    private function storeCatalogImage(\Illuminate\Http\UploadedFile $file): string
+    {
+        $dir = public_path('uploads/services');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $name = 'svc-'.Str::lower(Str::random(8)).'.'.$file->getClientOriginalExtension();
+        $file->move($dir, $name);
+
+        return '/uploads/services/'.$name;
+    }
+
+    private function absoluteUpload(string $path): string
+    {
+        return rtrim((string) env('ADMIN_PUBLIC_URL', 'https://admin.karnacab.in'), '/').'/'.ltrim($path, '/');
     }
 
     public function travel(Request $request): View

@@ -199,6 +199,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/ops/services', [WorkspaceController::class, 'services'])->name('ops.services');
     Route::post('/ops/services', [WorkspaceController::class, 'storeService'])->name('ops.services.store');
     Route::put('/ops/services/{service}', [WorkspaceController::class, 'updateService'])->name('ops.services.update')->whereNumber('service');
+    Route::post('/ops/services/offers', [WorkspaceController::class, 'storeOffer'])->name('ops.services.offers');
     Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');
     Route::post('/ops/travel', [WorkspaceController::class, 'storeTravel'])->name('ops.travel.store');
     Route::put('/ops/travel/{package}', [WorkspaceController::class, 'updateTravel'])->name('ops.travel.update')->whereNumber('package');
