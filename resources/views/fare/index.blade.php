@@ -42,17 +42,50 @@
                     </select>
                 </div>
                 <div><label>Min km</label><input name="min_km" type="number" step="0.1" value="2" required></div>
-                <div><label>Included km</label><input name="included_km" type="number" step="0.1" value="2" required></div>
+                <div><label>Included km (rental: km limit for those hours, e.g. 4h = 40 km)</label><input name="included_km" type="number" step="0.1" value="40" required></div>
                 <div><label>₹ / km</label><input name="per_km_rupees" type="number" step="0.01" value="12" required></div>
                 <div><label>₹ extra km</label><input name="extra_km_rupees" type="number" step="0.01" value="14" required></div>
                 <div><label>₹ waiting / min</label><input name="waiting_per_min_rupees" type="number" step="0.01" value="1" required></div>
                 <div><label>Night %</label><input name="night_percent" type="number" value="20" required></div>
                 <div><label>GST %</label><input name="gst_percent" type="number" value="5" required></div>
-                <div><label>Rental hours</label><input name="rental_hours" type="number" placeholder="for RENTAL"></div>
+                <div><label>Rental hours</label><input name="rental_hours" type="number" placeholder="e.g. 4"></div>
+                <div><label>Extra hour ₹ (RENTAL)</label><input name="extra_hour_rupees" type="number" step="0.01" value="150"></div>
             </div>
+            <p class="muted">For product RENTAL, set hours + included km together. Example: 4 hours with 40 included km. The customer app shows packages as 4hr / 40 Km.</p>
             <label><input type="checkbox" name="active" value="1" checked> Active</label>
             <button class="btn" type="submit">Save fare rule</button>
         </form>
+    </section>
+
+    <section class="card">
+        <h2>Rental packages in the customer app</h2>
+        <p class="muted">Each active RENTAL fare rule becomes a package chip (hours / included km) plus a vehicle card. Example: 4 hours with 40 included km shows as 4hr / 40 Km.</p>
+        <div class="table-wrap">
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Hours</th>
+                        <th>Included km</th>
+                        <th>Vehicle</th>
+                        <th>Area</th>
+                        <th>On</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @forelse ($rules->where('product', 'RENTAL') as $row)
+                    <tr>
+                        <td>{{ $row->rental_hours ?: '—' }} hr</td>
+                        <td>{{ $row->included_km }} km</td>
+                        <td>{{ $row->category }}</td>
+                        <td>{{ $row->state_name ?: 'Default' }} {{ $row->district_name }}</td>
+                        <td>{{ $row->active ? 'Yes' : 'No' }}</td>
+                    </tr>
+                @empty
+                    <tr><td class="muted" colspan="5">No RENTAL packages yet. Add a fare rule with product RENTAL, hours, and included km.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section class="card">
@@ -114,13 +147,18 @@
                                 <div><label>Night %</label><input name="night_percent" type="number" value="{{ $row->night_percent }}"></div>
                                 <div><label>GST %</label><input name="gst_percent" type="number" value="{{ $row->gst_percent }}"></div>
                                 <div><label>Rental hours</label><input name="rental_hours" type="number" value="{{ $row->rental_hours }}"></div>
+                                <div><label>Extra hour ₹</label><input name="extra_hour_rupees" type="number" step="0.01" value="{{ ($row->extra_hour_paise ?? 15000) / 100 }}"></div>
                                 <div>
                                     <label>Active</label>
                                     <label><input type="checkbox" name="active" value="1" @checked($row->active)> On</label>
                                 </div>
                                 <button class="btn" type="submit">Update</button>
                             </form>
-                            <p class="muted">#{{ $row->id }} · {{ $row->state_name ?: 'Default' }} {{ $row->district_name }}</p>
+                            <p class="muted">#{{ $row->id }} · {{ $row->state_name ?: 'Default' }} {{ $row->district_name }}
+                                @if ($row->product === 'RENTAL')
+                                    · Package {{ $row->rental_hours ?: '—' }} hr / {{ $row->included_km }} km
+                                @endif
+                            </p>
                         </td>
                     </tr>
                 @empty
