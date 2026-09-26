@@ -8,7 +8,9 @@ use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
 use App\Services\OrganizationAudit;
 use App\Services\SiteBrandingService;
+use App\Support\CorporatePlanSchema;
 use App\Support\PlatformSettings;
+use App\Support\TravelPackageSchema;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -189,6 +191,7 @@ class WorkspaceController extends Controller
     public function travel(Request $request): View
     {
         abort_unless($request->user()?->can('travel.view') || $request->user()?->can('platform.admin'), 403);
+        TravelPackageSchema::ensure('platform');
         $packages = Schema::connection('platform')->hasTable('travel_packages')
             ? DB::connection('platform')->table('travel_packages')->orderByDesc('id')->limit(200)->get()
             : collect();
@@ -202,48 +205,210 @@ class WorkspaceController extends Controller
     public function storeTravel(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
+        TravelPackageSchema::ensure('platform');
         abort_unless(Schema::connection('platform')->hasTable('travel_packages'), 422, 'Travel packages table is not available.');
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:160'],
-            'destination' => ['nullable', 'string', 'max:160'],
-            'price_rupees' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['required', 'in:DRAFT,PUBLISHED,ARCHIVED'],
-        ]);
-        $payload = PlatformSettings::filter('travel_packages', [
-            'title' => $data['title'],
-            'name' => $data['title'],
-            'destination' => $data['destination'] ?? null,
-            'price_paise' => (int) round(((float) ($data['price_rupees'] ?? 0)) * 100),
-            'status' => $data['status'],
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $data = $this->validateTravel($request);
+        $imageUrl = $request->file('image') ? $this->absoluteUpload($this->storeTravelImage($request->file('image'))) : null;
+        $payload = PlatformSettings::filter('travel_packages', $this->travelPayload($data, $imageUrl, true));
         $id = DB::connection('platform')->table('travel_packages')->insertGetId($payload);
         OrganizationAudit::record($request->user(), 'travel.create', 'travel_package', $id, null, $payload, 'travel');
 
-        return back()->with('status', 'Travel package saved.');
+        return back()->with('status', 'Travel package saved. It will show in the customer Travel & Tour service.');
     }
 
     public function updateTravel(Request $request, int $package): RedirectResponse
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:160'],
-            'destination' => ['nullable', 'string', 'max:160'],
-            'price_rupees' => ['nullable', 'numeric', 'min:0'],
-            'status' => ['required', 'in:DRAFT,PUBLISHED,ARCHIVED'],
-        ]);
-        $payload = PlatformSettings::filter('travel_packages', [
-            'title' => $data['title'],
-            'name' => $data['title'],
-            'destination' => $data['destination'] ?? null,
-            'price_paise' => (int) round(((float) ($data['price_rupees'] ?? 0)) * 100),
-            'status' => $data['status'],
-            'updated_at' => now(),
-        ]);
+        TravelPackageSchema::ensure('platform');
+        $data = $this->validateTravel($request);
+        $imageUrl = $request->file('image') ? $this->absoluteUpload($this->storeTravelImage($request->file('image'))) : null;
+        $payload = PlatformSettings::filter('travel_packages', $this->travelPayload($data, $imageUrl, false));
+        if ($imageUrl === null) {
+            unset($payload['image_url']);
+        }
         DB::connection('platform')->table('travel_packages')->where('id', $package)->update($payload);
 
         return back()->with('status', 'Travel package updated.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateTravel(Request $request): array
+    {
+        return $request->validate([
+            'title' => ['required', 'string', 'max:160'],
+            'destination' => ['nullable', 'string', 'max:160'],
+            'origin' => ['nullable', 'string', 'max:160'],
+            'region' => ['nullable', 'string', 'max:80'],
+            'category' => ['nullable', 'string', 'max:40'],
+            'price_rupees' => ['nullable', 'numeric', 'min:0'],
+            'nights' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'duration_label' => ['nullable', 'string', 'max:40'],
+            'km_included' => ['nullable', 'integer', 'min:0'],
+            'vehicle_category' => ['nullable', 'string', 'max:40'],
+            'min_pax' => ['nullable', 'integer', 'min:1', 'max:40'],
+            'highlights' => ['nullable', 'string', 'max:4000'],
+            'inclusions' => ['nullable', 'string', 'max:4000'],
+            'exclusions' => ['nullable', 'string', 'max:4000'],
+            'itinerary' => ['nullable', 'string', 'max:8000'],
+            'status' => ['required', 'in:DRAFT,PUBLISHED,ARCHIVED'],
+            'popular' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function travelPayload(array $data, ?string $imageUrl, bool $creating): array
+    {
+        $vehicle = strtoupper((string) ($data['vehicle_category'] ?? 'SEDAN'));
+        $nights = (int) ($data['nights'] ?? 0);
+        $days = $nights > 0 ? $nights + 1 : 1;
+        $label = $data['duration_label'] ?? ($nights > 0 ? $nights.'N / '.$days.'D' : '1D');
+        $itinerary = [];
+        foreach (preg_split('/\r\n|\n/', (string) ($data['itinerary'] ?? '')) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = array_map('trim', explode('|', $line, 3));
+            $itinerary[] = [
+                'day' => $parts[0] ?? '',
+                'title' => $parts[1] ?? $line,
+                'detail' => $parts[2] ?? '',
+            ];
+        }
+        $highlights = array_values(array_filter(array_map('trim', preg_split('/\r\n|\n/', (string) ($data['highlights'] ?? '')) ?: [])));
+        $row = [
+            'title' => $data['title'],
+            'name' => $data['title'],
+            'destination' => $data['destination'] ?? null,
+            'origin' => $data['origin'] ?? 'Saharsa, Bihar',
+            'region' => $data['region'] ?? null,
+            'category' => strtoupper((string) ($data['category'] ?? 'OUTSTATION')),
+            'price_paise' => (int) round(((float) ($data['price_rupees'] ?? 0)) * 100),
+            'nights' => $nights,
+            'duration_label' => $label,
+            'km_included' => (int) ($data['km_included'] ?? 0),
+            'vehicle_category' => $vehicle,
+            'vehicle_label' => match ($vehicle) {
+                'TRAVELLER' => 'Traveller',
+                'SUV' => 'SUV',
+                default => 'Private Cab',
+            },
+            'min_pax' => (int) ($data['min_pax'] ?? 2),
+            'highlights' => json_encode($highlights),
+            'inclusions' => $data['inclusions'] ?? null,
+            'exclusions' => $data['exclusions'] ?? null,
+            'itinerary' => json_encode($itinerary),
+            'image_url' => $imageUrl,
+            'popular' => ! empty($data['popular']),
+            'status' => $data['status'],
+            'updated_at' => now(),
+        ];
+        if ($creating) {
+            $row['created_at'] = now();
+        }
+
+        return $row;
+    }
+
+    private function storeTravelImage(\Illuminate\Http\UploadedFile $file): string
+    {
+        $dir = public_path('uploads/travel');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+        $name = 'tour-'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8)).'.'.$file->getClientOriginalExtension();
+        $file->move($dir, $name);
+
+        return '/uploads/travel/'.$name;
+    }
+
+    public function corporatePlans(Request $request): View
+    {
+        abort_unless($request->user()?->can('corporate.view') || $request->user()?->can('platform.admin'), 403);
+        CorporatePlanSchema::ensure('platform');
+        $plans = Schema::connection('platform')->hasTable('corporate_plans')
+            ? DB::connection('platform')->table('corporate_plans')->orderBy('sort_order')->orderByDesc('id')->get()
+            : collect();
+        $bookings = Schema::connection('platform')->hasTable('corporate_travel_bookings')
+            ? DB::connection('platform')->table('corporate_travel_bookings')->orderByDesc('id')->limit(40)->get()
+            : collect();
+
+        return view('ops.corporate-plans', compact('plans', 'bookings'));
+    }
+
+    public function storeCorporatePlan(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('corporate.edit') || $request->user()?->can('platform.admin'), 403);
+        CorporatePlanSchema::ensure('platform');
+        $data = $this->validateCorporatePlan($request);
+        $payload = PlatformSettings::filter('corporate_plans', $this->corporatePlanPayload($data, true));
+        $id = DB::connection('platform')->table('corporate_plans')->insertGetId($payload);
+        OrganizationAudit::record($request->user(), 'corporate.plan.create', 'corporate_plan', $id, null, $payload, 'corporate');
+
+        return back()->with('status', 'Corporate plan saved. It will show in the customer Corporate Travel service.');
+    }
+
+    public function updateCorporatePlan(Request $request, int $plan): RedirectResponse
+    {
+        abort_unless($request->user()?->can('corporate.edit') || $request->user()?->can('platform.admin'), 403);
+        CorporatePlanSchema::ensure('platform');
+        $data = $this->validateCorporatePlan($request);
+        $payload = PlatformSettings::filter('corporate_plans', $this->corporatePlanPayload($data, false));
+        DB::connection('platform')->table('corporate_plans')->where('id', $plan)->update($payload);
+
+        return back()->with('status', 'Corporate plan updated.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateCorporatePlan(Request $request): array
+    {
+        return $request->validate([
+            'title' => ['required', 'string', 'max:120'],
+            'plan_key' => ['nullable', 'string', 'max:40'],
+            'subtitle' => ['nullable', 'string', 'max:180'],
+            'pricing_mode' => ['required', 'in:VEHICLE,FIXED,QUOTE'],
+            'price_rupees' => ['nullable', 'numeric', 'min:0'],
+            'price_label' => ['nullable', 'string', 'max:80'],
+            'gst_percent' => ['nullable', 'numeric', 'min:0', 'max:28'],
+            'highlights' => ['nullable', 'string', 'max:4000'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'status' => ['required', 'in:DRAFT,PUBLISHED,ARCHIVED'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function corporatePlanPayload(array $data, bool $creating): array
+    {
+        $highlights = array_values(array_filter(array_map('trim', preg_split('/\r\n|\n/', (string) ($data['highlights'] ?? '')) ?: [])));
+        $row = [
+            'title' => $data['title'],
+            'plan_key' => strtoupper((string) ($data['plan_key'] ?: Str::slug($data['title'], '_'))),
+            'subtitle' => $data['subtitle'] ?? null,
+            'pricing_mode' => $data['pricing_mode'],
+            'price_paise' => (int) round(((float) ($data['price_rupees'] ?? 0)) * 100),
+            'price_label' => $data['price_label'] ?? null,
+            'gst_percent' => (float) ($data['gst_percent'] ?? 5),
+            'highlights' => json_encode($highlights),
+            'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'status' => $data['status'],
+            'updated_at' => now(),
+        ];
+        if ($creating) {
+            $row['created_at'] = now();
+        }
+
+        return $row;
     }
 
     public function parcels(Request $request): View
@@ -354,6 +519,31 @@ class WorkspaceController extends Controller
         OrganizationAudit::record($request->user(), 'booking.manual', 'booking', $id, null, $payload, 'bookings');
 
         return back()->with('status', 'Manual booking created as SEARCHING. Nearby online drivers can accept it.');
+    }
+
+    public function assignDrivers(Request $request): View
+    {
+        abort_unless($request->user()?->can('bookings.view') || $request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        $payload = app(\App\Services\PlatformOpsService::class)->scheduledAssignments($request->user(), $request->query('product'));
+
+        return view('ops.assign-drivers', [
+            'remaining' => $payload['remaining'],
+            'assigned' => $payload['assigned'],
+            'drivers' => $payload['drivers'],
+            'product' => $request->query('product'),
+        ]);
+    }
+
+    public function assignDriverToBooking(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'driver_id' => ['required', 'integer'],
+        ]);
+        app(\App\Services\PlatformOpsService::class)->assignBookingDriver($booking, (int) $data['driver_id'], $request->user());
+        OrganizationAudit::record($request->user(), 'booking.assign_driver', 'booking', $booking, null, ['driverId' => $data['driver_id']], 'bookings');
+
+        return back()->with('status', 'Driver assigned. Customer and driver were notified.');
     }
 
     public function settings(Request $request): View

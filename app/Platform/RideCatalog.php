@@ -14,6 +14,9 @@ final class RideCatalog
         'AIRPORT' => 'Airport',
         'RAILWAY' => 'Railway',
         'MULTI_STOP' => 'Multi-stop',
+        'TRAVEL' => 'Travel & Tour',
+        'BULK' => 'Bulk Booking',
+        'CORPORATE' => 'Corporate Travel',
     ];
 
     public const VEHICLES = [

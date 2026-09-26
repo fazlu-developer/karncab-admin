@@ -10,6 +10,33 @@
         <p class="error">{{ $error }}</p>
     @endif
     <p>{{ $booking['product'] ?? '' }} · {{ $booking['status'] ?? '' }}</p>
+    @if (empty($booking['driverId']) && in_array($booking['status'] ?? '', ['CONFIRMED', 'PENDING', 'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING'], true))
+        @can('bookings.manage')
+            <section class="card">
+                <h2>Assign driver</h2>
+                <form method="POST" action="{{ route('ops.assign-drivers.store', $booking['id']) }}">
+                    @csrf
+                    <div class="filters">
+                        <div>
+                            <label>Driver (matching {{ $booking['category'] ?? 'cab' }})</label>
+                            <select name="driver_id" required>
+                                <option value="">Select driver</option>
+                                @foreach ($drivers ?? [] as $driver)
+                                    @php
+                                        $match = empty($booking['category']) || empty($driver['category']) || strcasecmp((string) $driver['category'], (string) $booking['category']) === 0;
+                                    @endphp
+                                    @if ($match && empty($driver['busy']) && !empty($driver['vehicleId']))
+                                        <option value="{{ $driver['id'] }}">{{ $driver['name'] }} · {{ $driver['registrationNo'] }} ({{ $driver['category'] }})</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </div>
+                        <button class="btn" type="submit">Assign to booking</button>
+                    </div>
+                </form>
+            </section>
+        @endcan
+    @endif
     @php $track = $booking['track'] ?? []; @endphp
     @if (!empty($track['cancelled']))
         <div class="steps">

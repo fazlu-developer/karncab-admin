@@ -160,7 +160,7 @@ class RideBookingService
     private function initialStatus(array $input): string
     {
         $product = (string) ($input['product'] ?? '');
-        if (! empty($input['scheduledAt']) && in_array($product, ['SCHEDULE', 'AIRPORT', 'RAILWAY'], true)) {
+        if (! empty($input['scheduledAt']) || in_array($product, ['RENTAL', 'SCHEDULE', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'ONE_WAY', 'ROUND_WAY'], true)) {
             return 'CONFIRMED';
         }
 

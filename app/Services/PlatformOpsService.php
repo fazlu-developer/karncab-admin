@@ -527,6 +527,9 @@ class PlatformOpsService
             'status' => $row->status,
             'pickupText' => $row->pickup_text,
             'dropText' => $row->drop_text,
+            'category' => $row->category ?? null,
+            'driverId' => $row->driver_id ?? null,
+            'scheduledAt' => $row->scheduled_at ?? null,
             'track' => $this->tripTrack((string) $row->status),
             'statusLog' => $this->map($log, fn ($e) => [
                 'action' => $e->action,
@@ -595,6 +598,161 @@ class PlatformOpsService
         $this->audit($actor, 'notifications', 'announce', 'broadcast', $data['audience']);
 
         return $ids->count();
+    }
+
+    /**
+     * Scheduled / rental bookings waiting for ops to assign a driver.
+     *
+     * @return array{remaining: list<array<string, mixed>>, assigned: list<array<string, mixed>>, drivers: list<array<string, mixed>>}
+     */
+    public function scheduledAssignments(?User $operator = null, ?string $product = null): array
+    {
+        $scheduledProducts = ['RENTAL', 'SCHEDULE', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'ONE_WAY', 'ROUND_WAY', 'LOCAL_CAB', 'TRAVEL', 'BULK', 'CORPORATE'];
+        $q = $this->bookingsQuery($operator)
+            ->leftJoin('users as customers', 'customers.id', '=', 'bookings.customer_id')
+            ->leftJoin('drivers', 'drivers.id', '=', 'bookings.driver_id')
+            ->leftJoin('users as driver_users', 'driver_users.id', '=', 'drivers.user_id')
+            ->leftJoin('vehicles', 'vehicles.id', '=', 'bookings.vehicle_id')
+            ->where(function (Builder $inner) use ($scheduledProducts) {
+                $inner->whereIn('bookings.product', $scheduledProducts)
+                    ->orWhereNotNull('bookings.scheduled_at');
+            })
+            ->whereNotIn('bookings.status', ['COMPLETED', 'CUSTOMER_CANCELLED', 'DRIVER_CANCELLED', 'EXPIRED', 'CANCELLED'])
+            ->orderBy('bookings.scheduled_at')
+            ->orderByDesc('bookings.id')
+            ->limit(200)
+            ->select(
+                'bookings.id',
+                'bookings.public_ref',
+                'bookings.product',
+                'bookings.category',
+                'bookings.status',
+                'bookings.pickup_text',
+                'bookings.drop_text',
+                'bookings.scheduled_at',
+                'bookings.quote_paise',
+                'bookings.driver_id',
+                'customers.name as customer_name',
+                'customers.phone as customer_phone',
+                'driver_users.name as driver_name',
+                'vehicles.registration_no as vehicle_reg',
+            );
+        if ($product) {
+            $q->where('bookings.product', strtoupper($product));
+        }
+        $rows = $this->map($q->get(), fn ($row) => [
+            'id' => (int) $row->id,
+            'publicRef' => $row->public_ref,
+            'product' => $row->product,
+            'category' => $row->category,
+            'status' => $row->status,
+            'pickupText' => $row->pickup_text,
+            'dropText' => $row->drop_text,
+            'scheduledAt' => $row->scheduled_at,
+            'quoteRupees' => ((int) $row->quote_paise) / 100,
+            'customer' => $row->customer_name,
+            'phone' => $row->customer_phone,
+            'driverId' => $row->driver_id ? (int) $row->driver_id : null,
+            'driver' => $row->driver_name,
+            'vehicle' => $row->vehicle_reg,
+        ]);
+        $remaining = array_values(array_filter($rows, fn ($row) => empty($row['driverId'])));
+        $assigned = array_values(array_filter($rows, fn ($row) => ! empty($row['driverId'])));
+
+        return [
+            'remaining' => $remaining,
+            'assigned' => $assigned,
+            'drivers' => $this->assignableDrivers($operator),
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function assignableDrivers(?User $operator = null): array
+    {
+        $busy = $this->q('bookings')
+            ->whereIn('status', ['DRIVER_ACCEPTED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'OTP_VERIFIED', 'TRIP_STARTED', 'STARTED', 'ONGOING'])
+            ->pluck('driver_id')
+            ->filter()
+            ->all();
+        $rows = $this->scopedDrivers($operator)
+            ->join('users', 'users.id', '=', 'drivers.user_id')
+            ->leftJoin('vehicles', 'vehicles.driver_id', '=', 'drivers.id')
+            ->where(function (Builder $inner) {
+                $inner->where('users.status', 'ACTIVE')->orWhereNull('users.status');
+            })
+            ->orderBy('users.name')
+            ->select(
+                'drivers.id',
+                'users.name',
+                'users.phone',
+                'vehicles.id as vehicle_id',
+                'vehicles.category as vehicle_category',
+                'vehicles.registration_no',
+            )
+            ->get();
+
+        return $this->map($rows, fn ($row) => [
+            'id' => (int) $row->id,
+            'name' => $row->name,
+            'phone' => $row->phone,
+            'vehicleId' => $row->vehicle_id ? (int) $row->vehicle_id : null,
+            'category' => $row->vehicle_category,
+            'registrationNo' => $row->registration_no,
+            'busy' => in_array((int) $row->id, array_map('intval', $busy), true),
+        ]);
+    }
+
+    public function assignBookingDriver(int $bookingId, int $driverId, ?User $actor = null): void
+    {
+        $booking = $this->bookingsQuery($actor)->where('bookings.id', $bookingId)->first();
+        abort_if($booking === null, 404, 'Booking not found');
+        abort_if(! empty($booking->driver_id), 422, 'This booking already has a driver.');
+        abort_unless(in_array((string) $booking->status, ['CONFIRMED', 'PENDING', 'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING'], true), 422, 'This booking cannot be assigned.');
+        $this->assertDriverVisible($driverId, $actor);
+        $driver = $this->q('drivers')->where('id', $driverId)->first();
+        abort_if($driver === null, 404, 'Driver not found');
+        $busy = $this->q('bookings')
+            ->where('driver_id', $driverId)
+            ->whereIn('status', ['DRIVER_ACCEPTED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'OTP_VERIFIED', 'TRIP_STARTED', 'STARTED', 'ONGOING'])
+            ->exists();
+        abort_if($busy, 422, 'Driver already has an active trip.');
+        $vehicle = $this->q('vehicles')->where('driver_id', $driverId)->orderByDesc('id')->first();
+        abort_unless($vehicle, 422, 'Assign a vehicle to this driver first.');
+        if (
+            ! empty($booking->category)
+            && ! empty($vehicle->category)
+            && ! in_array(strtoupper((string) ($booking->product ?? '')), ['TRAVEL', 'BULK', 'CORPORATE'], true)
+            && strcasecmp((string) $vehicle->category, (string) $booking->category) !== 0
+        ) {
+            abort(422, 'Vehicle category does not match this booking ('.$booking->category.').');
+        }
+        $this->q('bookings')->where('id', $bookingId)->update(array_filter([
+            'driver_id' => $driverId,
+            'vehicle_id' => $vehicle->id,
+            'status' => 'DRIVER_ACCEPTED',
+            'updated_at' => now(),
+        ], fn ($key) => Schema::connection('platform')->hasColumn('bookings', $key), ARRAY_FILTER_USE_KEY));
+        $this->q('drivers')->where('id', $driverId)->update(array_filter([
+            'duty_status' => 'on_trip',
+            'updated_at' => now(),
+        ], fn ($key) => Schema::connection('platform')->hasColumn('drivers', $key), ARRAY_FILTER_USE_KEY));
+        $this->audit($actor, 'bookings', 'assign_driver', 'booking', (string) $bookingId);
+        $customerId = (int) $booking->customer_id;
+        $driverUserId = (int) ($driver->user_id ?? 0);
+        if ($customerId > 0) {
+            app(NotificationService::class)->dispatch($customerId, 'driver_assigned', [
+                'ref' => (string) $booking->public_ref,
+                'name' => (string) ($this->q('users')->where('id', $driverUserId)->value('name') ?? 'Your driver'),
+            ], ['entity' => ['type' => 'booking', 'id' => (string) $bookingId]]);
+        }
+        if ($driverUserId > 0) {
+            app(NotificationService::class)->dispatch($driverUserId, 'announcement', [
+                'title' => 'Scheduled booking assigned',
+                'body' => 'You have been assigned booking '.$booking->public_ref.'. Pickup: '.($booking->pickup_text ?? ''),
+            ], ['entity' => ['type' => 'booking', 'id' => (string) $bookingId]]);
+        }
     }
 
     public function ping(): bool

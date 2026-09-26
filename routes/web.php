@@ -203,11 +203,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');
     Route::post('/ops/travel', [WorkspaceController::class, 'storeTravel'])->name('ops.travel.store');
     Route::put('/ops/travel/{package}', [WorkspaceController::class, 'updateTravel'])->name('ops.travel.update')->whereNumber('package');
+    Route::get('/ops/corporate-plans', [WorkspaceController::class, 'corporatePlans'])->name('ops.corporate-plans');
+    Route::post('/ops/corporate-plans', [WorkspaceController::class, 'storeCorporatePlan'])->name('ops.corporate-plans.store');
+    Route::put('/ops/corporate-plans/{plan}', [WorkspaceController::class, 'updateCorporatePlan'])->name('ops.corporate-plans.update')->whereNumber('plan');
     Route::get('/ops/parcels', [WorkspaceController::class, 'parcels'])->name('ops.parcels');
     Route::post('/ops/parcels', [WorkspaceController::class, 'storeParcel'])->name('ops.parcels.store');
     Route::put('/ops/parcels/{parcel}', [WorkspaceController::class, 'updateParcel'])->name('ops.parcels.update')->whereNumber('parcel');
     Route::get('/ops/manual-bookings', [WorkspaceController::class, 'manualBookings'])->name('ops.manual-bookings');
     Route::post('/ops/manual-bookings', [WorkspaceController::class, 'storeManualBooking'])->name('ops.manual-bookings.store');
+    Route::get('/ops/assign-drivers', [WorkspaceController::class, 'assignDrivers'])->name('ops.assign-drivers');
+    Route::post('/ops/assign-drivers/{booking}', [WorkspaceController::class, 'assignDriverToBooking'])->name('ops.assign-drivers.store')->whereNumber('booking');
     Route::get('/ops/settings', [WorkspaceController::class, 'settings'])->name('ops.settings');
     Route::post('/ops/settings', [WorkspaceController::class, 'saveSettings'])->name('ops.settings.save');
     Route::get('/ops/roles', [WorkspaceController::class, 'roles'])->name('ops.roles');

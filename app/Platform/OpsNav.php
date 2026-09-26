@@ -24,11 +24,13 @@ final class OpsNav
             ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet Management', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
             ['key' => 'users', 'label' => 'Users', 'icon' => 'users', 'group' => 'People', 'ability' => 'users.view', 'route' => 'users.index'],
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
+            ['key' => 'assign-drivers', 'label' => 'Assign Drivers', 'icon' => 'user-plus', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.assign-drivers'],
             ['key' => 'trips', 'label' => 'Trips', 'icon' => 'navigation', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'map', 'label' => 'Live Tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.manual-bookings'],
             ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'ops.parcels'],
             ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.travel'],
+            ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-plans'],
             ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
             ['key' => 'corporate', 'label' => 'Corporate', 'icon' => 'building-2', 'group' => 'Partners', 'ability' => 'corporate.view'],
             ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC & Documents', 'ability' => 'kyc.view'],
@@ -172,11 +174,17 @@ final class OpsNav
         if (($item['key'] ?? '') === 'travel') {
             return request()->routeIs('ops.travel*') || request()->route('module') === 'travel';
         }
+        if (($item['key'] ?? '') === 'corporate-plans') {
+            return request()->routeIs('ops.corporate-plans*') || request()->route('module') === 'corporate-plans';
+        }
         if (($item['key'] ?? '') === 'parcels') {
             return request()->routeIs('ops.parcels*') || request()->route('module') === 'parcels';
         }
         if (($item['key'] ?? '') === 'bulk') {
             return request()->routeIs('ops.manual-bookings*') || request()->route('module') === 'bulk';
+        }
+        if (($item['key'] ?? '') === 'assign-drivers') {
+            return request()->routeIs('ops.assign-drivers*') || request()->route('module') === 'assign-drivers';
         }
 
         return request()->route('module') === ($item['key'] ?? null);

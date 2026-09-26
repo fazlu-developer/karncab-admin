@@ -121,6 +121,11 @@ class ModuleController extends Controller
 
             return redirect()->route('ops.travel');
         }
+        if ($module === 'corporate-plans') {
+            abort_unless($request->user()?->can('corporate.view') || $request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.corporate-plans');
+        }
         if ($module === 'parcels') {
             abort_unless($request->user()?->can('parcels.view') || $request->user()?->can('platform.admin'), 403);
 
@@ -130,6 +135,11 @@ class ModuleController extends Controller
             abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
 
             return redirect()->route('ops.manual-bookings');
+        }
+        if ($module === 'assign-drivers') {
+            abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin') || $request->user()?->can('bookings.view'), 403);
+
+            return redirect()->route('ops.assign-drivers');
         }
         if ($module === 'settings') {
             abort_unless($request->user()?->can('platform.admin'), 403);
@@ -189,13 +199,19 @@ class ModuleController extends Controller
         abort_unless($request->user()?->can('bookings.view'), 403);
         $error = null;
         $booking = [];
+        $drivers = [];
         try {
             $booking = $this->ops->booking((int) $id, $request->user());
+            $drivers = $this->ops->assignableDrivers($request->user());
         } catch (Throwable $exception) {
             $error = $exception->getMessage();
         }
 
-        return view('ops.booking', ['booking' => $booking, 'error' => $error]);
+        return view('ops.booking', [
+            'booking' => $booking,
+            'error' => $error,
+            'drivers' => $drivers,
+        ]);
     }
 
     public function announce(Request $request): RedirectResponse
