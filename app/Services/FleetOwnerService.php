@@ -283,6 +283,21 @@ class FleetOwnerService
         }
         $q->update(['driver_id' => null, 'status' => 'available', 'updated_at' => now()]);
         OrganizationAudit::record($operator, 'driver.unassigned', 'driver', $driverId, null, ['vehicleId' => $vehicleId]);
+        $userId = $this->db()->table('drivers')->where('id', $driverId)->value('user_id');
+        if ($userId) {
+            $user = \App\Models\User::query()->find($userId);
+            if ($user && Schema::hasColumn('users', 'session_epoch')) {
+                $this->db()->table('users')->where('id', $user->id)->update([
+                    'session_epoch' => ((int) ($user->session_epoch ?? 0)) + 1,
+                    'updated_at' => now(),
+                ]);
+            }
+            $this->db()->table('drivers')->where('id', $driverId)->update([
+                'online' => 0,
+                'duty_status' => 'offline',
+                'updated_at' => now(),
+            ]);
+        }
 
         return $this->driver($operator, $driverId);
     }

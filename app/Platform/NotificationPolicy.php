@@ -18,7 +18,7 @@ final class NotificationPolicy
         'cancellation' => ['title' => 'Booking cancelled', 'body' => 'Booking {ref} was cancelled.', 'channels' => ['in_app', 'push', 'sms']],
         'parcel_update' => ['title' => 'Parcel update', 'body' => 'Parcel {ref} is now {status}.', 'channels' => ['in_app', 'push', 'sms']],
         'document_expiry' => ['title' => 'Document expiry', 'body' => '{label} needs attention ({window}).', 'channels' => ['in_app', 'push', 'email']],
-        'kyc_approval' => ['title' => 'KYC approved', 'body' => 'Your driver KYC is verified. You can go online.', 'channels' => ['in_app', 'push', 'sms', 'email']],
+        'kyc_approval' => ['title' => 'Welcome to KarnaCab Driver', 'body' => 'Your driver profile is approved. Go online in the KarnaCab Driver app to receive trip requests.', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'kyc_rejection' => ['title' => 'KYC rejected', 'body' => 'Your KYC was rejected. {reason}', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'wallet_transaction' => ['title' => 'Wallet {direction}', 'body' => '₹{amount} {direction} · {note}', 'channels' => ['in_app', 'push', 'email']],
         'franchise_approval' => ['title' => 'Franchise approved', 'body' => 'Your franchise {ref} is now active.', 'channels' => ['in_app', 'push', 'sms', 'email']],
