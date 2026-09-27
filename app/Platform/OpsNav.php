@@ -49,6 +49,7 @@ final class OpsNav
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
             ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ride-settings.index'],
             ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.services'],
+            ['key' => 'app-content', 'label' => 'App account pages', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.app-content'],
             ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.branding'],
             ['key' => 'locations', 'label' => 'Locations', 'icon' => 'globe', 'group' => 'System', 'ability' => 'platform.admin'],
             ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.roles'],
@@ -158,6 +159,9 @@ final class OpsNav
         }
         if (($item['key'] ?? '') === 'services') {
             return request()->routeIs('ops.services*');
+        }
+        if (($item['key'] ?? '') === 'app-content') {
+            return request()->routeIs('ops.app-content*');
         }
         if (($item['key'] ?? '') === 'branding') {
             return request()->routeIs('ops.branding*');

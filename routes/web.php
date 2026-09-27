@@ -27,6 +27,7 @@ use App\Http\Controllers\AdvertisingController;
 use App\Http\Controllers\WalletsController;
 use App\Http\Controllers\SafetyController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\AppContentController;
 use App\Http\Controllers\SupportFaqsController;
 use App\Http\Controllers\LeadsController;
 use App\Http\Controllers\NotificationsController;
@@ -213,6 +214,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/ops/manual-bookings', [WorkspaceController::class, 'storeManualBooking'])->name('ops.manual-bookings.store');
     Route::get('/ops/assign-drivers', [WorkspaceController::class, 'assignDrivers'])->name('ops.assign-drivers');
     Route::post('/ops/assign-drivers/{booking}', [WorkspaceController::class, 'assignDriverToBooking'])->name('ops.assign-drivers.store')->whereNumber('booking');
+    Route::get('/ops/app-content', [AppContentController::class, 'index'])->name('ops.app-content');
+    Route::put('/ops/app-content/{slug}', [AppContentController::class, 'update'])->name('ops.app-content.update');
     Route::get('/ops/settings', [WorkspaceController::class, 'settings'])->name('ops.settings');
     Route::post('/ops/settings', [WorkspaceController::class, 'saveSettings'])->name('ops.settings.save');
     Route::get('/ops/roles', [WorkspaceController::class, 'roles'])->name('ops.roles');
