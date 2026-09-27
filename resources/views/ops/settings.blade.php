@@ -18,7 +18,7 @@
                 </div>
                 <div class="field">
                     <label>Ride request timeout (seconds)</label>
-                    <input name="ride_request_timeout_seconds" type="number" min="10" max="300" value="{{ $timeoutSeconds }}" required>
+                    <input name="ride_request_timeout_seconds" type="number" min="10" max="900" value="{{ $timeoutSeconds }}" required>
                 </div>
                 <div class="field">
                     <label>Driver wallet minimum (₹)</label>
@@ -32,6 +32,11 @@
                 <div class="field">
                     <label>Website enquiry notify email</label>
                     <input name="leads_notify_email" type="email" value="{{ $leadsEmail }}">
+                </div>
+                <div class="field">
+                    <label>Admin booking notify email</label>
+                    <input name="booking_notify_email" type="email" value="{{ $bookingEmail }}" required>
+                    <p class="muted">New ride requests are emailed here. Default is fazlu.developer@gmail.com.</p>
                 </div>
             </div>
             <p>

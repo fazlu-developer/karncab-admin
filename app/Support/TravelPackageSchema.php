@@ -9,7 +9,7 @@ final class TravelPackageSchema
 {
     public static function ensure(?string $connection = 'platform'): void
     {
-        $schema = Schema::connection($connection);
+        $schema = filled($connection) ? Schema::connection($connection) : Schema::getConnection()->getSchemaBuilder();
         if (! $schema->hasTable('travel_packages')) {
             $schema->create('travel_packages', function (Blueprint $table) {
                 $table->id();

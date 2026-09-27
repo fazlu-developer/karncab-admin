@@ -38,7 +38,7 @@
                 <tr>
                     <td>{{ $row->title }}<div class="muted">{{ $row->slug }}</div></td>
                     <td>{{ $row->service_group }}</td>
-                    <td>{{ $row->category_key }}</td>
+                    <td>{{ data_get($row, 'category_key') }}</td>
                     <td>{{ $row->sort_order }}</td>
                     <td>{{ $row->active ? 'Yes' : 'No' }}</td>
                     <td>
@@ -51,7 +51,7 @@
                                 <option value="RIDE" @selected($row->service_group === 'RIDE')>RIDE</option>
                                 <option value="PARCEL" @selected($row->service_group === 'PARCEL')>PARCEL</option>
                             </select>
-                            <input name="category_key" value="{{ $row->category_key }}" style="max-width:110px">
+                            <input name="category_key" value="{{ data_get($row, 'category_key') }}" style="max-width:110px">
                             <input name="sort_order" type="number" value="{{ $row->sort_order }}" style="max-width:70px">
                             <label><input type="checkbox" name="active" value="1" @checked($row->active)> Active</label>
                             <input type="file" name="image" accept="image/*">

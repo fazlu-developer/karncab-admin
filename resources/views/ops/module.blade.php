@@ -80,7 +80,11 @@
                     </thead>
                     <tbody>
                         @foreach ($rows as $row)
-                            <tr>
+                            @php
+                                $status = strtoupper((string) ($row['Status'] ?? $row['status'] ?? ''));
+                                $newRequest = in_array($status, ['SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING', 'PENDING'], true);
+                            @endphp
+                            <tr @if ($newRequest) style="background:#FFF4CC;font-weight:700" @endif>
                                 @foreach ($row as $value)
                                     <td>{{ $value }}</td>
                                 @endforeach

@@ -557,6 +557,7 @@ class WorkspaceController extends Controller
             'walletMinPercent' => (float) (PlatformSettings::get('driver_wallet_min_fare_percent', '0')),
             'walletCoverCommission' => PlatformSettings::get('driver_wallet_must_cover_commission', '1') !== '0',
             'leadsEmail' => PlatformSettings::get('leads_notify_email', ''),
+            'bookingEmail' => PlatformSettings::get('booking_notify_email', 'fazlu.developer@gmail.com'),
         ]);
     }
 
@@ -565,11 +566,12 @@ class WorkspaceController extends Controller
         abort_unless($request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'driver_search_radius_km' => ['required', 'numeric', 'min:1', 'max:100'],
-            'ride_request_timeout_seconds' => ['required', 'integer', 'min:10', 'max:300'],
+            'ride_request_timeout_seconds' => ['required', 'integer', 'min:10', 'max:900'],
             'driver_wallet_min_rupees' => ['nullable', 'numeric', 'min:0'],
             'driver_wallet_min_fare_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'driver_wallet_must_cover_commission' => ['nullable', 'boolean'],
             'leads_notify_email' => ['nullable', 'email', 'max:180'],
+            'booking_notify_email' => ['nullable', 'email', 'max:180'],
         ]);
         PlatformSettings::put('driver_search_radius_km', (string) $data['driver_search_radius_km']);
         PlatformSettings::put('driver_offer_radius_km', (string) $data['driver_search_radius_km']);
@@ -580,6 +582,7 @@ class WorkspaceController extends Controller
         if (! empty($data['leads_notify_email'])) {
             PlatformSettings::put('leads_notify_email', $data['leads_notify_email']);
         }
+        PlatformSettings::put('booking_notify_email', $data['booking_notify_email'] ?? 'fazlu.developer@gmail.com');
 
         return back()->with('status', 'Settings saved as labeled fields. JSON is not required.');
     }

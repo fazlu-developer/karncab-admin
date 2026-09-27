@@ -26,7 +26,7 @@
             </div>
             <div>
                 <label>Ride request timeout (seconds)</label>
-                <input name="ride_request_timeout_seconds" type="number" min="10" max="300" value="{{ $timeoutSeconds }}" required>
+                <input name="ride_request_timeout_seconds" type="number" min="10" max="900" value="{{ $timeoutSeconds }}" required>
             </div>
             <div>
                 <button class="btn" type="submit">Save</button>

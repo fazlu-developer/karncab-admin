@@ -641,7 +641,7 @@ class AdvertisingService
             'categoryLabel' => AdPolicy::CATEGORIES[$row->category] ?? $row->category,
             'campaignType' => $row->campaign_type ?? 'banner',
             'campaignTypeLabel' => AdPolicy::TYPES[$row->campaign_type ?? 'banner'] ?? ($row->campaign_type ?? 'banner'),
-            'bannerUrl' => $row->banner_key ? '/ads/'.$row->id.'/banner' : null,
+            'bannerUrl' => $row->image_url ?? ($row->banner_key ? '/ads/'.$row->id.'/banner' : null),
             'targetCity' => $row->target_city,
             'targetState' => isset($row->state_id) && $row->state_id
                 ? ['id' => (int) $row->state_id, 'name' => $row->state_name ?? null]

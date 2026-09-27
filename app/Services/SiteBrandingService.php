@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Support\PlatformSettings;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -116,25 +117,38 @@ class SiteBrandingService
     public function ensureCatalogTable(): void
     {
         $schema = Schema::connection('platform');
-        if ($schema->hasTable('catalog_services')) {
-            if (! $schema->hasColumn('catalog_services', 'image_url')) {
-                $schema->table('catalog_services', function ($table) {
-                    $table->string('image_url', 255)->nullable();
-                });
-            }
+        if (! $schema->hasTable('catalog_services')) {
+            $schema->create('catalog_services', function ($table) {
+                $table->id();
+                $table->string('slug', 80);
+                $table->string('title', 120);
+                $table->string('subtitle', 180)->nullable();
+                $table->string('service_group', 24)->default('RIDE');
+                $table->string('category_key', 40)->nullable();
+                $table->unsignedInteger('sort_order')->default(0);
+                $table->boolean('active')->default(true);
+                $table->string('image_url', 255)->nullable();
+                $table->timestamps();
+            });
 
             return;
         }
-        $schema->create('catalog_services', function ($table) {
-            $table->id();
-            $table->string('slug', 80);
-            $table->string('title', 120);
-            $table->string('subtitle', 180)->nullable();
-            $table->string('service_group', 24)->default('RIDE');
-            $table->string('category_key', 40)->nullable();
-            $table->unsignedInteger('sort_order')->default(0);
-            $table->boolean('active')->default(true);
-            $table->timestamps();
-        });
+        if (! $schema->hasColumn('catalog_services', 'image_url')) {
+            $schema->table('catalog_services', function ($table) {
+                $table->string('image_url', 255)->nullable();
+            });
+        }
+        if (! $schema->hasColumn('catalog_services', 'category_key')) {
+            $schema->table('catalog_services', function ($table) {
+                $table->string('category_key', 40)->nullable();
+            });
+            foreach (DB::connection('platform')->table('catalog_services')->get() as $row) {
+                $raw = preg_replace('/[^A-Za-z0-9]+/', '_', (string) ($row->slug ?? $row->title ?? '')) ?: '';
+                $key = strtoupper(trim($raw, '_'));
+                DB::connection('platform')->table('catalog_services')->where('id', $row->id)->update([
+                    'category_key' => $key !== '' ? $key : null,
+                ]);
+            }
+        }
     }
 }

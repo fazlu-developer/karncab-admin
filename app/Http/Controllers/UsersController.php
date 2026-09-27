@@ -109,6 +109,7 @@ class UsersController extends Controller
     public function destroy(Request $request, PlatformUser $platformUser): RedirectResponse
     {
         abort_unless($request->user()?->can('users.delete'), 403);
+        abort_if($platformUser->role === OperatorRole::SUPER_ADMIN, 403, 'Super admin accounts cannot be deleted.');
         $this->assertVisible($request, $platformUser);
         $platformUser->driver?->delete();
         $platformUser->delete();

@@ -29,7 +29,7 @@ class RideSettingsController extends Controller
         abort_unless($request->user()?->can('platform.admin') || $request->user()?->can('fare.manage'), 403);
         $data = $request->validate([
             'driver_search_radius_km' => ['required', 'numeric', 'min:1', 'max:100'],
-            'ride_request_timeout_seconds' => ['required', 'integer', 'min:10', 'max:300'],
+            'ride_request_timeout_seconds' => ['required', 'integer', 'min:10', 'max:900'],
         ]);
         $db = DB::connection('platform');
         $now = now();

@@ -68,10 +68,12 @@
                                 <a class="icon-btn" href="{{ route('users.edit', $row) }}" title="Edit"><i data-lucide="pencil"></i></a>
                             @endcan
                             @can('users.delete')
+                                @if($row->role !== 'SUPER_ADMIN')
                                 <form method="POST" action="{{ route('users.destroy', $row) }}" onsubmit="return confirm('Delete this user?')">
                                     @csrf @method('DELETE')
                                     <button class="icon-btn danger" title="Delete"><i data-lucide="trash-2"></i></button>
                                 </form>
+                                @endif
                             @endcan
                         </td>
                     </tr>
