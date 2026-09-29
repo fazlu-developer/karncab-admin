@@ -50,6 +50,17 @@
                 <div><dt>Name</dt><dd>{{ $user->name ?? '—' }}</dd></div>
                 <div><dt>Mobile</dt><dd>{{ $user->phone ?? '—' }}</dd></div>
                 <div><dt>Email</dt><dd>{{ $user->email ?? '—' }}</dd></div>
+                <div><dt>Onboarding email</dt><dd>
+                    @php $submittedMail = $mailLog->firstWhere('event', 'kyc_submitted'); @endphp
+                    @if ($submittedMail)
+                        {{ $submittedMail->status === 'sent' ? 'Successfully sent' : ucfirst($submittedMail->status) }}
+                        · {{ $submittedMail->created_at }}
+                    @elseif ($driver->application_submitted_at)
+                        Waiting to send
+                    @else
+                        Not submitted yet
+                    @endif
+                </dd></div>
                 <div><dt>Date of birth</dt><dd>{{ $user->date_of_birth ?? '—' }}</dd></div>
                 <div><dt>Gender</dt><dd>{{ $user->gender ?? '—' }}</dd></div>
                 <div><dt>Address</dt><dd>{{ $user->last_address ?? '—' }}</dd></div>

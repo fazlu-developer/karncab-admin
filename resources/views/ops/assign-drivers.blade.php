@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="user-plus"></i> Assign drivers</h1>
-            <p class="muted">Rental, schedule, airport, railway, multi-stop, travel, bulk, one way and round trip bookings wait here. Ops assigns a driver instead of nearby search.</p>
+            <p class="muted">Airport, railway, rental, multi-stop, outstation, travel, bulk and corporate bookings wait here. City ride, one way, round trip, parcel and schedule go straight to nearby drivers. Assigning a driver opens the trip on the customer app and the driver app until the trip is completed.</p>
         </div>
     </div>
     <form class="card" method="GET">
@@ -13,8 +13,8 @@
             <div>
                 <label>Service</label>
                 <select name="product" onchange="this.form.submit()">
-                    <option value="">All scheduled services</option>
-                    @foreach (['RENTAL' => 'Cab Rental', 'SCHEDULE' => 'Schedule Ride', 'LOCAL_CAB' => 'City Ride (scheduled)', 'AIRPORT' => 'Airport', 'RAILWAY' => 'Railway', 'MULTI_STOP' => 'Multi Stop', 'TRAVEL' => 'Travel & Tour', 'BULK' => 'Bulk Booking', 'CORPORATE' => 'Corporate Travel', 'ONE_WAY' => 'One Way', 'ROUND_WAY' => 'Round Trip'] as $key => $label)
+                    <option value="">All remaining services</option>
+                    @foreach (['RENTAL' => 'Cab Rental', 'AIRPORT' => 'Airport', 'RAILWAY' => 'Railway', 'MULTI_STOP' => 'Multi Stop', 'OUTSTATION' => 'Outstation', 'TRAVEL' => 'Travel & Tour', 'BULK' => 'Bulk Booking', 'CORPORATE' => 'Corporate Travel'] as $key => $label)
                         <option value="{{ $key }}" @selected(($product ?? '') === $key)>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -71,7 +71,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="muted">No remaining scheduled bookings to assign.</td></tr>
+                    <tr><td colspan="8" class="muted">No remaining bookings to assign.</td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -79,7 +79,7 @@
     </section>
 
     <section class="card">
-        <h2>Assigned (same scheduled services)</h2>
+        <h2>Assigned</h2>
         <div class="table-wrap">
             <table class="data">
                 <thead>

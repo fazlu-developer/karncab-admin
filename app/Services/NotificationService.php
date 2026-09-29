@@ -271,7 +271,7 @@ class NotificationService
                     $note = 'smtp';
                 } catch (\Throwable $e) {
                     $status = 'failed';
-                    $note = substr($e->getMessage(), 0, 180);
+                    $note = substr($e->getMessage(), 0, 150);
                     Log::warning('notification.email_failed', ['email' => $email, 'error' => $e->getMessage()]);
                 }
             }

@@ -130,12 +130,23 @@ class DriversController extends Controller
         $this->assertVisible($request, $driver);
         $driver->load(['user', 'documents', 'vehicles']);
 
+        $mailLog = collect();
+        if ($driver->user_id && Schema::connection('platform')->hasTable('notification_deliveries')) {
+            $mailLog = DB::connection('platform')->table('notification_deliveries')
+                ->where('user_id', $driver->user_id)
+                ->where('channel', 'email')
+                ->orderByDesc('id')
+                ->limit(8)
+                ->get();
+        }
+
         return view('drivers.show', $this->formMeta() + [
             'driver' => $driver,
             'requiredDocs' => self::REQUIRED_DOCS,
             'docTypes' => self::DOC_TYPES,
             'stateName' => GeoCatalog::stateName((int) ($driver->user?->state_id ?: $driver->state_id)),
             'districtName' => GeoCatalog::districtName((int) ($driver->user?->district_id ?: $driver->district_id)),
+            'mailLog' => $mailLog,
         ]);
     }
 

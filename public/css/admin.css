@@ -132,6 +132,16 @@ label + input, label + select, label + textarea {
 .btn.ghost { background: #e7eee9; color: var(--ink); }
 .btn.danger { background: #f4d4d0; color: var(--danger); }
 .table-wrap { overflow: auto; }
+.service-nav { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+.service-nav a { padding: 8px 12px; border-radius: 999px; background: #e7eee9; color: var(--ink); text-decoration: none; font-weight: 700; font-size: 13px; }
+.service-nav a.active { background: var(--forest); color: #fff; }
+.fare-line { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; padding: 12px 0; border-bottom: 1px solid #eef2ef; }
+.fare-line > strong { min-width: 120px; padding-bottom: 10px; }
+.fare-line label { min-width: 96px; flex: 1 1 96px; max-width: 140px; margin: 0; }
+.card form.fare-line input[type="number"] { width: 100%; min-height: 36px; padding: 6px 8px; }
+.card form.fare-line input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; }
+.fare-line .fare-check { max-width: 48px; min-width: 48px; padding-bottom: 8px; }
+.fare-line .btn { margin-bottom: 2px; }
 table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.data th { text-align: left; color: var(--muted); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); }
 table.data td { padding: 12px 8px; border-bottom: 1px solid #eef2ef; vertical-align: middle; }

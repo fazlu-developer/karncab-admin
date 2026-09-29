@@ -607,16 +607,13 @@ class PlatformOpsService
      */
     public function scheduledAssignments(?User $operator = null, ?string $product = null): array
     {
-        $scheduledProducts = ['RENTAL', 'SCHEDULE', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'ONE_WAY', 'ROUND_WAY', 'LOCAL_CAB', 'TRAVEL', 'BULK', 'CORPORATE'];
+        $scheduledProducts = ['RENTAL', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'OUTSTATION', 'TRAVEL', 'BULK', 'CORPORATE'];
         $q = $this->bookingsQuery($operator)
             ->leftJoin('users as customers', 'customers.id', '=', 'bookings.customer_id')
             ->leftJoin('drivers', 'drivers.id', '=', 'bookings.driver_id')
             ->leftJoin('users as driver_users', 'driver_users.id', '=', 'drivers.user_id')
             ->leftJoin('vehicles', 'vehicles.id', '=', 'bookings.vehicle_id')
-            ->where(function (Builder $inner) use ($scheduledProducts) {
-                $inner->whereIn('bookings.product', $scheduledProducts)
-                    ->orWhereNotNull('bookings.scheduled_at');
-            })
+            ->whereIn('bookings.product', $scheduledProducts)
             ->whereNotIn('bookings.status', ['COMPLETED', 'CUSTOMER_CANCELLED', 'DRIVER_CANCELLED', 'EXPIRED', 'CANCELLED'])
             ->orderBy('bookings.scheduled_at')
             ->orderByDesc('bookings.id')
@@ -734,6 +731,12 @@ class PlatformOpsService
             'status' => 'DRIVER_ACCEPTED',
             'updated_at' => now(),
         ], fn ($key) => Schema::connection('platform')->hasColumn('bookings', $key), ARRAY_FILTER_USE_KEY));
+        if (Schema::connection('platform')->hasTable('booking_driver_requests')) {
+            $this->q('booking_driver_requests')
+                ->where('booking_id', $bookingId)
+                ->whereIn('status', ['OFFERED', 'SNOOZED'])
+                ->update(['status' => 'EXPIRED', 'updated_at' => now()]);
+        }
         $this->q('drivers')->where('id', $driverId)->update(array_filter([
             'duty_status' => 'on_trip',
             'updated_at' => now(),

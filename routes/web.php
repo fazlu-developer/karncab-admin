@@ -191,6 +191,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/fare', [\App\Http\Controllers\FareRulesController::class, 'index'])->name('fare.index');
     Route::post('/fare', [\App\Http\Controllers\FareRulesController::class, 'store'])->name('fare.store');
     Route::patch('/fare/{rule}', [\App\Http\Controllers\FareRulesController::class, 'update'])->name('fare.update');
+    Route::post('/fare/parcel', [\App\Http\Controllers\FareRulesController::class, 'storeParcel'])->name('fare.parcel.store');
+    Route::patch('/fare/parcel/{parcelRule}', [\App\Http\Controllers\FareRulesController::class, 'updateParcel'])->name('fare.parcel.update');
 
     Route::get('/ops/ride-settings', [\App\Http\Controllers\RideSettingsController::class, 'index'])->name('ride-settings.index');
     Route::put('/ops/ride-settings', [\App\Http\Controllers\RideSettingsController::class, 'update'])->name('ride-settings.update');

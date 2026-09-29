@@ -6,166 +6,100 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1><i data-lucide="banknote"></i> Fare Management</h1>
-            <p class="muted">Module key: <code>fare</code>. Live service states: {{ implode(', ', $liveStates) }}. Customer and driver apps quote from these <code>fare_rules</code> rows. Other states show Coming soon.</p>
+            <h1><i data-lucide="banknote"></i> Vehicle fares by service</h1>
+            <p class="muted">Pick a service, then set the fare for each vehicle and press Save. Cab quotes use these rows. Parcel is its own list and includes Truck. Live states: {{ implode(', ', $liveStates) }}.</p>
         </div>
     </div>
 
-    <section class="card">
-        <h2>Add fare rule</h2>
-        <form method="POST" action="{{ route('fare.store') }}">
-            @csrf
-            <div class="filters">
-                <div>
-                    <label>Product</label>
-                    <select name="product" required>
-                        @foreach ($products as $product)
-                            <option value="{{ $product }}">{{ $product }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label>Vehicle</label>
-                    <select name="category" required>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category }}">{{ $category }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label>District (blank = Bihar &amp; Delhi default)</label>
-                    <select name="district_id">
-                        <option value="">All live districts</option>
-                        @foreach ($districts as $district)
-                            <option value="{{ $district->id }}">{{ $district->state_name }} · {{ $district->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div><label>Min km</label><input name="min_km" type="number" step="0.1" value="2" required></div>
-                <div><label>Included km (rental: km limit for those hours, e.g. 4h = 40 km)</label><input name="included_km" type="number" step="0.1" value="40" required></div>
-                <div><label>₹ / km</label><input name="per_km_rupees" type="number" step="0.01" value="12" required></div>
-                <div><label>₹ extra km</label><input name="extra_km_rupees" type="number" step="0.01" value="14" required></div>
-                <div><label>₹ waiting / min</label><input name="waiting_per_min_rupees" type="number" step="0.01" value="1" required></div>
-                <div><label>Night %</label><input name="night_percent" type="number" value="20" required></div>
-                <div><label>GST %</label><input name="gst_percent" type="number" value="5" required></div>
-                <div><label>Rental hours</label><input name="rental_hours" type="number" placeholder="e.g. 4"></div>
-                <div><label>Extra hour ₹ (RENTAL)</label><input name="extra_hour_rupees" type="number" step="0.01" value="150"></div>
-            </div>
-            <p class="muted">For product RENTAL, set hours + included km together. Example: 4 hours with 40 included km. The customer app shows packages as 4hr / 40 Km.</p>
-            <label><input type="checkbox" name="active" value="1" checked> Active</label>
-            <button class="btn" type="submit">Save fare rule</button>
-        </form>
-    </section>
+    <nav class="service-nav">
+        <a class="{{ $selectedService === '' ? 'active' : '' }}" href="{{ route('fare.index') }}">All services</a>
+        @foreach ($services as $key => $label)
+            <a class="{{ $selectedService === $key ? 'active' : '' }}" href="{{ route('fare.index', ['service' => $key]) }}">{{ $label }}</a>
+        @endforeach
+        <a class="{{ $selectedService === 'PARCEL' ? 'active' : '' }}" href="{{ route('fare.index', ['service' => 'PARCEL']) }}">Parcel</a>
+    </nav>
 
-    <section class="card">
-        <h2>Rental packages in the customer app</h2>
-        <p class="muted">Each active RENTAL fare rule becomes a package chip (hours / included km) plus a vehicle card. Example: 4 hours with 40 included km shows as 4hr / 40 Km.</p>
-        <div class="table-wrap">
-            <table class="data">
-                <thead>
-                    <tr>
-                        <th>Hours</th>
-                        <th>Included km</th>
-                        <th>Vehicle</th>
-                        <th>Area</th>
-                        <th>On</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse ($rules->where('product', 'RENTAL') as $row)
-                    <tr>
-                        <td>{{ $row->rental_hours ?: '—' }} hr</td>
-                        <td>{{ $row->included_km }} km</td>
-                        <td>{{ $row->category }}</td>
-                        <td>{{ $row->state_name ?: 'Default' }} {{ $row->district_name }}</td>
-                        <td>{{ $row->active ? 'Yes' : 'No' }}</td>
-                    </tr>
-                @empty
-                    <tr><td class="muted" colspan="5">No RENTAL packages yet. Add a fare rule with product RENTAL, hours, and included km.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
+    @foreach ($services as $product => $label)
+        @continue($selectedService !== '' && $selectedService !== $product)
+        @php
+            $rows = $rules->where('product', $product)->keyBy('category');
+        @endphp
+        <section class="card" id="service-{{ $product }}">
+            <h2>{{ $label }}</h2>
+            <p class="muted">Set the fare for each vehicle on {{ $label }}.</p>
+            @foreach ($vehicles as $category => $vehicleLabel)
+                @php $row = $rows->get($category); @endphp
+                <form class="fare-line" method="POST" action="{{ $row ? route('fare.update', $row->id) : route('fare.store') }}">
+                    @csrf
+                    @if ($row) @method('PATCH') @endif
+                    <input type="hidden" name="product" value="{{ $product }}">
+                    <input type="hidden" name="category" value="{{ $category }}">
+                    <input type="hidden" name="district_id" value="{{ $row->district_id ?? '' }}">
+                    <input type="hidden" name="cancel_rupees" value="{{ $row ? $row->cancel_paise / 100 : 0 }}">
+                    @if ($product !== 'RENTAL')
+                        <input type="hidden" name="rental_hours" value="{{ $row->rental_hours ?? '' }}">
+                        <input type="hidden" name="extra_hour_rupees" value="{{ $row ? ($row->extra_hour_paise ?? 0) / 100 : 150 }}">
+                    @endif
+                    @if ($product !== 'ROUND_WAY')
+                        <input type="hidden" name="driver_allow_rupees" value="{{ $row ? ($row->driver_allow_paise ?? 0) / 100 : 0 }}">
+                        <input type="hidden" name="night_stay_rupees" value="{{ $row ? ($row->night_stay_paise ?? 0) / 100 : 0 }}">
+                    @endif
+                    @if ($product !== 'MULTI_STOP' && $product !== 'RENTAL')
+                        <input type="hidden" name="stop_rupees" value="{{ $row ? ($row->stop_paise ?? 0) / 100 : 0 }}">
+                    @endif
+                    <strong>{{ $vehicleLabel }}</strong>
+                    <label>Min km<input name="min_km" type="number" step="0.1" value="{{ $row->min_km ?? 2 }}" required></label>
+                    <label>Included km<input name="included_km" type="number" step="0.1" value="{{ $row->included_km ?? 2 }}" required></label>
+                    <label>₹ / km<input name="per_km_rupees" type="number" step="0.01" value="{{ $row ? $row->per_km_paise / 100 : 12 }}" required></label>
+                    <label>Extra ₹ / km<input name="extra_km_rupees" type="number" step="0.01" value="{{ $row ? $row->extra_km_paise / 100 : 14 }}" required></label>
+                    <label>Wait ₹ / min<input name="waiting_per_min_rupees" type="number" step="0.01" value="{{ $row ? $row->waiting_paise_per_min / 100 : 1 }}" required></label>
+                    <label>Night %<input name="night_percent" type="number" value="{{ $row->night_percent ?? 20 }}" required></label>
+                    <label>GST %<input name="gst_percent" type="number" value="{{ $row->gst_percent ?? 5 }}" required></label>
+                    @if ($product === 'RENTAL')
+                        <label>Hours<input name="rental_hours" type="number" value="{{ $row->rental_hours ?? 8 }}"></label>
+                        <label>Extra hour ₹<input name="extra_hour_rupees" type="number" step="0.01" value="{{ $row ? ($row->extra_hour_paise ?? 15000) / 100 : 150 }}"></label>
+                    @endif
+                    @if ($product === 'ROUND_WAY')
+                        <label>Driver allow ₹<input name="driver_allow_rupees" type="number" step="0.01" value="{{ $row ? ($row->driver_allow_paise ?? 0) / 100 : 0 }}"></label>
+                        <label>Night stay ₹<input name="night_stay_rupees" type="number" step="0.01" value="{{ $row ? ($row->night_stay_paise ?? 0) / 100 : 0 }}"></label>
+                    @endif
+                    @if ($product === 'MULTI_STOP' || $product === 'RENTAL')
+                        <label>Stop ₹<input name="stop_rupees" type="number" step="0.01" value="{{ $row ? ($row->stop_paise ?? 0) / 100 : 0 }}"></label>
+                    @endif
+                    <label class="fare-check">On<input type="checkbox" name="active" value="1" @checked(! $row || $row->active)></label>
+                    <button class="btn" type="submit">Save</button>
+                </form>
+            @endforeach
+        </section>
+    @endforeach
 
-    <section class="card">
-        <h2>Current rules</h2>
-        <div class="table-wrap">
-            <table class="data">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Vehicle</th>
-                        <th>Area</th>
-                        <th>Min / included km</th>
-                        <th>₹/km</th>
-                        <th>Extra ₹/km</th>
-                        <th>Wait ₹/min</th>
-                        <th>Night</th>
-                        <th>GST</th>
-                        <th>On</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse ($rules as $row)
-                    <tr>
-                        <td colspan="11">
-                            <form method="POST" action="{{ route('fare.update', $row->id) }}" class="filters" style="align-items:end">
-                                @csrf
-                                @method('PATCH')
-                                <div>
-                                    <label>Product</label>
-                                    <select name="product">
-                                        @foreach ($products as $product)
-                                            <option value="{{ $product }}" @selected($row->product === $product)>{{ $product }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>Vehicle</label>
-                                    <select name="category">
-                                        @foreach ($categories as $category)
-                                            <option value="{{ $category }}" @selected($row->category === $category)>{{ $category }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>District</label>
-                                    <select name="district_id">
-                                        <option value="">All live districts</option>
-                                        @foreach ($districts as $district)
-                                            <option value="{{ $district->id }}" @selected((int) $row->district_id === (int) $district->id)>{{ $district->state_name }} · {{ $district->name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div><label>Min km</label><input name="min_km" type="number" step="0.1" value="{{ $row->min_km }}"></div>
-                                <div><label>Included km</label><input name="included_km" type="number" step="0.1" value="{{ $row->included_km }}"></div>
-                                <div><label>₹/km</label><input name="per_km_rupees" type="number" step="0.01" value="{{ $row->per_km_paise / 100 }}"></div>
-                                <div><label>Extra ₹/km</label><input name="extra_km_rupees" type="number" step="0.01" value="{{ $row->extra_km_paise / 100 }}"></div>
-                                <div><label>Wait ₹/min</label><input name="waiting_per_min_rupees" type="number" step="0.01" value="{{ $row->waiting_paise_per_min / 100 }}"></div>
-                                <div><label>Night %</label><input name="night_percent" type="number" value="{{ $row->night_percent }}"></div>
-                                <div><label>GST %</label><input name="gst_percent" type="number" value="{{ $row->gst_percent }}"></div>
-                                <div><label>Rental hours</label><input name="rental_hours" type="number" value="{{ $row->rental_hours }}"></div>
-                                <div><label>Extra hour ₹</label><input name="extra_hour_rupees" type="number" step="0.01" value="{{ ($row->extra_hour_paise ?? 15000) / 100 }}"></div>
-                                <div>
-                                    <label>Active</label>
-                                    <label><input type="checkbox" name="active" value="1" @checked($row->active)> On</label>
-                                </div>
-                                <button class="btn" type="submit">Update</button>
-                            </form>
-                            <p class="muted">#{{ $row->id }} · {{ $row->state_name ?: 'Default' }} {{ $row->district_name }}
-                                @if ($row->product === 'RENTAL')
-                                    · Package {{ $row->rental_hours ?: '—' }} hr / {{ $row->included_km }} km
-                                @endif
-                            </p>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td class="muted">No fare rules yet.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
+    @if ($selectedService === '' || $selectedService === 'PARCEL')
+        <section class="card" id="service-PARCEL">
+            <h2>Parcel</h2>
+            <p class="muted">Set each delivery vehicle’s fare. Bike, Auto, Car, Van, and Truck are listed for local parcels and for Bihar parcels. Choose Delivery Partner uses these amounts.</p>
+            @foreach ($parcelLanes as $lane => $laneLabel)
+                @php $laneRows = $parcelRules->where('lane', $lane)->keyBy('category'); @endphp
+                <h3 style="margin:18px 0 8px">{{ $laneLabel }}</h3>
+                @foreach ($parcelVehicles as $category => $vehicleLabel)
+                    @php $row = $laneRows->get($category); @endphp
+                    <form class="fare-line" method="POST" action="{{ $row ? route('fare.parcel.update', $row->id) : route('fare.parcel.store') }}">
+                        @csrf
+                        @if ($row) @method('PATCH') @endif
+                        <input type="hidden" name="lane" value="{{ $lane }}">
+                        <input type="hidden" name="category" value="{{ $category }}">
+                        <strong>{{ $vehicleLabel }}</strong>
+                        <label>Min charge ₹<input name="min_charge_rupees" type="number" step="0.01" value="{{ $row ? $row->min_charge_paise / 100 : 49 }}" required></label>
+                        <label>₹ / km<input name="per_km_rupees" type="number" step="0.01" value="{{ $row ? $row->per_km_paise / 100 : 15 }}" required></label>
+                        <label>Extra ₹ / km<input name="extra_km_rupees" type="number" step="0.01" value="{{ $row ? $row->extra_km_paise / 100 : 18 }}" required></label>
+                        <label>₹ / kg<input name="per_kg_rupees" type="number" step="0.01" value="{{ $row ? $row->per_kg_paise / 100 : 2 }}" required></label>
+                        <label>Min km<input name="min_km" type="number" step="0.1" value="{{ $row->min_km ?? 1 }}" required></label>
+                        <label>Included km<input name="included_km" type="number" step="0.1" value="{{ $row->included_km ?? 2 }}" required></label>
+                        <label>GST %<input name="gst_percent" type="number" value="{{ $row->gst_percent ?? 5 }}" required></label>
+                        <label class="fare-check">On<input type="checkbox" name="active" value="1" @checked(! $row || $row->active)></label>
+                        <button class="btn" type="submit">Save</button>
+                    </form>
+                @endforeach
+            @endforeach
+        </section>
+    @endif
 @endsection
