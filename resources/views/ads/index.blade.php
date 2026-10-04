@@ -6,7 +6,7 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1><i data-lucide="megaphone"></i> KarnaCab ads</h1>
+            <h1><i data-lucide="megaphone"></i> KarnaRide ads</h1>
             <p class="muted">{{ $catalog['placements']['note'] }} Impressions {{ number_format($totals['impressions']) }} · Clicks {{ number_format($totals['clicks']) }} · Revenue ₹{{ number_format($totals['revenuePaise'] / 100, 2) }}.</p>
         </div>
     </div>

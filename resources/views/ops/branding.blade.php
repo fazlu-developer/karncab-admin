@@ -32,32 +32,32 @@
             <div class="grid-2">
                 <div class="field">
                     <label>Website logo</label>
-                    @if ($site['logoUrl'])<p><img src="{{ $site['logoUrl'] }}" alt="" style="max-height:48px"></p>@endif
+                    @if ($site['logoUrl'])<p><img src="{{ $site['logoUrl'] }}" alt="" style="max-height:48px"></p><label><input type="checkbox" name="remove_logo" value="1"> Remove image</label>@endif
                     <input type="file" name="logo" accept="image/*">
                 </div>
                 <div class="field">
                     <label>Admin logo</label>
-                    @if ($site['adminLogoUrl'])<p><img src="{{ $site['adminLogoUrl'] }}" alt="" style="max-height:48px"></p>@endif
+                    @if ($site['adminLogoUrl'])<p><img src="{{ $site['adminLogoUrl'] }}" alt="" style="max-height:48px"></p><label><input type="checkbox" name="remove_admin_logo" value="1"> Remove image</label>@endif
                     <input type="file" name="admin_logo" accept="image/*">
                 </div>
                 <div class="field">
                     <label>Favicon</label>
-                    @if ($site['faviconUrl'])<p><img src="{{ $site['faviconUrl'] }}" alt="" style="max-height:32px"></p>@endif
+                    @if ($site['faviconUrl'])<p><img src="{{ $site['faviconUrl'] }}" alt="" style="max-height:32px"></p><label><input type="checkbox" name="remove_favicon" value="1"> Remove image</label>@endif
                     <input type="file" name="favicon" accept="image/*">
                 </div>
                 <div class="field">
                     <label>Customer app icon</label>
-                    @if ($site['customerAppLogoUrl'])<p><img src="{{ $site['customerAppLogoUrl'] }}" alt="" style="max-height:48px"></p>@endif
+                    @if ($site['customerAppLogoUrl'])<p><img src="{{ $site['customerAppLogoUrl'] }}" alt="" style="max-height:48px"></p><label><input type="checkbox" name="remove_customer_app_logo" value="1"> Remove image</label>@endif
                     <input type="file" name="customer_app_logo" accept="image/*">
                 </div>
                 <div class="field">
                     <label>Driver app icon</label>
-                    @if ($site['driverAppLogoUrl'])<p><img src="{{ $site['driverAppLogoUrl'] }}" alt="" style="max-height:48px"></p>@endif
+                    @if ($site['driverAppLogoUrl'])<p><img src="{{ $site['driverAppLogoUrl'] }}" alt="" style="max-height:48px"></p><label><input type="checkbox" name="remove_driver_app_logo" value="1"> Remove image</label>@endif
                     <input type="file" name="driver_app_logo" accept="image/*">
                 </div>
                 <div class="field">
                     <label>Open Graph image</label>
-                    @if ($site['ogImage'])<p><img src="{{ $site['ogImage'] }}" alt="" style="max-height:48px"></p>@endif
+                    @if ($site['ogImage'])<p><img src="{{ $site['ogImage'] }}" alt="" style="max-height:48px"></p><label><input type="checkbox" name="remove_og" value="1"> Remove image</label>@endif
                     <input type="file" name="og" accept="image/*">
                 </div>
             </div>

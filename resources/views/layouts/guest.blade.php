@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', ($kcBrand['name'] ?? 'KarnaCab').' Admin')</title>
+    <title>@yield('title', ($kcBrand['name'] ?? 'KarnaRide').' Admin')</title>
     <link rel="icon" href="{{ $kcBrand['icoUrl'] ?? asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" href="{{ $kcBrand['faviconUrl'] ?? asset('favicon-32.png') }}">
     <link rel="apple-touch-icon" href="{{ $kcBrand['faviconUrl'] ?? asset('apple-touch-icon.png') }}">
@@ -13,7 +13,7 @@
     <div class="guest-body">
         <section class="guest-brand">
             <div>
-                <img src="{{ $kcBrand['logoUrl'] ?? asset('branding/karnacab-logo-full.png') }}" alt="{{ $kcBrand['name'] ?? 'KarnaCab' }}" style="max-width:320px;width:100%;height:auto;margin-bottom:18px;background:#fff;border-radius:18px;padding:10px">
+                <img src="{{ $kcBrand['logoUrl'] ?? asset('branding/karnacab-logo-full.png') }}" alt="{{ $kcBrand['name'] ?? 'KarnaRide' }}" style="max-width:320px;width:100%;height:auto;margin-bottom:18px;background:#fff;border-radius:18px;padding:10px">
                 <h1>Operations console</h1>
                 <p>Manage riders, drivers, bookings and the Bihar network from one secure dashboard.</p>
             </div>

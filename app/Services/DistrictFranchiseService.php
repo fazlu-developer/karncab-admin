@@ -182,7 +182,7 @@ class DistrictFranchiseService
         $this->db()->table('franchise_agreements')->insert([
             'franchise_id' => $id,
             'version' => $version,
-            'title' => 'KarnaCab exclusive district franchise agreement',
+            'title' => 'KarnaRide exclusive district franchise agreement',
             'signed_at' => now(),
             'status' => 'signed',
             'created_at' => now(),

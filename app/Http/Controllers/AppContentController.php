@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
+use App\Support\StoredUpload;
 use Illuminate\View\View;
 
 class AppContentController extends Controller
@@ -18,11 +18,11 @@ class AppContentController extends Controller
     public static function catalog(): array
     {
         return [
-            ['slug' => 'about-us', 'title' => 'About Us', 'lede' => 'KarnaCab is a ride and delivery network for cities across India.', 'body' => "KarnaCab connects riders with verified drivers for city rides, outstation trips, rentals, parcels and more.\n\nWe operate with local partners so pickup, fare and support stay close to the city you book in."],
-            ['slug' => 'privacy-policy', 'title' => 'Privacy Policy', 'lede' => 'How KarnaCab collects, uses and protects your information.', 'body' => "We collect your name, phone number, trip locations and payment details to complete bookings and keep your account secure.\n\nWe do not sell personal data. You can request access or deletion through in-app Support."],
-            ['slug' => 'terms-conditions', 'title' => 'Terms & Conditions', 'lede' => 'Rules for using the KarnaCab customer application.', 'body' => "By using KarnaCab you agree to book trips in good faith, pay the quoted fare, and follow driver and safety instructions.\n\nCancellations, waiting charges and tolls follow the fare shown before you confirm the ride."],
-            ['slug' => 'return-refund', 'title' => 'Return & Refund', 'lede' => 'Wallet top-ups, cancelled trips and fare adjustments.', 'body' => "Unused wallet balance stays in your KarnaCab wallet.\n\nIf a trip is cancelled as per policy or a fare is charged in error, the amount is returned to the original payment method or wallet after review. Open Support with the booking ID to request a refund."],
-            ['slug' => 'software-license', 'title' => 'Software License', 'lede' => 'Licence to use the KarnaCab mobile application.', 'body' => "KarnaCab grants you a personal, non-exclusive licence to use this app for booking transport and related services.\n\nYou may not copy, reverse engineer, or misuse the software. Brand names and content remain the property of KarnaCab."],
+            ['slug' => 'about-us', 'title' => 'About Us', 'lede' => 'KarnaRide is a ride and delivery network for cities across India.', 'body' => "KarnaRide connects riders with verified drivers for city rides, outstation trips, rentals, parcels and more.\n\nWe operate with local partners so pickup, fare and support stay close to the city you book in."],
+            ['slug' => 'privacy-policy', 'title' => 'Privacy Policy', 'lede' => 'How KarnaRide collects, uses and protects your information.', 'body' => "We collect your name, phone number, trip locations and payment details to complete bookings and keep your account secure.\n\nWe do not sell personal data. You can request access or deletion through in-app Support."],
+            ['slug' => 'terms-conditions', 'title' => 'Terms & Conditions', 'lede' => 'Rules for using the KarnaRide customer application.', 'body' => "By using KarnaRide you agree to book trips in good faith, pay the quoted fare, and follow driver and safety instructions.\n\nCancellations, waiting charges and tolls follow the fare shown before you confirm the ride."],
+            ['slug' => 'return-refund', 'title' => 'Return & Refund', 'lede' => 'Wallet top-ups, cancelled trips and fare adjustments.', 'body' => "Unused wallet balance stays in your KarnaRide wallet.\n\nIf a trip is cancelled as per policy or a fare is charged in error, the amount is returned to the original payment method or wallet after review. Open Support with the booking ID to request a refund."],
+            ['slug' => 'software-license', 'title' => 'Software License', 'lede' => 'Licence to use the KarnaRide mobile application.', 'body' => "KarnaRide grants you a personal, non-exclusive licence to use this app for booking transport and related services.\n\nYou may not copy, reverse engineer, or misuse the software. Brand names and content remain the property of KarnaRide."],
         ];
     }
 
@@ -51,11 +51,12 @@ class AppContentController extends Controller
         $row = DB::connection('platform')->table('cms_pages')->where('slug', $slug)->first();
         abort_unless($row, 404);
         $image = $row->image_url ?? null;
-        if ($request->boolean('remove_image')) {
+        if ($request->boolean('remove_image') || $request->file('image') instanceof UploadedFile) {
+            StoredUpload::forget($image);
             $image = null;
         }
         if ($request->file('image') instanceof UploadedFile) {
-            $image = $this->storeImage($request->file('image'), $slug);
+            $image = StoredUpload::replace($request->file('image'), 'app-pages', null, $slug);
         }
         $payload = [
             'title' => $data['title'],
@@ -73,26 +74,6 @@ class AppContentController extends Controller
         DB::connection('platform')->table('cms_pages')->where('slug', $slug)->update($payload);
 
         return back()->with('status', $data['title'].' updated. Customer app Account pages will show this content.');
-    }
-
-    private function storeImage(UploadedFile $file, string $slug): string
-    {
-        $dir = public_path('uploads/app-pages');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
-        $name = $slug.'-'.Str::lower(Str::random(8)).'.'.$ext;
-        $file->move($dir, $name);
-        $apiDir = dirname(base_path()).DIRECTORY_SEPARATOR.'api'.DIRECTORY_SEPARATOR.'storage'.DIRECTORY_SEPARATOR.'app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.'app-pages';
-        if (is_dir(dirname($apiDir, 3))) {
-            if (! is_dir($apiDir)) {
-                mkdir($apiDir, 0775, true);
-            }
-            @copy($dir.DIRECTORY_SEPARATOR.$name, $apiDir.DIRECTORY_SEPARATOR.$name);
-        }
-
-        return '/uploads/app-pages/'.$name;
     }
 
     private function seed(): void

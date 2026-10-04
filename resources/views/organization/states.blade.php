@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="globe"></i> Service states</h1>
-            <p class="muted">Add every state where KarnaCab operates. Districts are attached to a state on the next screen.</p>
+            <p class="muted">Add every state where KarnaRide operates. Districts are attached to a state on the next screen.</p>
         </div>
     </div>
     @can('state.create')

@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="settings-2"></i> Ride and parcel services</h1>
-            <p class="muted">Bike, Auto, Mini, Sedan, SUV and Traveller start here. Add more categories when KarnaCab launches a new product.</p>
+            <p class="muted">Bike, Auto, Mini, Sedan, SUV and Traveller start here. Add more categories when KarnaRide launches a new product.</p>
         </div>
     </div>
     <section class="card">
@@ -54,6 +54,9 @@
                             <input name="category_key" value="{{ data_get($row, 'category_key') }}" style="max-width:110px">
                             <input name="sort_order" type="number" value="{{ $row->sort_order }}" style="max-width:70px">
                             <label><input type="checkbox" name="active" value="1" @checked($row->active)> Active</label>
+                            @if (!empty($row->image_url))
+                                <label><input type="checkbox" name="remove_image" value="1"> Remove image</label>
+                            @endif
                             <input type="file" name="image" accept="image/*">
                             <button class="btn ghost" type="submit">Save</button>
                         </form>
@@ -77,5 +80,29 @@
             <div><label>Banner image</label><input type="file" name="image" accept="image/*"></div>
             <button class="btn" type="submit">Add offer</button>
         </form>
+        @if (!empty($offers))
+            <table style="margin-top:16px">
+                <tbody>
+                @foreach ($offers as $index => $offer)
+                    <tr>
+                        <td>
+                            @if (!empty($offer['imageUrl']))
+                                <img src="{{ $offer['imageUrl'] }}" alt="" style="max-height:48px">
+                            @endif
+                        </td>
+                        <td>{{ $offer['title'] ?? '' }}</td>
+                        <td>{{ $offer['code'] ?? '' }}</td>
+                        <td>
+                            <form method="POST" action="{{ route('ops.services.offers.destroy', $index) }}" style="margin:0">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn ghost" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        @endif
     </section>
 @endsection

@@ -10,7 +10,7 @@ final class SiteBrand
     public static function payload(): array
     {
         $site = PlatformSettings::json('cms_site', []);
-        $name = (string) ($site['name'] ?? 'KarnaCab');
+        $name = (string) ($site['name'] ?? 'KarnaRide');
         $logo = self::url((string) ($site['adminLogoUrl'] ?? $site['logoUrl'] ?? ''));
         $publicLogo = self::url((string) ($site['logoUrl'] ?? ''));
         $favicon = self::url((string) ($site['faviconUrl'] ?? ''));

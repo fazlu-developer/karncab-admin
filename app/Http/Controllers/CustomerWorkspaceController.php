@@ -136,7 +136,7 @@ class CustomerWorkspaceController extends Controller
         ]);
         $this->safety->sos($request->user(), $data);
 
-        return back()->with('status', ($data['kind'] ?? '') === 'share' ? 'Trip share link refreshed.' : 'SOS logged. Call police or KarnaCab from the numbers shown.');
+        return back()->with('status', ($data['kind'] ?? '') === 'share' ? 'Trip share link refreshed.' : 'SOS logged. Call police or KarnaRide from the numbers shown.');
     }
 
     public function share(Request $request): RedirectResponse

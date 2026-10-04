@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Support\PlatformSettings;
+use App\Support\StoredUpload;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class SiteBrandingService
 {
@@ -18,9 +18,9 @@ class SiteBrandingService
         $site = PlatformSettings::json('cms_site', []);
 
         return [
-            'name' => $site['name'] ?? 'KarnaCab',
+            'name' => $site['name'] ?? 'KarnaRide',
             'tagline' => $site['tagline'] ?? '',
-            'defaultSeoTitle' => $site['defaultSeoTitle'] ?? 'KarnaCab',
+            'defaultSeoTitle' => $site['defaultSeoTitle'] ?? 'KarnaRide',
             'defaultSeoDescription' => $site['defaultSeoDescription'] ?? '',
             'canonicalHost' => $site['canonicalHost'] ?? 'https://karnacab.in',
             'contactEmail' => $site['contactEmail'] ?? '',
@@ -68,24 +68,12 @@ class SiteBrandingService
         foreach (['customerMaintenance', 'driverMaintenance', 'customerForceUpdate', 'driverForceUpdate', 'highAlertEnabled'] as $flag) {
             $site[$flag] = filter_var($data[$flag] ?? false, FILTER_VALIDATE_BOOLEAN);
         }
-        if ($logo) {
-            $site['logoUrl'] = $this->store($logo, 'logo');
-        }
-        if ($customerLogo) {
-            $site['customerAppLogoUrl'] = $this->store($customerLogo, 'customer-app');
-        }
-        if ($driverLogo) {
-            $site['driverAppLogoUrl'] = $this->store($driverLogo, 'driver-app');
-        }
-        if ($adminLogo) {
-            $site['adminLogoUrl'] = $this->store($adminLogo, 'admin-logo');
-        }
-        if ($favicon) {
-            $site['faviconUrl'] = $this->store($favicon, 'favicon');
-        }
-        if ($og) {
-            $site['ogImage'] = $this->store($og, 'og');
-        }
+        $this->swapImage($site, 'logoUrl', $logo, 'logo', ! empty($data['remove_logo']));
+        $this->swapImage($site, 'customerAppLogoUrl', $customerLogo, 'customer-app', ! empty($data['remove_customer_app_logo']));
+        $this->swapImage($site, 'driverAppLogoUrl', $driverLogo, 'driver-app', ! empty($data['remove_driver_app_logo']));
+        $this->swapImage($site, 'adminLogoUrl', $adminLogo, 'admin-logo', ! empty($data['remove_admin_logo']));
+        $this->swapImage($site, 'faviconUrl', $favicon, 'favicon', ! empty($data['remove_favicon']));
+        $this->swapImage($site, 'ogImage', $og, 'og', ! empty($data['remove_og']));
         if (array_key_exists('mapEmbed', $site) && is_string($site['mapEmbed'])) {
             $embed = $site['mapEmbed'];
             $embed = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $embed) ?? '';
@@ -94,24 +82,18 @@ class SiteBrandingService
         PlatformSettings::put('cms_site', json_encode($site, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
-    private function store(UploadedFile $file, string $kind): string
+    private function swapImage(array &$site, string $key, ?UploadedFile $file, string $prefix, bool $remove): void
     {
-        $dir = public_path('uploads/branding');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
-        $name = $kind.'-'.Str::lower(Str::random(8)).'.'.$ext;
-        $file->move($dir, $name);
-        $websiteDir = dirname(base_path()).DIRECTORY_SEPARATOR.'website'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.'branding';
-        if (is_dir(dirname($websiteDir))) {
-            if (! is_dir($websiteDir)) {
-                mkdir($websiteDir, 0775, true);
-            }
-            @copy($dir.DIRECTORY_SEPARATOR.$name, $websiteDir.DIRECTORY_SEPARATOR.$name);
-        }
+        $current = $site[$key] ?? null;
+        if ($file) {
+            $site[$key] = StoredUpload::replace($file, 'branding', is_string($current) ? $current : null, $prefix);
 
-        return '/uploads/branding/'.$name;
+            return;
+        }
+        if ($remove) {
+            StoredUpload::forget(is_string($current) ? $current : null);
+            $site[$key] = '';
+        }
     }
 
     public function ensureCatalogTable(): void

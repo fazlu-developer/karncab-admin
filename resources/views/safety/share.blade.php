@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>KarnaCab trip {{ $share['publicRef'] }}</title>
+    <title>KarnaRide trip {{ $share['publicRef'] }}</title>
     <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
 </head>
 <body>

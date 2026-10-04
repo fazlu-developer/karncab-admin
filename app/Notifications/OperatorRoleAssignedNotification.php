@@ -20,7 +20,7 @@ class OperatorRoleAssignedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('KarnaCab role assigned')
+            ->subject('KarnaRide role assigned')
             ->line("Your operations role is now {$this->role}.");
     }
 }

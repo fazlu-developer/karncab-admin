@@ -32,7 +32,7 @@
     <div class="kpis">
         @foreach ([
             ['totalUsers', 'Total users', 'users'],
-            ['activeUsers', 'Using KarnaCab now', 'user-check'],
+            ['activeUsers', 'Using KarnaRide now', 'user-check'],
             ['totalDrivers', 'Drivers', 'id-card'],
             ['onlineDrivers', 'Online now', 'radio'],
             ['activeRides', 'Active rides', 'navigation'],
@@ -53,7 +53,7 @@
     </div>
     <section class="card" style="margin-bottom:18px">
         <div class="toolbar">
-            <h3 style="margin:0">Customers using KarnaCab now</h3>
+            <h3 style="margin:0">Customers using KarnaRide now</h3>
             <span class="muted">Seen in the last 5 minutes</span>
         </div>
         <table class="data">
@@ -77,6 +77,48 @@
             @endforelse
             </tbody>
         </table>
+    </section>
+    <section class="card" style="margin-bottom:18px">
+        <div class="toolbar">
+            <h3 style="margin:0">Live bookings</h3>
+            <span class="muted">Searching and on-trip rides</span>
+        </div>
+        <table class="data">
+            <thead>
+                <tr><th>Ref</th><th>Service</th><th>Status</th><th>Customer</th><th>Driver</th><th>Route</th></tr>
+            </thead>
+            <tbody>
+            @forelse ($liveRides ?? [] as $ride)
+                <tr>
+                    <td>{{ $ride->public_ref ?: ('#'.$ride->id) }}</td>
+                    <td>{{ str_replace('_', ' ', $ride->product) }}</td>
+                    <td><span class="pill ok">{{ str_replace('_', ' ', $ride->status) }}</span></td>
+                    <td>{{ $ride->customer ?: '—' }}<div class="muted">{{ $ride->customer_phone }}</div></td>
+                    <td>{{ $ride->driver_name ?: 'Waiting' }}</td>
+                    <td class="muted">{{ $ride->pickup_text }} → {{ $ride->drop_text }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6" class="muted">No live bookings right now.</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </section>
+    <section class="card" style="margin-bottom:18px">
+        <div class="toolbar">
+            <h3 style="margin:0">Document expiry</h3>
+            <a href="{{ route('notifications.index') }}">Notification centre</a>
+        </div>
+        @forelse ($expiringDocuments ?? [] as $doc)
+            <p>
+                <a href="{{ route('drivers.show', $doc->driver_id) }}">{{ $doc->name }}</a>
+                · {{ $doc->phone }} · {{ $doc->type }} · {{ $doc->status }}
+                @if ($doc->expires_at)
+                    · expires {{ $doc->expires_at }}
+                @endif
+            </p>
+        @empty
+            <p class="muted">No driver documents are expired or due in the next 15 days.</p>
+        @endforelse
     </section>
     <div class="grid-2">
         <section class="card">

@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="map-pinned"></i> Service districts</h1>
-            <p class="muted">Districts sit under a state. Drivers, fares and bookings use this list for KarnaCab coverage.</p>
+            <p class="muted">Districts sit under a state. Drivers, fares and bookings use this list for KarnaRide coverage.</p>
         </div>
     </div>
     @can('district.create')

@@ -37,7 +37,7 @@ class OrganizationController extends Controller
         $id = DB::connection('platform')->table('states')->insertGetId($payload);
         OrganizationAudit::record($request->user(), 'state.create', 'state', $id, null, $payload);
 
-        return back()->with('status', 'State added. KarnaCab can serve this territory after districts are added.');
+        return back()->with('status', 'State added. KarnaRide can serve this territory after districts are added.');
     }
 
     public function updateState(Request $request, int $state): RedirectResponse
@@ -100,7 +100,7 @@ class OrganizationController extends Controller
         $id = DB::connection('platform')->table('districts')->insertGetId($payload);
         OrganizationAudit::record($request->user(), 'district.create', 'district', $id, null, $payload);
 
-        return back()->with('status', 'District added to KarnaCab service coverage.');
+        return back()->with('status', 'District added to KarnaRide service coverage.');
     }
 
     public function updateDistrict(Request $request, int $district): RedirectResponse

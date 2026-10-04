@@ -10,6 +10,7 @@ use App\Services\OrganizationAudit;
 use App\Services\SiteBrandingService;
 use App\Support\CorporatePlanSchema;
 use App\Support\PlatformSettings;
+use App\Support\StoredUpload;
 use App\Support\TravelPackageSchema;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,6 +67,12 @@ class WorkspaceController extends Controller
             'admin_logo' => ['nullable', 'image', 'max:2048'],
             'favicon' => ['nullable', 'image', 'max:1024'],
             'og' => ['nullable', 'image', 'max:2048'],
+            'remove_logo' => ['nullable'],
+            'remove_customer_app_logo' => ['nullable'],
+            'remove_driver_app_logo' => ['nullable'],
+            'remove_admin_logo' => ['nullable'],
+            'remove_favicon' => ['nullable'],
+            'remove_og' => ['nullable'],
         ]);
         $this->branding->save($data, $request->file('logo'), $request->file('favicon'), $request->file('og'), $request->file('admin_logo'), $request->file('customer_app_logo'), $request->file('driver_app_logo'));
         OrganizationAudit::record($request->user(), 'branding.update', 'cms_site', 'site', null, ['name' => $data['name']], 'cms');
@@ -80,7 +87,10 @@ class WorkspaceController extends Controller
         $this->seedDefaultServices();
         $rows = DB::connection('platform')->table('catalog_services')->orderBy('service_group')->orderBy('sort_order')->orderBy('title')->get();
 
-        return view('ops.services', ['rows' => $rows]);
+        return view('ops.services', [
+            'rows' => $rows,
+            'offers' => PlatformSettings::json('cms_home_offers'),
+        ]);
     }
 
     public function storeService(Request $request): RedirectResponse
@@ -125,10 +135,16 @@ class WorkspaceController extends Controller
             'sort_order' => ['nullable', 'integer'],
             'active' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'max:4096'],
+            'remove_image' => ['nullable'],
         ]);
+        $existing = DB::connection('platform')->table('catalog_services')->where('id', $service)->first();
         $imageUrl = null;
+        $clearImage = $request->boolean('remove_image') || $request->file('image');
+        if ($clearImage) {
+            StoredUpload::forget($existing?->image_url);
+        }
         if ($request->file('image')) {
-            $imageUrl = $this->storeCatalogImage($request->file('image'));
+            $imageUrl = StoredUpload::replace($request->file('image'), 'services', null, 'svc');
         }
         $payload = PlatformSettings::filter('catalog_services', [
             'title' => $data['title'],
@@ -137,11 +153,12 @@ class WorkspaceController extends Controller
             'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'active' => $request->boolean('active'),
-            'image_url' => $imageUrl,
             'updated_at' => now(),
         ]);
-        if ($imageUrl === null) {
-            unset($payload['image_url']);
+        if ($imageUrl !== null) {
+            $payload['image_url'] = $imageUrl;
+        } elseif ($clearImage) {
+            $payload['image_url'] = null;
         }
         DB::connection('platform')->table('catalog_services')->where('id', $service)->update($payload);
 
@@ -164,23 +181,24 @@ class WorkspaceController extends Controller
             'subtitle' => $data['subtitle'] ?? '',
             'code' => $data['code'] ?? '',
             'linkUrl' => $data['link_url'] ?? '',
-            'imageUrl' => $request->file('image') ? $this->absoluteUpload($this->storeCatalogImage($request->file('image'))) : '',
+            'imageUrl' => $request->file('image') ? $this->absoluteUpload(StoredUpload::replace($request->file('image'), 'services', null, 'svc')) : '',
         ];
         PlatformSettings::put('cms_home_offers', json_encode(array_values($rows), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         return back()->with('status', 'Offer added. The customer app home and offers screen will show it.');
     }
 
-    private function storeCatalogImage(\Illuminate\Http\UploadedFile $file): string
+    public function destroyOffer(Request $request, int $offer): RedirectResponse
     {
-        $dir = public_path('uploads/services');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0775, true);
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $rows = PlatformSettings::json('cms_home_offers');
+        if (isset($rows[$offer]) && is_array($rows[$offer])) {
+            StoredUpload::forget($rows[$offer]['imageUrl'] ?? null);
+            array_splice($rows, $offer, 1);
+            PlatformSettings::put('cms_home_offers', json_encode(array_values($rows), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         }
-        $name = 'svc-'.Str::lower(Str::random(8)).'.'.$file->getClientOriginalExtension();
-        $file->move($dir, $name);
 
-        return '/uploads/services/'.$name;
+        return back()->with('status', 'Offer removed and its image deleted from storage.');
     }
 
     private function absoluteUpload(string $path): string
@@ -208,7 +226,7 @@ class WorkspaceController extends Controller
         TravelPackageSchema::ensure('platform');
         abort_unless(Schema::connection('platform')->hasTable('travel_packages'), 422, 'Travel packages table is not available.');
         $data = $this->validateTravel($request);
-        $imageUrl = $request->file('image') ? $this->absoluteUpload($this->storeTravelImage($request->file('image'))) : null;
+        $imageUrl = $request->file('image') ? $this->absoluteUpload(StoredUpload::replace($request->file('image'), 'travel', null, 'tour')) : null;
         $payload = PlatformSettings::filter('travel_packages', $this->travelPayload($data, $imageUrl, true));
         $id = DB::connection('platform')->table('travel_packages')->insertGetId($payload);
         OrganizationAudit::record($request->user(), 'travel.create', 'travel_package', $id, null, $payload, 'travel');
@@ -221,10 +239,18 @@ class WorkspaceController extends Controller
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
         TravelPackageSchema::ensure('platform');
         $data = $this->validateTravel($request);
-        $imageUrl = $request->file('image') ? $this->absoluteUpload($this->storeTravelImage($request->file('image'))) : null;
+        $existing = DB::connection('platform')->table('travel_packages')->where('id', $package)->first();
+        $clearImage = $request->boolean('remove_image') || $request->file('image');
+        if ($clearImage) {
+            StoredUpload::forget($existing?->image_url);
+        }
+        $imageUrl = $request->file('image') ? $this->absoluteUpload(StoredUpload::replace($request->file('image'), 'travel', null, 'tour')) : null;
         $payload = PlatformSettings::filter('travel_packages', $this->travelPayload($data, $imageUrl, false));
-        if ($imageUrl === null) {
+        if ($imageUrl === null && ! $clearImage) {
             unset($payload['image_url']);
+        }
+        if ($clearImage && $imageUrl === null) {
+            $payload['image_url'] = null;
         }
         DB::connection('platform')->table('travel_packages')->where('id', $package)->update($payload);
 
@@ -255,6 +281,7 @@ class WorkspaceController extends Controller
             'status' => ['required', 'in:DRAFT,PUBLISHED,ARCHIVED'],
             'popular' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'max:4096'],
+            'remove_image' => ['nullable'],
         ]);
     }
 
@@ -314,18 +341,6 @@ class WorkspaceController extends Controller
         }
 
         return $row;
-    }
-
-    private function storeTravelImage(\Illuminate\Http\UploadedFile $file): string
-    {
-        $dir = public_path('uploads/travel');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        $name = 'tour-'.\Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8)).'.'.$file->getClientOriginalExtension();
-        $file->move($dir, $name);
-
-        return '/uploads/travel/'.$name;
     }
 
     public function corporatePlans(Request $request): View
@@ -557,7 +572,7 @@ class WorkspaceController extends Controller
             'walletMinPercent' => (float) (PlatformSettings::get('driver_wallet_min_fare_percent', '0')),
             'walletCoverCommission' => PlatformSettings::get('driver_wallet_must_cover_commission', '1') !== '0',
             'leadsEmail' => PlatformSettings::get('leads_notify_email', ''),
-            'bookingEmail' => PlatformSettings::get('booking_notify_email', 'fazlu.developer@gmail.com'),
+            'bookingEmail' => PlatformSettings::get('booking_notify_email', 'karnacabofficial@gmail.com'),
         ]);
     }
 
@@ -582,7 +597,7 @@ class WorkspaceController extends Controller
         if (! empty($data['leads_notify_email'])) {
             PlatformSettings::put('leads_notify_email', $data['leads_notify_email']);
         }
-        PlatformSettings::put('booking_notify_email', $data['booking_notify_email'] ?? 'fazlu.developer@gmail.com');
+        PlatformSettings::put('booking_notify_email', $data['booking_notify_email'] ?? 'karnacabofficial@gmail.com');
 
         return back()->with('status', 'Settings saved as labeled fields. JSON is not required.');
     }
@@ -656,7 +671,7 @@ class WorkspaceController extends Controller
             $db->table('catalog_services')->insert(PlatformSettings::filter('catalog_services', [
                 'title' => $title,
                 'slug' => $slug,
-                'subtitle' => $title.' on KarnaCab',
+                'subtitle' => $title.' on KarnaRide',
                 'service_group' => $group,
                 'category_key' => $key,
                 'sort_order' => $sort,

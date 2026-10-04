@@ -535,7 +535,7 @@ class SafetyService
 
     private function shareSms(?string $publicRef, ?string $map, ?string $shareUrl): string
     {
-        $parts = ['KarnaCab live trip'];
+        $parts = ['KarnaRide live trip'];
         if ($publicRef) {
             $parts[] = 'ref '.$publicRef;
         }

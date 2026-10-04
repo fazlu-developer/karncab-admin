@@ -12,8 +12,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $operators = [
-            ['email' => 'manager@karnacab.local', 'name' => 'KarnaCab Manager', 'role' => OperatorRole::MANAGER],
-            ['email' => 'super@karnacab.local', 'name' => 'KarnaCab Super Admin', 'role' => OperatorRole::SUPER_ADMIN],
+            ['email' => 'manager@karnacab.local', 'name' => 'KarnaRide Manager', 'role' => OperatorRole::MANAGER],
+            ['email' => 'super@karnacab.local', 'name' => 'KarnaRide Super Admin', 'role' => OperatorRole::SUPER_ADMIN],
             ['email' => 'statehead@karnacab.local', 'name' => 'Bihar State Head', 'role' => OperatorRole::STATE_HEAD],
             ['email' => 'delhihead@karnacab.local', 'name' => 'Delhi State Head', 'role' => OperatorRole::STATE_HEAD],
             ['email' => 'district@karnacab.local', 'name' => 'Patna District Head', 'role' => OperatorRole::DISTRICT_HEAD],

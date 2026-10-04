@@ -203,6 +203,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/ops/services', [WorkspaceController::class, 'storeService'])->name('ops.services.store');
     Route::put('/ops/services/{service}', [WorkspaceController::class, 'updateService'])->name('ops.services.update')->whereNumber('service');
     Route::post('/ops/services/offers', [WorkspaceController::class, 'storeOffer'])->name('ops.services.offers');
+    Route::delete('/ops/services/offers/{offer}', [WorkspaceController::class, 'destroyOffer'])->name('ops.services.offers.destroy')->whereNumber('offer');
     Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');
     Route::post('/ops/travel', [WorkspaceController::class, 'storeTravel'])->name('ops.travel.store');
     Route::put('/ops/travel/{package}', [WorkspaceController::class, 'updateTravel'])->name('ops.travel.update')->whereNumber('package');

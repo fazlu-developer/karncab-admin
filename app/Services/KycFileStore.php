@@ -34,6 +34,19 @@ class KycFileStore
         return $ok;
     }
 
+    public function forget(?string $key): void
+    {
+        $key = ltrim(str_replace('\\', '/', (string) $key), '/');
+        if ($key === '' || str_contains($key, '..') || str_starts_with($key, 'http://') || str_starts_with($key, 'https://')) {
+            return;
+        }
+        foreach ($this->absoluteCandidates($key) as $full) {
+            if (is_file($full)) {
+                @unlink($full);
+            }
+        }
+    }
+
     public function absolutePath(?string $key): ?string
     {
         $key = ltrim(str_replace('\\', '/', (string) $key), '/');

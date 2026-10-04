@@ -214,6 +214,12 @@ class AdvertisingService
         if (! is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
+        foreach (['jpg', 'png', 'webp'] as $oldExt) {
+            $old = $dir.DIRECTORY_SEPARATOR.$id.'.'.$oldExt;
+            if ($oldExt !== $ext && is_file($old)) {
+                @unlink($old);
+            }
+        }
         $key = 'ads/'.$id.'.'.$ext;
         $file->move($dir, $id.'.'.$ext);
         $this->db()->table('ad_campaigns')->where('id', $id)->update([

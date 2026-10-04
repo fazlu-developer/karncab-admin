@@ -21,7 +21,7 @@ class NotificationPolicyTest extends TestCase
         $this->assertSame(['sms', 'email'], $otp['channels']);
         $this->assertStringContainsString('4321', $otp['body']);
         $this->assertSame(
-            'Your KarnaCab booking KC-1 is confirmed.',
+            'Your KarnaRide booking KC-1 is confirmed.',
             NotificationPolicy::render('booking_confirmation', ['ref' => 'KC-1'])['body'],
         );
     }

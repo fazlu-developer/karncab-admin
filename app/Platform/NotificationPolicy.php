@@ -7,18 +7,18 @@ final class NotificationPolicy
     public const CHANNELS = ['in_app', 'push', 'sms', 'email'];
 
     public const EVENTS = [
-        'otp' => ['title' => 'One-time password', 'body' => 'KarnaCab login code: {code}', 'channels' => ['sms', 'email']],
-        'booking_confirmation' => ['title' => 'Booking confirmed', 'body' => 'Your KarnaCab booking {ref} is confirmed.', 'channels' => ['in_app', 'push', 'sms', 'email']],
+        'otp' => ['title' => 'One-time password', 'body' => 'KarnaRide login code: {code}', 'channels' => ['sms', 'email']],
+        'booking_confirmation' => ['title' => 'Booking confirmed', 'body' => 'Your KarnaRide booking {ref} is confirmed.', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'driver_assigned' => ['title' => 'Driver assigned', 'body' => 'Your driver is on the way to pickup for {ref}.', 'channels' => ['in_app', 'push', 'sms']],
         'driver_arriving' => ['title' => 'Driver arriving', 'body' => 'Your driver is arriving at pickup.', 'channels' => ['in_app', 'push', 'sms']],
         'ride_started' => ['title' => 'Ride started', 'body' => 'Your ride has started. Share live trip from Safety if needed.', 'channels' => ['in_app', 'push']],
-        'ride_completed' => ['title' => 'Ride completed', 'body' => 'Thanks for riding with KarnaCab. Rate your trip in bookings.', 'channels' => ['in_app', 'push', 'email']],
+        'ride_completed' => ['title' => 'Ride completed', 'body' => 'Thanks for riding with KarnaRide. Rate your trip in bookings.', 'channels' => ['in_app', 'push', 'email']],
         'payment' => ['title' => 'Payment received', 'body' => 'Your payment {ref} was captured.', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'refund' => ['title' => 'Refund processed', 'body' => 'A refund of ₹{amount} was issued for {ref}.', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'cancellation' => ['title' => 'Booking cancelled', 'body' => 'Booking {ref} was cancelled.', 'channels' => ['in_app', 'push', 'sms']],
         'parcel_update' => ['title' => 'Parcel update', 'body' => 'Parcel {ref} is now {status}.', 'channels' => ['in_app', 'push', 'sms']],
         'document_expiry' => ['title' => 'Document expiry', 'body' => '{label} needs attention ({window}).', 'channels' => ['in_app', 'push', 'email']],
-        'kyc_approval' => ['title' => 'Account activated successfully', 'body' => 'Your KarnaCab driver account is active. Open the driver app and go online to receive trips.', 'channels' => ['in_app', 'push', 'sms', 'email']],
+        'kyc_approval' => ['title' => 'Account activated successfully', 'body' => 'Your KarnaRide driver account is active. Open the driver app and go online to receive trips.', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'kyc_rejection' => ['title' => 'KYC rejected', 'body' => 'Your KYC was rejected. {reason}', 'channels' => ['in_app', 'push', 'sms', 'email']],
         'wallet_transaction' => ['title' => 'Wallet {direction}', 'body' => '₹{amount} {direction} · {note}', 'channels' => ['in_app', 'push', 'email']],
         'franchise_approval' => ['title' => 'Franchise approved', 'body' => 'Your franchise {ref} is now active.', 'channels' => ['in_app', 'push', 'sms', 'email']],

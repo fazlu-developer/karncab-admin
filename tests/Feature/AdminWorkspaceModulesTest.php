@@ -43,9 +43,9 @@ class AdminWorkspaceModulesTest extends TestCase
 
         $this->actingAs($admin)->get('/ops/branding')->assertOk()->assertSee('SEO title');
         $this->actingAs($admin)->post('/ops/branding', [
-            'name' => 'KarnaCab',
+            'name' => 'KarnaRide',
             'tagline' => 'Rides in Bihar',
-            'defaultSeoTitle' => 'KarnaCab',
+            'defaultSeoTitle' => 'KarnaRide',
             'contactEmail' => 'ops@karnacab.in',
         ])->assertRedirect();
 

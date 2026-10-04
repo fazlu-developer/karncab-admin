@@ -18,7 +18,7 @@ class OperatorPendingNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('KarnaCab operator access pending')
-            ->line('An administrator must assign a KarnaCab role before domain access is granted.');
+            ->subject('KarnaRide operator access pending')
+            ->line('An administrator must assign a KarnaRide role before domain access is granted.');
     }
 }

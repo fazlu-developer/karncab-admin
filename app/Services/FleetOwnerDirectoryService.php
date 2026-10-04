@@ -212,10 +212,16 @@ class FleetOwnerDirectoryService
         if ($ext === '') {
             $ext = str_contains($mime, 'png') ? 'png' : (str_contains($mime, 'pdf') ? 'pdf' : 'jpg');
         }
-        $path = 'fleet/'.$id.'/'.bin2hex(random_bytes(16)).'.'.$ext;
-        abort_unless(app(KycFileStore::class)->write($path, $binary), 500, 'Could not save the attachment.');
         $docs = json_decode((string) ($row->documents_json ?? '[]'), true);
         $docs = is_array($docs) ? $docs : [];
+        $files = app(KycFileStore::class);
+        foreach ($docs as $doc) {
+            if (strtoupper((string) ($doc['type'] ?? '')) === $type) {
+                $files->forget($doc['storageKey'] ?? $doc['storage_key'] ?? null);
+            }
+        }
+        $path = 'fleet/'.$id.'/'.bin2hex(random_bytes(16)).'.'.$ext;
+        abort_unless($files->write($path, $binary), 500, 'Could not save the attachment.');
         $docs = array_values(array_filter($docs, fn ($doc) => strtoupper((string) ($doc['type'] ?? '')) !== $type));
         $docs[] = [
             'type' => $type,

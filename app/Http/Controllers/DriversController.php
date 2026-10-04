@@ -328,10 +328,15 @@ class DriversController extends Controller
         if ($ext === '') {
             $ext = str_contains($mime, 'png') ? 'png' : (str_contains($mime, 'pdf') ? 'pdf' : (str_contains($mime, 'webp') ? 'webp' : 'jpg'));
         }
-        $path = app(KycFileStore::class)->put((int) $driver->id, $ext, $binary);
+        $files = app(KycFileStore::class);
         if (! in_array($type, self::MULTI_DOCS, true)) {
+            $previous = PlatformDriverDocument::query()->where('driver_id', $driver->id)->where('type', $type)->get();
+            foreach ($previous as $doc) {
+                $files->forget($doc->storage_key ?? null);
+            }
             PlatformDriverDocument::query()->where('driver_id', $driver->id)->where('type', $type)->delete();
         }
+        $path = $files->put((int) $driver->id, $ext, $binary);
         PlatformDriverDocument::query()->create($this->onlyExisting('driver_documents', [
             'driver_id' => $driver->id,
             'type' => $type,
@@ -600,8 +605,8 @@ class DriversController extends Controller
         }
         $vehicle = $driver->vehicles()->first();
         $payload = $this->onlyExisting('vehicles', [
-            'registration_no' => $reg !== '' ? $reg : ($vehicle->registration_no ?? null),
-            'category' => $category !== '' ? $category : ($vehicle->category ?? null),
+            'registration_no' => $reg !== '' ? $reg : ($vehicle?->registration_no ?? null),
+            'category' => $category !== '' ? $category : ($vehicle?->category ?? null),
             'brand' => $data['brand'] ?? null,
             'model' => $data['model'] ?? null,
             'year' => $data['year'] ?? null,
@@ -611,7 +616,7 @@ class DriversController extends Controller
             'state_id' => $geo['state_id'],
             'district_id' => $geo['district_id'],
             'individual_driver_id' => $driver->fleet_owner_id ? null : $driver->id,
-            'status' => $vehicle->status ?? 'ACTIVE',
+            'status' => $vehicle?->status ?? 'ACTIVE',
         ]);
         if ($vehicle) {
             $vehicle->update($payload);

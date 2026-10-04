@@ -1,6 +1,6 @@
 (function () {
   function districtsFor(stateId) {
-    const geo = window.KarnaCabGeo || { districts: {} };
+    const geo = window.KarnaRideGeo || { districts: {} };
     return geo.districts[String(stateId)] || [];
   }
 

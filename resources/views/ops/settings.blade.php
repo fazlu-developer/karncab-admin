@@ -36,7 +36,7 @@
                 <div class="field">
                     <label>Admin booking notify email</label>
                     <input name="booking_notify_email" type="email" value="{{ $bookingEmail }}" required>
-                    <p class="muted">New ride requests are emailed here. Default is fazlu.developer@gmail.com.</p>
+                    <p class="muted">New ride requests are emailed here for admin and super admin.</p>
                 </div>
             </div>
             <p>

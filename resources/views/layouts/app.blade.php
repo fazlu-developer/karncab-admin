@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', ($kcBrand['name'] ?? 'KarnaCab').' Admin')</title>
+    <title>@yield('title', ($kcBrand['name'] ?? 'KarnaRide').' Admin')</title>
     <link rel="icon" href="{{ $kcBrand['icoUrl'] ?? asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" href="{{ $kcBrand['faviconUrl'] ?? asset('favicon-32.png') }}">
     <link rel="apple-touch-icon" href="{{ $kcBrand['faviconUrl'] ?? asset('apple-touch-icon.png') }}">
@@ -26,7 +26,7 @@
                             : \App\Platform\OpsNav::grouped($user))));
         @endphp
         <a class="logo" href="{{ route($user->homeRoute()) }}">
-            <img src="{{ $kcBrand['logoUrl'] ?? asset('branding/karnacab-logo-full.png') }}" alt="{{ $kcBrand['name'] ?? 'KarnaCab' }}" class="logo-img">
+            <img src="{{ $kcBrand['logoUrl'] ?? asset('branding/karnacab-logo-full.png') }}" alt="{{ $kcBrand['name'] ?? 'KarnaRide' }}" class="logo-img">
         </a>
         @foreach ($navGroups as $group => $items)
             <div class="group">{{ $group }}</div>
@@ -83,7 +83,7 @@
 </div>
 <script src="https://unpkg.com/lucide@0.469.0"></script>
 <script>window.lucide && lucide.createIcons();</script>
-<script>window.KarnaCabGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
+<script>window.KarnaRideGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
 <script src="{{ asset('js/geo-select.js') }}"></script>
 @livewireScripts
 @stack('scripts')

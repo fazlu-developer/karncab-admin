@@ -1,6 +1,6 @@
 @extends('layouts.guest')
 
-@section('title', 'KarnaCab Admin')
+@section('title', 'KarnaRide Admin')
 
 @section('content')
     <h2>Management console</h2>

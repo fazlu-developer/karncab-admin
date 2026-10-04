@@ -119,6 +119,9 @@
                                                 <option value="{{ $st }}" @selected(($row->status ?? '') === $st)>{{ $st }}</option>
                                             @endforeach
                                         </select>
+                                        @if (!empty($row->image_url))
+                                            <label><input type="checkbox" name="remove_image" value="1"> Remove image</label>
+                                        @endif
                                         <input type="file" name="image" accept="image/*">
                                         <label><input type="checkbox" name="popular" value="1" @checked(!empty($row->popular))> Popular</label>
                                     </div>
