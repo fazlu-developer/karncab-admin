@@ -167,6 +167,75 @@ class WalletLedgerService
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
+    /**
+     * Users an admin can pick when adding wallet money.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function creditCandidates(User $operator, string $term = ''): array
+    {
+        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
+        $q = $this->db()->table('users')->select('users.id', 'users.name', 'users.phone', 'users.email', 'users.role');
+        TerritoryScope::applyUsers($q, $operator, 'users');
+        $term = trim($term);
+        if ($term !== '') {
+            $q->where(function ($inner) use ($term) {
+                $inner->where('users.name', 'like', '%'.$term.'%')
+                    ->orWhere('users.phone', 'like', '%'.$term.'%')
+                    ->orWhere('users.email', 'like', '%'.$term.'%');
+                if (ctype_digit($term)) {
+                    $inner->orWhere('users.id', (int) $term);
+                }
+            });
+        }
+        $rows = $q->orderByDesc('users.id')->limit(40)->get();
+        if ($rows->isEmpty()) {
+            return [];
+        }
+        $wallets = $this->db()->table('wallets')
+            ->whereIn('owner_user_id', $rows->pluck('id'))
+            ->get()
+            ->groupBy('owner_user_id');
+
+        return $rows->map(function ($row) use ($wallets) {
+            $account = $this->walletAccountForRole((string) $row->role);
+            $wallet = collect($wallets->get($row->id, []))->first(fn ($item) => (string) $item->owner_type === $account);
+            $paise = (int) ($wallet->balance_paise ?? 0);
+
+            return [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'phone' => (string) ($row->phone ?? ''),
+                'email' => (string) ($row->email ?? ''),
+                'role' => (string) $row->role,
+                'account' => $account,
+                'balanceRupees' => $paise / 100,
+            ];
+        })->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function creditUser(User $operator, int $userId, int $amountPaise, ?string $note = null): array
+    {
+        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
+        abort_unless($amountPaise >= 100, 422, 'Enter at least ₹1.');
+        $visible = $this->db()->table('users')->where('users.id', $userId);
+        TerritoryScope::applyUsers($visible, $operator, 'users');
+        $user = $visible->first();
+        abort_unless($user, 404, 'User not found.');
+
+        return $this->post($operator, [
+            'owner_type' => $this->walletAccountForRole((string) $user->role),
+            'owner_user_id' => (int) $user->id,
+            'direction' => 'CREDIT',
+            'amount_paise' => $amountPaise,
+            'kind' => 'admin_credit',
+            'note' => trim((string) $note) !== '' ? trim((string) $note) : 'Added by admin',
+        ]);
+    }
+
     public function post(User $operator, array $input): array
     {
         abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
@@ -508,6 +577,19 @@ class WalletLedgerService
         $this->db()->table('commission_rules')->insert($payload);
 
         return $this->activeRule();
+    }
+
+    private function walletAccountForRole(string $role): string
+    {
+        $role = strtoupper($role);
+        if (in_array($role, self::ACCOUNTS, true)) {
+            return $role;
+        }
+        if (in_array($role, [OperatorRole::ADMIN, OperatorRole::SUPER_ADMIN], true)) {
+            return 'PLATFORM';
+        }
+
+        return 'CUSTOMER';
     }
 
     private function platformWalletUserId(): ?int

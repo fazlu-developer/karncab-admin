@@ -13,11 +13,17 @@ class WalletsController extends Controller
 
     public function index(Request $request): View
     {
+        $operator = $request->user();
+        $canCredit = $operator?->can('payments.edit') || $operator?->can('platform.admin');
+
         return view('wallets.index', [
-            'wallets' => $this->wallets->wallets($request->user(), $request->query()),
-            'ledger' => $this->wallets->ledger($request->user(), $request->query()),
+            'wallets' => $this->wallets->wallets($operator, $request->query()),
+            'ledger' => $this->wallets->ledger($operator, $request->query()),
             'accounts' => WalletLedgerService::ACCOUNTS,
             'query' => $request->query(),
+            'canCredit' => $canCredit,
+            'creditUsers' => $canCredit ? $this->wallets->creditCandidates($operator, (string) $request->query('user_q', '')) : [],
+            'userQuery' => (string) $request->query('user_q', ''),
         ]);
     }
 
@@ -63,6 +69,21 @@ class WalletsController extends Controller
         ]);
 
         return back()->with('status', 'Commission rule saved. Ledger posts will use this percent and these fare buckets.');
+    }
+
+    public function credit(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer'],
+            'amount_rupees' => ['required', 'numeric', 'min:1', 'max:500000'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+        $paise = (int) round(((float) $data['amount_rupees']) * 100);
+        $posted = $this->wallets->creditUser($request->user(), (int) $data['user_id'], $paise, $data['note'] ?? null);
+        $added = number_format($paise / 100, 2);
+        $balance = number_format(((int) ($posted['newBalancePaise'] ?? 0)) / 100, 2);
+
+        return back()->with('status', "Added ₹{$added}. New wallet balance is ₹{$balance}.");
     }
 
     public function post(Request $request): RedirectResponse

@@ -12,7 +12,49 @@
         <a class="btn ghost" href="{{ route('wallets.commission') }}"><i data-lucide="percent"></i> Commission rule</a>
     </div>
 
-    @can('payments.edit')
+    @if ($canCredit)
+        <section class="card">
+            <h2>Add wallet money</h2>
+            <p class="muted">Search for a customer, driver, or partner, enter the amount in rupees, and add it to their wallet.</p>
+            <form class="filters" method="GET">
+                <div>
+                    <label>Find user</label>
+                    <input name="user_q" value="{{ $userQuery }}" placeholder="Name, phone, email, or user ID">
+                </div>
+                <button class="btn ghost" type="submit">Find</button>
+            </form>
+            @if ($creditUsers === [])
+                <p class="muted">No users match that search.</p>
+            @else
+                <form method="POST" action="{{ route('wallets.credit') }}">
+                    @csrf
+                    <div class="filters">
+                        <div>
+                            <label>User</label>
+                            <select name="user_id" required>
+                                @foreach ($creditUsers as $person)
+                                    <option value="{{ $person['id'] }}" @selected((string) old('user_id') === (string) $person['id'])>
+                                        {{ $person['name'] }}
+                                        @if ($person['phone'] !== '') · {{ $person['phone'] }} @endif
+                                        · {{ $person['role'] }}
+                                        · ₹{{ number_format($person['balanceRupees'], 2) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label>Amount (₹)</label>
+                            <input name="amount_rupees" type="number" min="1" max="500000" step="0.01" value="{{ old('amount_rupees') }}" required>
+                        </div>
+                        <div>
+                            <label>Note</label>
+                            <input name="note" value="{{ old('note') }}" placeholder="Optional reason">
+                        </div>
+                    </div>
+                    <button class="btn" type="submit"><i data-lucide="plus"></i> Add money</button>
+                </form>
+            @endif
+        </section>
         <section class="card">
             <h2>Post ledger row</h2>
             <form method="POST" action="{{ route('wallets.post') }}">
@@ -54,7 +96,7 @@
                 <button class="btn" type="submit"><i data-lucide="scale"></i> Settle</button>
             </form>
         </section>
-    @endcan
+    @endif
 
     <section class="card">
         <h2>Wallets</h2>

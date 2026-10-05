@@ -167,6 +167,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/wallets', [WalletsController::class, 'index'])->name('wallets.index');
     Route::get('/wallets/commission', [WalletsController::class, 'commission'])->name('wallets.commission');
     Route::put('/wallets/commission', [WalletsController::class, 'updateCommission'])->name('wallets.commission.update');
+    Route::post('/wallets/credit', [WalletsController::class, 'credit'])->name('wallets.credit');
     Route::post('/wallets/post', [WalletsController::class, 'post'])->name('wallets.post');
     Route::post('/wallets/settle', [WalletsController::class, 'settle'])->name('wallets.settle');
     Route::get('/wallets/{wallet}', [WalletsController::class, 'show'])->name('wallets.show');

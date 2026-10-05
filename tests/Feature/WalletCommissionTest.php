@@ -21,6 +21,57 @@ class WalletCommissionTest extends TestCase
         $this->seedFinance();
     }
 
+    public function test_admin_adds_custom_wallet_money_for_a_selected_user(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+
+        $this->actingAs($admin)
+            ->get('/wallets?user_q=Rider')
+            ->assertOk()
+            ->assertSee('Add wallet money', false)
+            ->assertSee('Rider', false)
+            ->assertDontSee('Driver One', false);
+
+        $this->actingAs($admin)
+            ->post('/wallets/credit', [
+                'user_id' => 401,
+                'amount_rupees' => 250.5,
+                'note' => 'Launch bonus',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status');
+
+        $wallet = DB::connection('platform')->table('wallets')
+            ->where('owner_user_id', 401)
+            ->where('owner_type', 'CUSTOMER')
+            ->first();
+        $this->assertNotNull($wallet);
+        $this->assertSame(25050, (int) $wallet->balance_paise);
+
+        $ledger = DB::connection('platform')->table('wallet_ledger')->where('wallet_id', $wallet->id)->first();
+        $this->assertNotNull($ledger);
+        $this->assertSame('CREDIT', $ledger->direction);
+        $this->assertSame('admin_credit', $ledger->kind);
+        $this->assertSame(25050, (int) $ledger->amount_paise);
+        $this->assertSame('Launch bonus', $ledger->note);
+
+        $this->actingAs($admin)->post('/wallets/credit', [
+            'user_id' => 401,
+            'amount_rupees' => 10,
+        ])->assertRedirect();
+        $this->assertSame(26050, (int) DB::connection('platform')->table('wallets')->where('id', $wallet->id)->value('balance_paise'));
+    }
+
+    public function test_advertiser_cannot_add_wallet_money(): void
+    {
+        $user = User::factory()->create(['role' => OperatorRole::ADVERTISER]);
+
+        $this->actingAs($user)->post('/wallets/credit', [
+            'user_id' => 401,
+            'amount_rupees' => 10,
+        ])->assertForbidden();
+    }
+
     public function test_admin_opens_wallets_and_commission_screens(): void
     {
         $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
