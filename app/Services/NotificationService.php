@@ -311,7 +311,7 @@ class NotificationService
         if (! $access) {
             return false;
         }
-        $project = $creds['project_id'] ?? 'karnacab-bf930';
+        $project = $creds['project_id'] ?? env('FIREBASE_PROJECT_ID', 'karnacab-ea7ad');
         $ok = false;
         foreach ($tokens as $token) {
             if (! is_string($token) || strlen($token) < 20) {

@@ -572,7 +572,7 @@ class WorkspaceController extends Controller
             'walletMinPercent' => (float) (PlatformSettings::get('driver_wallet_min_fare_percent', '0')),
             'walletCoverCommission' => PlatformSettings::get('driver_wallet_must_cover_commission', '1') !== '0',
             'leadsEmail' => PlatformSettings::get('leads_notify_email', ''),
-            'bookingEmail' => PlatformSettings::get('booking_notify_email', 'karnacabofficial@gmail.com'),
+            'bookingEmail' => PlatformSettings::get('booking_notify_email', 'karnaride@gmail.com'),
         ]);
     }
 
@@ -597,7 +597,7 @@ class WorkspaceController extends Controller
         if (! empty($data['leads_notify_email'])) {
             PlatformSettings::put('leads_notify_email', $data['leads_notify_email']);
         }
-        PlatformSettings::put('booking_notify_email', $data['booking_notify_email'] ?? 'karnacabofficial@gmail.com');
+        PlatformSettings::put('booking_notify_email', $data['booking_notify_email'] ?? 'karnaride@gmail.com');
 
         return back()->with('status', 'Settings saved as labeled fields. JSON is not required.');
     }
