@@ -118,6 +118,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/drivers/{driver}/documents/{document}/file', [DriversController::class, 'documentFile'])->name('drivers.documents.file');
     Route::post('/drivers/{driver}/documents/{document}', [DriversController::class, 'reviewDocument'])->name('drivers.documents.review');
     Route::post('/drivers/{driver}/kyc', [DriversController::class, 'reviewApplication'])->name('drivers.kyc.review');
+    Route::post('/drivers/{driver}/leave-fleet', [DriversController::class, 'leaveFleet'])->name('drivers.leave-fleet');
+    Route::get('/drivers/{driver}/vehicle-documents/{document}', [DriversController::class, 'vehicleDocumentFile'])->name('drivers.vehicle-documents.file')->whereNumber('document');
 
     Route::get('/vehicles', [VehiclesController::class, 'index'])->name('vehicles.index');
     Route::post('/vehicles', [VehiclesController::class, 'store'])->name('vehicles.store');

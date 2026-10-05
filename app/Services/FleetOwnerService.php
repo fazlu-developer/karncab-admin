@@ -247,21 +247,41 @@ class FleetOwnerService
     public function assignDriver(User $operator, int $driverId, int $vehicleId): array
     {
         $fleet = $this->requireFleet($operator, 'fleet.manage');
-        $this->requireDriver($fleet, $driverId);
+        $driverRow = $this->requireDriver($fleet, $driverId);
         $vehicle = $this->requireVehicle($fleet, $vehicleId);
         abort_if(FleetVehicleStatus::isLocked($vehicle->status), 422, 'Vehicle is in maintenance or suspended.');
+        abort_if(strtolower((string) ($driverRow->kyc_status ?? '')) === 'left_fleet', 422, 'This driver left the company. Admin must activate KYC first.');
+        $previousVehicleId = (int) ($this->db()->table('vehicles')->where('fleet_owner_id', $fleet->id)->where('driver_id', $driverId)->value('id') ?? 0);
         $this->closeActiveAssignment($fleet, (int) $vehicleId, 'replaced', (int) $operator->id);
-        $this->db()->table('vehicles')
-            ->where('fleet_owner_id', $fleet->id)
-            ->where('driver_id', $driverId)
-            ->where('id', '!=', $vehicleId)
-            ->update(['driver_id' => null, 'status' => 'available', 'updated_at' => now()]);
+        $others = $this->db()->table('vehicles')->where('fleet_owner_id', $fleet->id)->where('driver_id', $driverId)->where('id', '!=', $vehicleId)->get();
+        foreach ($others as $other) {
+            $otherStatus = strtolower((string) $other->status);
+            $this->db()->table('vehicles')->where('id', $other->id)->update([
+                'driver_id' => null,
+                'status' => in_array($otherStatus, ['pending_review', 'pending'], true) ? $other->status : 'available',
+                'updated_at' => now(),
+            ]);
+        }
         $this->db()->table('vehicles')->where('id', $vehicleId)->update([
             'driver_id' => $driverId,
             'status' => $vehicle->status === 'offline' ? 'available' : $vehicle->status,
             'updated_at' => now(),
         ]);
         $this->openAssignment($fleet, (int) $vehicleId, $driverId, (int) $operator->id, 'assigned');
+        if ($previousVehicleId !== (int) $vehicleId && in_array(strtolower((string) ($driverRow->kyc_status ?? '')), ['verified', 'approved', 'active'], true)) {
+            $this->db()->table('drivers')->where('id', $driverId)->update([
+                'kyc_status' => 'under_review',
+                'online' => 0,
+                'duty_status' => 'offline',
+                'updated_at' => now(),
+            ]);
+            if (Schema::hasColumn('users', 'session_epoch') && ! empty($driverRow->user_id)) {
+                $this->db()->table('users')->where('id', $driverRow->user_id)->update([
+                    'session_epoch' => DB::raw('COALESCE(session_epoch, 0) + 1'),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
         OrganizationAudit::record($operator, 'driver.assigned', 'vehicle', $vehicleId, ['driverId' => $vehicle->driver_id], ['driverId' => $driverId]);
 
         return $this->driver($operator, $driverId);
@@ -307,12 +327,17 @@ class FleetOwnerService
         $this->unassignDriver($operator, $driverId);
         $fleet = $this->requireFleet($operator, 'fleet.manage');
         $this->requireDriver($fleet, $driverId);
-        $this->db()->table('drivers')->where('id', $driverId)->update([
+        $patch = [
             'fleet_owner_id' => null,
+            'kyc_status' => 'left_fleet',
             'online' => false,
             'duty_status' => 'offline',
             'updated_at' => now(),
-        ]);
+        ];
+        if (Schema::connection('platform')->hasColumn('drivers', 'driver_type')) {
+            $patch['driver_type'] = 'individual_driver';
+        }
+        $this->db()->table('drivers')->where('id', $driverId)->update($patch);
 
         return ['ok' => true, 'id' => $driverId];
     }

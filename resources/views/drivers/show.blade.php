@@ -8,9 +8,35 @@
         $user = $driver->user;
         $vehicle = $driver->vehicles->first();
         $docsByType = $driver->documents->keyBy('type');
-        $requiredReady = collect($requiredDocs)->every(fn ($type) => in_array(optional($docsByType->get($type))->status, ['verified', 'approved'], true));
+        if (! $docsByType->has('SELFIE') && $docsByType->has('LIVE_PHOTO')) {
+            $docsByType->put('SELFIE', $docsByType->get('LIVE_PHOTO'));
+        }
+        $vehicleDocTypes = collect($vehicleDocuments ?? [])->pluck('type')->map(fn ($type) => strtoupper((string) $type));
+        $hasFile = function (string $type) use ($docsByType, $vehicleDocTypes): bool {
+            if ($docsByType->has($type) || $vehicleDocTypes->contains($type)) {
+                return true;
+            }
+            return match ($type) {
+                'SELFIE' => $docsByType->has('LIVE_PHOTO') || $vehicleDocTypes->contains('LIVE_PHOTO'),
+                'PUC' => $docsByType->has('POLLUTION') || $vehicleDocTypes->contains('POLLUTION'),
+                'POLLUTION' => $docsByType->has('PUC') || $vehicleDocTypes->contains('PUC'),
+                default => false,
+            };
+        };
+        $requiredReady = collect($requiredDocs)->every(fn ($type) => in_array(optional($docsByType->get($type))->status, ['verified', 'approved'], true) || ($type === 'SELFIE' && in_array(optional($docsByType->get('LIVE_PHOTO'))->status, ['verified', 'approved'], true)) || $vehicleDocTypes->contains($type));
         $expiredDocs = $driver->documents->filter(fn ($doc) => $doc->status === 'expired' || ($doc->expires_at && $doc->expires_at->isPast()));
-        $missingDocs = collect($requiredDocs)->reject(fn ($type) => $docsByType->has($type));
+        $missingDocs = collect($requiredDocs)->reject(fn ($type) => $hasFile($type));
+        $vehicleDocLabel = function (string $type): string {
+            return match (strtoupper($type)) {
+                'RC' => 'Registration certificate',
+                'INSURANCE' => 'Insurance',
+                'PERMIT' => 'Permit',
+                'FITNESS' => 'Fitness',
+                'PUC', 'POLLUTION' => 'Pollution certificate',
+                'VEHICLE_PHOTO', 'PHOTO' => 'Vehicle photo',
+                default => str_replace('_', ' ', $type),
+            };
+        };
     @endphp
     <div class="hero">
         <div>
@@ -88,6 +114,34 @@
             </dl>
         </section>
     </div>
+
+    <section class="card">
+        <h2>Fleet owner</h2>
+        @if ($fleetOwner)
+            <dl class="dl">
+                <div><dt>Company</dt><dd>{{ $fleetOwner->trade_name ?: '—' }}</dd></div>
+                <div><dt>Owner</dt><dd>{{ $fleetOwner->owner_name ?: '—' }}</dd></div>
+                <div><dt>Mobile</dt><dd>{{ $fleetOwner->owner_phone ?: ($fleetOwner->phone ?? '—') }}</dd></div>
+                <div><dt>Email</dt><dd>{{ ($fleetOwner->owner_email && ! str_ends_with($fleetOwner->owner_email, '@otp.karnacab.local')) ? $fleetOwner->owner_email : '—' }}</dd></div>
+                <div><dt>Fleet KYC</dt><dd>{{ str_replace('_', ' ', $fleetOwner->kyc_status ?? '—') }}</dd></div>
+                <div><dt>Fleet status</dt><dd>{{ $fleetOwner->status ?? '—' }}</dd></div>
+                <div><dt>Fleet id</dt><dd>{{ $fleetOwner->id }}</dd></div>
+            </dl>
+            <p class="muted">This driver was added by the fleet owner and can be assigned before KYC is approved. Approve the application after you review the driver files and the vehicle attachments below.</p>
+        @elseif (strtolower((string) $driver->kyc_status) === 'left_fleet')
+            <p>This driver left the fleet company. Upload any missing files, then activate KYC. After that they can sign in on their own.</p>
+        @else
+            <p class="muted">No fleet owner. This is an individual driver.</p>
+        @endif
+        @if ($driver->fleet_owner_id)
+            @canany(['drivers.edit', 'drivers.approve'])
+                <form method="POST" action="{{ route('drivers.leave-fleet', $driver) }}" style="margin-top:12px" onsubmit="return confirm('Remove this driver from the fleet? They cannot sign in until you activate KYC.');">
+                    @csrf
+                    <button class="btn danger" type="submit">Driver left the company</button>
+                </form>
+            @endcanany
+        @endif
+    </section>
 
     @can('drivers.edit')
         <section class="card">
@@ -220,8 +274,31 @@
                     @endcan
                 </article>
             @empty
-                <p class="muted">No documents uploaded yet.</p>
+                @if (($vehicleDocuments ?? collect())->isEmpty())
+                    <p class="muted">No documents uploaded yet.</p>
+                @endif
             @endforelse
+            @foreach ($vehicleDocuments ?? [] as $doc)
+                @php
+                    $mime = (string) ($doc->mime ?? '');
+                    $isImage = str_starts_with($mime, 'image/');
+                    $fileUrl = route('drivers.vehicle-documents.file', [$driver, $doc->id]);
+                @endphp
+                <article class="doc-card">
+                    <div class="doc-head">
+                        <strong>{{ $vehicleDocLabel((string) $doc->type) }}</strong>
+                        <span class="pill warn">vehicle · {{ $doc->status ?? 'uploaded' }}</span>
+                    </div>
+                    @if ($isImage)
+                        <a href="{{ $fileUrl }}" target="_blank" rel="noopener">
+                            <img class="doc-thumb" src="{{ $fileUrl }}" alt="{{ $vehicleDocLabel((string) $doc->type) }}">
+                        </a>
+                    @else
+                        <a class="btn ghost" href="{{ $fileUrl }}" target="_blank" rel="noopener">Open file</a>
+                    @endif
+                    <p class="muted">{{ $doc->original_name ?? $doc->type }} · {{ $mime ?: 'file' }} · vehicle {{ $doc->vehicle_id }}</p>
+                </article>
+            @endforeach
         </div>
         @can('drivers.edit')
             <form method="POST" action="{{ route('drivers.documents.store', $driver) }}" enctype="multipart/form-data" style="margin-top:16px">
@@ -265,7 +342,7 @@
                         <input type="checkbox" name="force" value="1" {{ $requiredReady ? '' : 'checked' }}>
                         Approve anyway
                     </label>
-                    <button class="btn" type="submit">Approve application</button>
+                    <button class="btn" type="submit">{{ strtolower((string) $driver->kyc_status) === 'left_fleet' ? 'Activate KYC' : 'Approve application' }}</button>
                 </form>
                 <form method="POST" action="{{ route('drivers.kyc.review', $driver) }}" class="filters" style="flex:1">
                     @csrf

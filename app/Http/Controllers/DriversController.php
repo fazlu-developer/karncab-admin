@@ -140,6 +140,23 @@ class DriversController extends Controller
                 ->get();
         }
 
+        $fleetOwner = null;
+        if ($driver->fleet_owner_id && Schema::connection('platform')->hasTable('fleet_owners')) {
+            $fleetOwner = DB::connection('platform')->table('fleet_owners')
+                ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
+                ->where('fleet_owners.id', $driver->fleet_owner_id)
+                ->select('fleet_owners.*', 'users.name as owner_name', 'users.phone as owner_phone', 'users.email as owner_email')
+                ->first();
+        }
+        $vehicleDocuments = collect();
+        $vehicleIds = $driver->vehicles->pluck('id');
+        if ($vehicleIds->isNotEmpty() && Schema::connection('platform')->hasTable('vehicle_documents')) {
+            $vehicleDocuments = DB::connection('platform')->table('vehicle_documents')
+                ->whereIn('vehicle_id', $vehicleIds->all())
+                ->orderBy('id')
+                ->get();
+        }
+
         return view('drivers.show', $this->formMeta() + [
             'driver' => $driver,
             'requiredDocs' => self::REQUIRED_DOCS,
@@ -147,6 +164,8 @@ class DriversController extends Controller
             'stateName' => GeoCatalog::stateName((int) ($driver->user?->state_id ?: $driver->state_id)),
             'districtName' => GeoCatalog::districtName((int) ($driver->user?->district_id ?: $driver->district_id)),
             'mailLog' => $mailLog,
+            'fleetOwner' => $fleetOwner,
+            'vehicleDocuments' => $vehicleDocuments,
         ]);
     }
 
@@ -407,8 +426,16 @@ class DriversController extends Controller
         if ($data['status'] === 'verified') {
             abort_unless($request->user()?->can('drivers.approve'), 403);
             $driver->load('documents');
-            $missing = collect(self::REQUIRED_DOCS)->filter(function (string $type) use ($driver) {
+            $wasLeftFleet = strtolower((string) $driver->kyc_status) === 'left_fleet';
+            $covered = $this->vehicleDocTypes($driver);
+            $missing = collect(self::REQUIRED_DOCS)->filter(function (string $type) use ($driver, $covered) {
+                if ($this->typeCovered($type, $covered)) {
+                    return false;
+                }
                 $doc = $driver->documents->firstWhere('type', $type);
+                if (! $doc && $type === 'SELFIE') {
+                    $doc = $driver->documents->firstWhere('type', 'LIVE_PHOTO');
+                }
 
                 return ! $doc || ! in_array($doc->status, ['verified', 'approved'], true);
             });
@@ -422,6 +449,10 @@ class DriversController extends Controller
                 'kyc_rejected_reason' => null,
             ]);
             $driver->user?->update(['status' => 'ACTIVE']);
+            $this->releaseAssignedVehicles($driver);
+            if ($wasLeftFleet) {
+                return redirect()->route('drivers.show', $driver)->with('status', 'KYC activated. This driver can sign in.');
+            }
             try {
                 app(NotificationService::class)->dispatch((int) $driver->user_id, 'kyc_approval', [], [
                     'entity' => ['type' => 'kyc', 'id' => (string) $driver->user_id],
@@ -448,6 +479,71 @@ class DriversController extends Controller
         }
 
         return redirect()->route('drivers.show', $driver)->with('status', 'Driver KYC updated. The driver app will refresh to home after approval.');
+    }
+
+    public function leaveFleet(Request $request, PlatformDriver $driver): RedirectResponse
+    {
+        abort_unless($request->user()?->can('drivers.edit') || $request->user()?->can('drivers.approve'), 403);
+        $this->assertVisible($request, $driver);
+        if (Schema::connection('platform')->hasTable('vehicles')) {
+            $vehicles = DB::connection('platform')->table('vehicles')->where('driver_id', $driver->id)->get();
+            foreach ($vehicles as $vehicle) {
+                $status = strtolower((string) $vehicle->status);
+                DB::connection('platform')->table('vehicles')->where('id', $vehicle->id)->update([
+                    'driver_id' => null,
+                    'status' => in_array($status, ['pending_review', 'pending'], true) ? $vehicle->status : 'available',
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+        $driver->fleet_owner_id = null;
+        $driver->kyc_status = 'left_fleet';
+        $driver->online = false;
+        $driver->kyc_rejected_reason = null;
+        if (Schema::connection('platform')->hasColumn('drivers', 'driver_type')) {
+            $driver->driver_type = 'individual_driver';
+        }
+        if (Schema::connection('platform')->hasColumn('drivers', 'duty_status')) {
+            $driver->duty_status = 'offline';
+        }
+        $driver->save();
+        if ($driver->user_id && Schema::connection('platform')->hasColumn('users', 'session_epoch')) {
+            DB::connection('platform')->table('users')->where('id', $driver->user_id)->update([
+                'status' => 'PENDING',
+                'session_epoch' => DB::raw('COALESCE(session_epoch, 0) + 1'),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return redirect()->route('drivers.show', $driver)->with('status', 'Driver left the fleet. Upload any missing files, then activate KYC.');
+    }
+
+    public function vehicleDocumentFile(Request $request, PlatformDriver $driver, int $document): BinaryFileResponse|Response|RedirectResponse
+    {
+        abort_unless($request->user()?->can('drivers.view'), 403);
+        $this->assertVisible($request, $driver);
+        abort_unless(Schema::connection('platform')->hasTable('vehicle_documents'), 404);
+        $row = DB::connection('platform')->table('vehicle_documents')->where('id', $document)->first();
+        abort_unless($row, 404);
+        $owns = $driver->vehicles()->whereKey($row->vehicle_id)->exists();
+        abort_unless($owns, 404);
+        $path = app(KycFileStore::class)->absolutePath((string) $row->storage_key);
+        if ($path) {
+            return response()->file($path, [
+                'Content-Type' => $row->mime ?: 'application/octet-stream',
+                'Cache-Control' => 'private, max-age=120',
+            ]);
+        }
+        $key = (string) $row->storage_key;
+        if (str_starts_with($key, 'http://') || str_starts_with($key, 'https://')) {
+            return redirect()->away($key);
+        }
+        if ($key !== '') {
+            $base = rtrim((string) config('services.api_public', env('API_PUBLIC_URL', 'http://127.0.0.1:8003')), '/');
+
+            return redirect()->away($base.'/storage/'.ltrim($key, '/'));
+        }
+        abort(404, 'Attachment file is missing.');
     }
 
     public function destroy(Request $request, PlatformDriver $driver): RedirectResponse
@@ -481,6 +577,7 @@ class DriversController extends Controller
                 'kyc_rejected_reason' => null,
             ]);
             $driver->user?->update(['status' => 'ACTIVE']);
+            $this->releaseAssignedVehicles($driver);
             try {
                 app(NotificationService::class)->dispatch((int) $driver->user_id, 'kyc_approval', [], [
                     'entity' => ['type' => 'kyc', 'id' => (string) $driver->user_id],
@@ -540,6 +637,58 @@ class DriversController extends Controller
         }
 
         return ['state_id' => $stateId, 'district_id' => $districtId];
+    }
+
+    private function releaseAssignedVehicles(PlatformDriver $driver): void
+    {
+        if (! Schema::connection('platform')->hasTable('vehicles')) {
+            return;
+        }
+        DB::connection('platform')->table('vehicles')
+            ->where('driver_id', $driver->id)
+            ->whereIn('status', ['pending_review', 'pending'])
+            ->update(['status' => 'assigned', 'updated_at' => now()]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function vehicleDocTypes(PlatformDriver $driver): array
+    {
+        if (! Schema::connection('platform')->hasTable('vehicle_documents')) {
+            return [];
+        }
+        $vehicleIds = $driver->vehicles()->pluck('id');
+        if ($vehicleIds->isEmpty()) {
+            return [];
+        }
+
+        return DB::connection('platform')->table('vehicle_documents')
+            ->whereIn('vehicle_id', $vehicleIds->all())
+            ->pluck('type')
+            ->map(fn ($type) => strtoupper((string) $type))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<string>  $covered
+     */
+    private function typeCovered(string $type, array $covered): bool
+    {
+        $type = strtoupper($type);
+        if (in_array($type, $covered, true)) {
+            return true;
+        }
+
+        return match ($type) {
+            'PUC' => in_array('POLLUTION', $covered, true),
+            'POLLUTION' => in_array('PUC', $covered, true),
+            'SELFIE' => in_array('LIVE_PHOTO', $covered, true),
+            'LIVE_PHOTO' => in_array('SELFIE', $covered, true),
+            default => false,
+        };
     }
 
     /**
