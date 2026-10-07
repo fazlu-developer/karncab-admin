@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="file-text"></i> Account menu pages</h1>
-            <p class="muted">These five pages appear in the customer app Account section. Edit the title, short description, full text and optional image. Changes go live on the next app open.</p>
+            <p class="muted">These five pages appear in the customer app Account section. Edit the title, short description, full text and optional image. Saved text stays until you change it again.</p>
         </div>
     </div>
     @foreach ($pages as $page)

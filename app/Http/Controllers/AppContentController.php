@@ -92,15 +92,17 @@ class AppContentController extends Controller
         foreach (self::catalog() as $item) {
             $exists = DB::connection('platform')->table('cms_pages')->where('slug', $item['slug'])->first();
             if ($exists) {
-                if (Schema::connection('platform')->hasColumn('cms_pages', 'body')) {
-                    DB::connection('platform')->table('cms_pages')->where('slug', $item['slug'])->update([
-                        'title' => $item['title'],
-                        'lede' => $item['lede'],
-                        'nav_label' => $item['title'],
-                        'body' => json_encode(['html' => $item['body']], JSON_UNESCAPED_UNICODE),
-                        'published' => 1,
-                        'updated_at' => now(),
-                    ]);
+                $touch = [];
+                if (in_array($item['slug'], ['about-us', 'privacy-policy', 'terms-conditions'], true) && ($exists->nav_group ?? '') !== 'app') {
+                    $touch['nav_group'] = 'app';
+                }
+                if (Schema::connection('platform')->hasColumn('cms_pages', 'body') && self::bodyIsEmpty($exists->body ?? null) && $item['body'] !== '') {
+                    $touch['body'] = json_encode(['html' => $item['body']], JSON_UNESCAPED_UNICODE);
+                    $touch['published'] = 1;
+                }
+                if ($touch !== []) {
+                    $touch['updated_at'] = now();
+                    DB::connection('platform')->table('cms_pages')->where('slug', $item['slug'])->update($touch);
                 }
                 $sort++;
                 continue;
@@ -109,7 +111,7 @@ class AppContentController extends Controller
                 'slug' => $item['slug'],
                 'title' => $item['title'],
                 'lede' => $item['lede'],
-                'nav_group' => 'legal',
+                'nav_group' => in_array($item['slug'], ['about-us', 'privacy-policy', 'terms-conditions'], true) ? 'app' : 'legal',
                 'nav_label' => $item['title'],
                 'sort_order' => $sort++,
                 'published' => 1,
@@ -156,6 +158,19 @@ class AppContentController extends Controller
                 $table->string('image_url', 500)->nullable();
             });
         }
+    }
+
+    public static function bodyIsEmpty(mixed $body): bool
+    {
+        $decoded = is_string($body) ? json_decode($body, true) : $body;
+        if (is_array($decoded)) {
+            $html = trim((string) ($decoded['html'] ?? $decoded['text'] ?? ''));
+            $sections = $decoded['sections'] ?? [];
+
+            return $html === '' && empty($sections);
+        }
+
+        return trim((string) $body) === '';
     }
 
     public static function privacyPolicyBody(): string

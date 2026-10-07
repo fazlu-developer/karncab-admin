@@ -168,22 +168,12 @@ class WebsitePagesController extends Controller
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]));
-            } elseif (Schema::connection('platform')->hasColumn('cms_pages', 'body')) {
-                $body = $exists->body ?? '';
-                $decoded = is_string($body) ? json_decode($body, true) : (is_array($body) ? $body : []);
-                $html = is_array($decoded) ? trim((string) ($decoded['html'] ?? $decoded['text'] ?? '')) : trim((string) $body);
-                $sections = is_array($decoded) ? ($decoded['sections'] ?? []) : [];
-                $replaceLegal = is_string($item['html']) && $item['html'] !== '';
-                if ($replaceLegal || ($html === '' && empty($sections))) {
-                    DB::connection('platform')->table('cms_pages')->where('slug', $slug)->update([
-                        'title' => $item['title'],
-                        'body' => json_encode(['html' => $item['html']], JSON_UNESCAPED_UNICODE),
-                        'lede' => $item['lede'],
-                        'template' => $slug === 'contact' ? 'contact' : 'legal',
-                        'published' => 1,
-                        'updated_at' => $now,
-                    ]);
-                }
+            } elseif (Schema::connection('platform')->hasColumn('cms_pages', 'body') && AppContentController::bodyIsEmpty($exists->body ?? null) && is_string($item['html']) && $item['html'] !== '') {
+                DB::connection('platform')->table('cms_pages')->where('slug', $slug)->update([
+                    'body' => json_encode(['html' => $item['html']], JSON_UNESCAPED_UNICODE),
+                    'published' => 1,
+                    'updated_at' => $now,
+                ]);
             }
             $sort++;
         }
@@ -197,19 +187,29 @@ class WebsitePagesController extends Controller
                 unset($copy['id']);
                 $copy['slug'] = $app;
                 $copy['template'] = 'app_legal';
+                $copy['nav_group'] = 'app';
                 $copy['updated_at'] = $now;
                 $copy['created_at'] = $now;
                 DB::connection('platform')->table('cms_pages')->insert($this->row($copy));
                 continue;
             }
-            if (Schema::connection('platform')->hasColumn('cms_pages', 'body')) {
-                DB::connection('platform')->table('cms_pages')->where('slug', $app)->update([
-                    'title' => $source->title,
-                    'lede' => $source->lede ?? '',
-                    'body' => $source->body ?? null,
-                    'published' => 1,
-                    'updated_at' => now(),
-                ]);
+            $appRow = DB::connection('platform')->table('cms_pages')->where('slug', $app)->first();
+            if (! $appRow) {
+                continue;
+            }
+            $touch = [];
+            if (($appRow->nav_group ?? '') !== 'app') {
+                $touch['nav_group'] = 'app';
+            }
+            if (Schema::connection('platform')->hasColumn('cms_pages', 'body') && AppContentController::bodyIsEmpty($appRow->body ?? null)) {
+                $touch['title'] = $source->title;
+                $touch['lede'] = $source->lede ?? '';
+                $touch['body'] = $source->body ?? null;
+                $touch['published'] = 1;
+            }
+            if ($touch !== []) {
+                $touch['updated_at'] = now();
+                DB::connection('platform')->table('cms_pages')->where('slug', $app)->update($touch);
             }
         }
     }
