@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\State;
 
 use App\Http\Controllers\Controller;
+use App\Services\DistrictHeadKycStore;
 use App\Services\StateHeadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -60,9 +61,13 @@ class StateWorkspaceController extends Controller
             'district_id' => ['required', 'integer'],
             'password' => ['required', 'string', 'min:8'],
         ]);
-        $this->stateHeads->createDistrictHead($request->user(), $data, $request->query());
+        $seat = $this->stateHeads->createDistrictHead($request->user(), $data, $request->query());
+        $ownerId = (int) ($seat['ownerUserId'] ?? 0);
+        if ($ownerId > 0) {
+            DistrictHeadKycStore::saveFromRequest($request, $ownerId, $request->user()?->id);
+        }
 
-        return back()->with('status', 'District Head application created (APPLIED). The exclusive district seat is claimed only when status becomes ACTIVE.');
+        return back()->with('status', 'District Head created. KYC files were stored against that District Head account.');
     }
 
     public function storeFranchise(Request $request): RedirectResponse

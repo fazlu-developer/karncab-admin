@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Platform\PlatformUser;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
+use App\Services\DistrictHeadKycStore;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -67,6 +68,9 @@ class UsersController extends Controller
             $data['district_id'] = $actor->district_id;
         }
         $user = PlatformUser::query()->create($data);
+        if (($data['role'] ?? '') === OperatorRole::DISTRICT_HEAD) {
+            DistrictHeadKycStore::saveFromRequest($request, (int) $user->id, $request->user()?->id);
+        }
 
         return redirect()->route('users.show', $user)->with('status', 'User created.');
     }
@@ -102,6 +106,9 @@ class UsersController extends Controller
         }
         unset($data['password']);
         $platformUser->update($data);
+        if (($data['role'] ?? $platformUser->role) === OperatorRole::DISTRICT_HEAD) {
+            DistrictHeadKycStore::saveFromRequest($request, (int) $platformUser->id, $request->user()?->id);
+        }
 
         return redirect()->route('users.show', $platformUser)->with('status', 'User updated.');
     }

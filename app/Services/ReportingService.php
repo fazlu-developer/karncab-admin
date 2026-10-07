@@ -82,6 +82,7 @@ class ReportingService
             'payment_methods' => $this->paymentMethods($operator, $query),
             'refunds' => $this->refunds($operator, $query),
             'wallets' => $this->walletRows($operator, $query),
+            'incentives' => $this->incentiveRows($operator, $query),
             'new_users' => $this->newUsers($operator, $query),
             'active_users' => $this->activeUsers($operator, $query),
             'repeat_customers' => $this->repeatCustomers($operator, $query),
@@ -652,9 +653,31 @@ class ReportingService
     }
 
     /**
-     * @param  list<array<string, mixed>>  $rows
-     * @return array<string, mixed>
+     * @param  array<string, mixed>  $query
+     * @return list<array<string, mixed>>
      */
+    private function incentiveRows(User $operator, array $query): array
+    {
+        if (! Schema::connection('platform')->hasTable('incentives')) {
+            return [];
+        }
+        $q = $this->q('incentives');
+        $this->inRange($q, 'incentives.created_at', $query);
+
+        return $q->orderByDesc('incentives.id')->limit(500)->get()->map(fn ($row) => [
+            'id' => (int) $row->id,
+            'userId' => (int) $row->user_id,
+            'kind' => $row->kind,
+            'status' => $row->status,
+            'amountPaise' => (int) $row->amount_paise,
+            'amountRupees' => ((int) $row->amount_paise) / 100,
+            'relatedUserId' => $row->related_user_id,
+            'bookingId' => $row->booking_id,
+            'note' => $row->note,
+            'createdAt' => $row->created_at,
+        ])->all();
+    }
+
     private function totals(array $rows): array
     {
         if ($rows === []) {

@@ -5,9 +5,11 @@ namespace App\Platform;
 final class OpsNav
 {
     /**
+     * Built-in console links (no dynamically created ACL modules).
+     *
      * @return list<array{key: string, label: string, icon: string, group: string, ability: ?string, route?: string}>
      */
-    public static function items(): array
+    public static function coreItems(): array
     {
         return [
             ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'group' => 'Dashboard', 'ability' => null, 'route' => 'dashboard'],
@@ -34,6 +36,7 @@ final class OpsNav
             ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
             ['key' => 'corporate', 'label' => 'Corporate', 'icon' => 'building-2', 'group' => 'Partners', 'ability' => 'corporate.view'],
             ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC & Documents', 'ability' => 'kyc.view'],
+            ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
             ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
@@ -56,6 +59,27 @@ final class OpsNav
             ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.settings'],
             ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.audit'],
         ];
+    }
+
+    /**
+     * @return list<array{key: string, label: string, icon: string, group: string, ability: ?string, route?: string}>
+     */
+    public static function items(): array
+    {
+        $items = self::coreItems();
+        $known = [];
+        foreach ($items as $item) {
+            $known[$item['key']] = true;
+        }
+        foreach (\App\Services\AclCatalog::customNavItems() as $item) {
+            if (isset($known[$item['key']])) {
+                continue;
+            }
+            $items[] = $item;
+            $known[$item['key']] = true;
+        }
+
+        return $items;
     }
 
     public static function find(string $key): ?array

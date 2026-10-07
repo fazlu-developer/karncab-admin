@@ -11,6 +11,7 @@ use App\Http\Controllers\VehiclesController;
 use App\Http\Controllers\Fleet\FleetWorkspaceController;
 use App\Http\Controllers\FranchisesController;
 use App\Http\Controllers\LiveMapController;
+use App\Http\Controllers\AccessControlController;
 use App\Http\Controllers\Ops\ModuleController;
 use App\Http\Controllers\Ops\WorkspaceController;
 use App\Http\Controllers\PaymentsController;
@@ -102,6 +103,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/organization/districts', [OrganizationController::class, 'districts'])->name('organization.districts');
     Route::post('/organization/districts', [OrganizationController::class, 'storeDistrict'])->name('organization.districts.store');
     Route::put('/organization/districts/{district}', [OrganizationController::class, 'updateDistrict'])->name('organization.districts.update')->whereNumber('district');
+    Route::get('/organization/district-kyc', [OrganizationController::class, 'districtKyc'])->name('organization.district-kyc');
+    Route::post('/organization/district-kyc', [OrganizationController::class, 'storeDistrictKyc'])->name('organization.district-kyc.store');
+    Route::get('/organization/district-kyc/{id}/file', [OrganizationController::class, 'districtKycFile'])->name('organization.district-kyc.file')->whereNumber('id');
+    Route::put('/organization/district-kyc/{id}', [OrganizationController::class, 'reviewDistrictKyc'])->name('organization.district-kyc.review')->whereNumber('id');
     Route::resource('managers', ManagersController::class)->except(['show', 'destroy']);
     Route::get('/fleet-owners', [FleetOwnersController::class, 'index'])->name('fleet-owners.index');
     Route::get('/fleet-owners/create', [FleetOwnersController::class, 'create'])->name('fleet-owners.create');
@@ -224,8 +229,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/ops/app-content/{slug}', [AppContentController::class, 'update'])->name('ops.app-content.update');
     Route::get('/ops/settings', [WorkspaceController::class, 'settings'])->name('ops.settings');
     Route::post('/ops/settings', [WorkspaceController::class, 'saveSettings'])->name('ops.settings.save');
-    Route::get('/ops/roles', [WorkspaceController::class, 'roles'])->name('ops.roles');
-    Route::put('/ops/roles/{user}', [WorkspaceController::class, 'saveRoleExtras'])->name('ops.roles.extras');
+    Route::get('/ops/roles', [AccessControlController::class, 'index'])->name('ops.roles');
+    Route::post('/ops/roles/modules', [AccessControlController::class, 'storeModule'])->name('ops.roles.modules.store');
+    Route::put('/ops/roles/modules/{module}', [AccessControlController::class, 'updateModule'])->name('ops.roles.modules.update')->whereNumber('module');
+    Route::delete('/ops/roles/modules/{module}', [AccessControlController::class, 'destroyModule'])->name('ops.roles.modules.destroy')->whereNumber('module');
+    Route::put('/ops/roles/assign/{role}', [AccessControlController::class, 'saveRole'])->name('ops.roles.matrix');
     Route::get('/ops/audit', [WorkspaceController::class, 'audit'])->name('ops.audit');
 
     Route::get('/ops/{module}/export', [ModuleController::class, 'export'])->name('ops.export');

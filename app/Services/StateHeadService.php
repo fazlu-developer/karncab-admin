@@ -125,7 +125,13 @@ class StateHeadService
             'password' => $data['password'],
         ]);
 
-        return ['id' => $seat['id'], 'stateId' => $ctx['stateId'], 'districtId' => $districtId, 'status' => 'APPLIED'];
+        return [
+            'id' => $seat['id'],
+            'ownerUserId' => (int) ($seat['ownerUserId'] ?? 0),
+            'stateId' => $ctx['stateId'],
+            'districtId' => $districtId,
+            'status' => 'APPLIED',
+        ];
     }
 
     /**

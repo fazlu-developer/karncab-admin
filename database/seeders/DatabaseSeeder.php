@@ -6,61 +6,126 @@ use App\Models\User;
 use App\Platform\OperatorRole;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $operators = [
-            ['email' => 'manager@karnacab.local', 'name' => 'KarnaRide Manager', 'role' => OperatorRole::MANAGER],
+        $this->truncateBookings();
+
+        $platform = DB::connection('platform');
+        $biharId = $this->stateId($platform, 'Bihar', 'BR');
+        $delhiId = $this->stateId($platform, 'Delhi', 'DL');
+
+        $core = [
+            ['email' => 'super@karnaride.local', 'name' => 'KarnaRide Super Admin', 'role' => OperatorRole::SUPER_ADMIN],
+            ['email' => 'admin@karnaride.local', 'name' => 'KarnaRide Admin', 'role' => OperatorRole::ADMIN],
+            ['email' => 'manager@karnaride.local', 'name' => 'KarnaRide Manager', 'role' => OperatorRole::MANAGER],
             ['email' => 'super@karnacab.local', 'name' => 'KarnaRide Super Admin', 'role' => OperatorRole::SUPER_ADMIN],
-            ['email' => 'statehead@karnacab.local', 'name' => 'Bihar State Head', 'role' => OperatorRole::STATE_HEAD],
-            ['email' => 'delhihead@karnacab.local', 'name' => 'Delhi State Head', 'role' => OperatorRole::STATE_HEAD],
-            ['email' => 'district@karnacab.local', 'name' => 'Patna District Head', 'role' => OperatorRole::DISTRICT_HEAD],
-            ['email' => 'fleet@karnacab.local', 'name' => 'Patna Fleet', 'role' => OperatorRole::FLEET_OWNER],
-            ['email' => 'franchise@karnacab.local', 'name' => 'Gaya Franchise Applicant', 'role' => OperatorRole::FRANCHISE],
-            ['email' => 'corporate@karnacab.local', 'name' => 'Bihar Industries Corp', 'role' => OperatorRole::CORPORATE],
-            ['email' => 'ads@karnacab.local', 'name' => 'Patna Hotels Ads', 'role' => OperatorRole::ADVERTISER],
+            ['email' => 'manager@karnacab.local', 'name' => 'KarnaRide Manager', 'role' => OperatorRole::MANAGER],
         ];
 
-        foreach ($operators as $row) {
-            $values = [
-                'name' => $row['name'],
-                'password' => 'ChangeMe@123',
-                'role' => $row['role'],
+        foreach ($core as $row) {
+            $this->upsertOperator($row['email'], $row['name'], $row['role']);
+        }
+
+        $this->upsertOperator('bihar.head@karnaride.local', 'Bihar State Head', OperatorRole::STATE_HEAD, $biharId);
+        $this->upsertOperator('delhi.head@karnaride.local', 'Delhi State Head', OperatorRole::STATE_HEAD, $delhiId);
+        $this->upsertOperator('statehead@karnacab.local', 'Bihar State Head', OperatorRole::STATE_HEAD, $biharId);
+        $this->upsertOperator('delhihead@karnacab.local', 'Delhi State Head', OperatorRole::STATE_HEAD, $delhiId);
+
+        foreach ([$biharId, $delhiId] as $stateId) {
+            if (! $stateId) {
+                continue;
+            }
+            $districts = $platform->table('districts')->where('state_id', $stateId)->orderBy('id')->get();
+            foreach ($districts as $district) {
+                $slug = Str::slug((string) $district->name, '.');
+                $email = $slug.'@karnaride.local';
+                $this->upsertOperator(
+                    $email,
+                    $district->name.' District Head',
+                    OperatorRole::DISTRICT_HEAD,
+                    (int) $stateId,
+                    (int) $district->id,
+                );
+            }
+        }
+    }
+
+    private function upsertOperator(string $email, string $name, string $role, ?int $stateId = null, ?int $districtId = null): void
+    {
+        $values = [
+            'name' => $name,
+            'password' => 'ChangeMe@123',
+            'role' => $role,
+            'status' => 'ACTIVE',
+            'state_id' => $stateId,
+            'district_id' => $districtId,
+        ];
+        User::query()->updateOrCreate(['email' => $email], $values);
+
+        try {
+            $platform = DB::connection('platform');
+            if (! Schema::connection('platform')->hasTable('users')) {
+                return;
+            }
+            $row = [
+                'name' => $name,
+                'email' => $email,
+                'role' => $role,
                 'status' => 'ACTIVE',
             ];
-            if ($row['role'] === OperatorRole::STATE_HEAD) {
-                try {
-                    $query = DB::connection('platform')->table('states')->orderBy('id');
-                    if (str_contains(strtolower($row['email']), 'delhi')) {
-                        $stateId = $query->where('name', 'like', 'Delhi%')->value('id')
-                            ?: DB::connection('platform')->table('states')->where('code', 'DL')->value('id');
-                    } else {
-                        $stateId = $query->where('name', 'like', 'Bihar%')->value('id')
-                            ?: DB::connection('platform')->table('states')->orderBy('id')->value('id');
-                    }
-                    if ($stateId) {
-                        $values['state_id'] = $stateId;
-                    }
-                } catch (\Throwable) {
-                    // Platform states table may not exist yet.
+            if (Schema::connection('platform')->hasColumn('users', 'password_hash')) {
+                $row['password_hash'] = Hash::make('ChangeMe@123');
+            }
+            if (Schema::connection('platform')->hasColumn('users', 'state_id')) {
+                $row['state_id'] = $stateId;
+            }
+            if (Schema::connection('platform')->hasColumn('users', 'district_id')) {
+                $row['district_id'] = $districtId;
+            }
+            if (Schema::connection('platform')->hasColumn('users', 'updated_at')) {
+                $row['updated_at'] = now();
+            }
+            $existing = $platform->table('users')->where('email', $email)->first();
+            if ($existing) {
+                $platform->table('users')->where('id', $existing->id)->update($row);
+            } else {
+                if (Schema::connection('platform')->hasColumn('users', 'created_at')) {
+                    $row['created_at'] = now();
+                }
+                $platform->table('users')->insert($row);
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    private function stateId($platform, string $name, string $code): ?int
+    {
+        try {
+            $id = $platform->table('states')->where('name', 'like', $name.'%')->value('id')
+                ?: $platform->table('states')->where('code', $code)->value('id');
+
+            return $id ? (int) $id : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function truncateBookings(): void
+    {
+        try {
+            $db = DB::connection('platform');
+            foreach (['booking_stops', 'booking_ratings', 'booking_offers', 'invoices', 'bookings'] as $table) {
+                if (Schema::connection('platform')->hasTable($table)) {
+                    $db->table($table)->delete();
                 }
             }
-            if ($row['role'] === OperatorRole::FLEET_OWNER) {
-                try {
-                    $fleetId = DB::connection('platform')->table('fleet_owners')->orderBy('id')->value('id');
-                    if ($fleetId) {
-                        $values['fleet_owner_id'] = $fleetId;
-                    }
-                } catch (\Throwable) {
-                    // Platform fleet_owners table may not exist yet.
-                }
-            }
-            User::query()->updateOrCreate(
-                ['email' => $row['email']],
-                $values,
-            );
+        } catch (\Throwable) {
         }
     }
 }

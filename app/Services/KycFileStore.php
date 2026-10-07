@@ -90,7 +90,7 @@ class KycFileStore
 
     private function pullFromApi(string $key): ?string
     {
-        $base = rtrim((string) config('services.api_public', 'https://api.karnacab.in'), '/');
+        $base = rtrim((string) config('services.api_public', 'https://api.karnaride.in'), '/');
         $url = $base.'/storage/'.$key;
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(12)->get($url);

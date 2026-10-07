@@ -16,6 +16,11 @@
     @if (!empty($error))
         <p class="error">{{ $error }}</p>
     @endif
+    @if (!empty($payload['custom']))
+        <section class="card">
+            <p>This workspace belongs to a module created under Roles. Anyone whose role includes <code>{{ $def['ability'] ?? ($def['key'].'.view') }}</code> can open it.</p>
+        </section>
+    @endif
 
     @if (($def['key'] ?? '') === 'bookings')
         <form class="card" method="GET">

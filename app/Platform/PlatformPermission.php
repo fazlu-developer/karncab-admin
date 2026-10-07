@@ -30,6 +30,14 @@ final class PlatformPermission
      */
     public static function catalog(): array
     {
+        return \App\Services\AclCatalog::catalog();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function builtInCatalog(): array
+    {
         return [
             'users.view', 'users.create', 'users.edit', 'users.delete',
             'customers.view', 'customers.edit',
@@ -75,7 +83,20 @@ final class PlatformPermission
      */
     public static function forRole(string $role): array
     {
-        $all = self::catalog();
+        $stored = \App\Services\AclCatalog::forRole($role);
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        return self::builtInForRole($role);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function builtInForRole(string $role): array
+    {
+        $all = self::builtInCatalog();
 
         $stateHead = [
             'dashboard.view',
@@ -140,6 +161,8 @@ final class PlatformPermission
             OperatorRole::DISTRICT_HEAD => array_values(array_unique(array_merge($manager, [
                 'users.view',
                 'district.view',
+                'kyc.view',
+                'kyc.approve',
             ]))),
             OperatorRole::FRANCHISE => $franchise,
             OperatorRole::FLEET_OWNER => [

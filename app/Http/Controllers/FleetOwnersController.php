@@ -130,7 +130,7 @@ class FleetOwnersController extends Controller
         if ($path) {
             return response()->file($path, ['Content-Type' => $match['mime'] ?? 'application/octet-stream']);
         }
-        $base = rtrim((string) config('services.api_public', 'https://api.karnacab.in'), '/');
+        $base = rtrim((string) config('services.api_public', 'https://api.karnaride.in'), '/');
         if ($key !== '') {
             return redirect()->away($base.'/storage/'.ltrim($key, '/'));
         }

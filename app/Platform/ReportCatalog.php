@@ -37,6 +37,7 @@ final class ReportCatalog
             ['key' => 'payment_methods', 'label' => 'Payment method reports', 'group' => 'Finance', 'ability' => 'payments.view'],
             ['key' => 'refunds', 'label' => 'Refund reports', 'group' => 'Finance', 'ability' => 'payments.view'],
             ['key' => 'wallets', 'label' => 'Wallet reports', 'group' => 'Finance', 'ability' => 'wallet.view'],
+            ['key' => 'incentives', 'label' => 'Referral & incentive report', 'group' => 'Finance', 'ability' => 'wallet.view'],
             ['key' => 'new_users', 'label' => 'New users', 'group' => 'Customer', 'ability' => 'customers.view'],
             ['key' => 'active_users', 'label' => 'Active users', 'group' => 'Customer', 'ability' => 'customers.view'],
             ['key' => 'repeat_customers', 'label' => 'Repeat customers', 'group' => 'Customer', 'ability' => 'customers.view'],

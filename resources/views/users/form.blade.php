@@ -12,7 +12,7 @@
         <a class="btn ghost" href="{{ route('users.index') }}">Back to list</a>
     </div>
     <section class="card" style="max-width:820px">
-        <form method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}">
+        <form method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}" enctype="multipart/form-data">
             @csrf
             @if ($user->exists) @method('PUT') @endif
             <div class="field">
@@ -54,6 +54,11 @@
                 'stateValue' => (string) old('state_id', $user->state_id),
                 'districtValue' => (string) old('district_id', $user->district_id),
             ])
+            <p class="muted">If role is District Head, attach KYC here. Admin can also upload later from District Head KYC.</p>
+            <div class="field"><label>PAN</label><input type="file" name="kyc_pan" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="field"><label>Aadhaar</label><input type="file" name="kyc_aadhaar" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="field"><label>Appointment letter</label><input type="file" name="kyc_appointment" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="field"><label>Address proof</label><input type="file" name="kyc_address" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
             <button class="btn" type="submit"><i data-lucide="save"></i> Save</button>
         </form>
     </section>

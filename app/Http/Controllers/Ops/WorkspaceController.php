@@ -203,7 +203,7 @@ class WorkspaceController extends Controller
 
     private function absoluteUpload(string $path): string
     {
-        return rtrim((string) env('ADMIN_PUBLIC_URL', 'https://admin.karnacab.in'), '/').'/'.ltrim($path, '/');
+        return rtrim((string) env('ADMIN_PUBLIC_URL', 'https://admin.karnaride.in'), '/').'/'.ltrim($path, '/');
     }
 
     public function travel(Request $request): View

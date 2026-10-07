@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\DistrictHeadKycStore;
 use App\Services\OrganizationAudit;
 use App\Support\PlatformSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrganizationController extends Controller
 {
@@ -125,5 +129,76 @@ class OrganizationController extends Controller
         OrganizationAudit::record($request->user(), 'district.update', 'district', $district, $old, $payload);
 
         return back()->with('status', 'District updated.');
+    }
+
+    public function districtKyc(Request $request): View
+    {
+        abort_unless($request->user()?->can('kyc.view'), 403);
+        DistrictHeadKycStore::ensureTable();
+        $actor = $request->user();
+        $heads = DistrictHeadKycStore::headsFor($actor);
+        $q = DB::connection('platform')->table('district_head_kyc as k')
+            ->leftJoin('users as u', 'u.id', '=', 'k.user_id')
+            ->leftJoin('districts as d', 'd.id', '=', 'k.district_id')
+            ->orderByDesc('k.id')
+            ->select([
+                'k.id', 'k.user_id', 'k.doc_type', 'k.path', 'k.status', 'k.created_at',
+                'u.name as user_name', 'u.email as user_email', 'd.name as district_name',
+            ]);
+        if ($actor?->role === 'DISTRICT_HEAD') {
+            $q->where('k.user_id', $actor->nest_user_id ?: $actor->id);
+        } elseif ($actor?->isStateHead() && $actor->state_id) {
+            $q->where('k.state_id', $actor->state_id);
+        }
+        $docs = $q->limit(120)->get();
+
+        return view('organization.district-kyc', [
+            'docs' => $docs,
+            'heads' => $heads,
+            'canUploadForOthers' => $actor && $actor->role !== 'DISTRICT_HEAD',
+        ]);
+    }
+
+    public function storeDistrictKyc(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('kyc.view'), 403);
+        $actor = $request->user();
+        $userId = (int) $request->input('user_id');
+        if ($actor?->role === 'DISTRICT_HEAD') {
+            $userId = (int) ($actor->nest_user_id ?: $actor->id);
+        } else {
+            $request->validate([
+                'user_id' => ['required', 'integer'],
+                'doc_type' => ['required', 'string', 'max:40'],
+                'file' => ['required', 'file', 'max:8192', 'mimes:jpg,jpeg,png,pdf,webp'],
+            ]);
+        }
+        $saved = DistrictHeadKycStore::saveFromRequest($request, $userId, $actor?->id);
+        abort_if($saved === 0, 422, 'Choose a District Head and a document file.');
+
+        return back()->with('status', 'District Head KYC uploaded for that account.');
+    }
+
+    public function districtKycFile(Request $request, int $id): StreamedResponse
+    {
+        abort_unless($request->user()?->can('kyc.view'), 403);
+        DistrictHeadKycStore::ensureTable();
+        $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
+        abort_if(! $row, 404);
+        abort_unless(Storage::disk('public')->exists($row->path), 404);
+
+        return Storage::disk('public')->response($row->path);
+    }
+
+    public function reviewDistrictKyc(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->can('kyc.approve') || $request->user()?->can('platform.admin'), 403);
+        $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
+        DB::connection('platform')->table('district_head_kyc')->where('id', $id)->update([
+            'status' => $status,
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('status', 'KYC marked '.$status.'.');
     }
 }

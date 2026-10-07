@@ -12,7 +12,7 @@
     </div>
     <section class="card">
         <h3 style="margin-top:0">Add District Head</h3>
-        <form method="POST" action="{{ route('state.district-heads.store') }}">
+        <form method="POST" action="{{ route('state.district-heads.store') }}" enctype="multipart/form-data">
             @csrf
             <div class="field"><label>Name</label><input name="name" required></div>
             <div class="field"><label>Email</label><input name="email" type="email" required></div>
@@ -26,7 +26,11 @@
                 </select>
             </div>
             <div class="field"><label>Password</label><input name="password" type="password" required></div>
-            <button class="btn" type="submit"><i data-lucide="plus"></i> Create</button>
+            <div class="field"><label>PAN</label><input type="file" name="kyc_pan" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="field"><label>Aadhaar</label><input type="file" name="kyc_aadhaar" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="field"><label>Appointment letter</label><input type="file" name="kyc_appointment" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <div class="field"><label>Address proof</label><input type="file" name="kyc_address" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+            <button class="btn" type="submit"><i data-lucide="plus"></i> Create &amp; upload KYC</button>
         </form>
     </section>
     <section class="card">

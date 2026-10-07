@@ -163,6 +163,17 @@ class ModuleController extends Controller
             abort_unless($request->user()?->can($def['ability']), 403);
         }
 
+        $coreKeys = array_column(OpsNav::coreItems(), 'key');
+        if (! in_array($module, $coreKeys, true)) {
+            return view('ops.module', [
+                'def' => $def,
+                'payload' => ['custom' => true],
+                'rows' => [],
+                'error' => null,
+                'query' => $request->query(),
+            ]);
+        }
+
         $error = null;
         $payload = [];
         try {
