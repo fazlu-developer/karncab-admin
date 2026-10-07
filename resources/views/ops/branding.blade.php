@@ -16,7 +16,7 @@
                 <div class="field"><label>Tagline</label><input name="tagline" value="{{ old('tagline', $site['tagline']) }}"></div>
                 <div class="field"><label>SEO title</label><input name="defaultSeoTitle" value="{{ old('defaultSeoTitle', $site['defaultSeoTitle']) }}" maxlength="80"></div>
                 <div class="field"><label>SEO description</label><input name="defaultSeoDescription" value="{{ old('defaultSeoDescription', $site['defaultSeoDescription']) }}" maxlength="180"></div>
-                <div class="field"><label>Canonical host</label><input name="canonicalHost" value="{{ old('canonicalHost', $site['canonicalHost']) }}" placeholder="https://karnacab.in"></div>
+                <div class="field"><label>Canonical host</label><input name="canonicalHost" value="{{ old('canonicalHost', $site['canonicalHost']) }}" placeholder="https://karnaride.in"></div>
                 <div class="field"><label>Contact email</label><input name="contactEmail" type="email" value="{{ old('contactEmail', $site['contactEmail']) }}"></div>
                 <div class="field"><label>Contact phone</label><input name="contactPhone" value="{{ old('contactPhone', $site['contactPhone']) }}"></div>
                 <div class="field"><label>Address</label><input name="address" value="{{ old('address', $site['address']) }}"></div>

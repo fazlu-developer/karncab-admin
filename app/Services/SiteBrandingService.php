@@ -22,7 +22,7 @@ class SiteBrandingService
             'tagline' => $site['tagline'] ?? '',
             'defaultSeoTitle' => $site['defaultSeoTitle'] ?? 'KarnaRide',
             'defaultSeoDescription' => $site['defaultSeoDescription'] ?? '',
-            'canonicalHost' => $site['canonicalHost'] ?? 'https://karnacab.in',
+            'canonicalHost' => $site['canonicalHost'] ?? 'https://karnaride.in',
             'contactEmail' => $site['contactEmail'] ?? '',
             'contactPhone' => $site['contactPhone'] ?? '',
             'address' => $site['address'] ?? '',
