@@ -12,7 +12,7 @@ final class OpsNav
     public static function coreItems(): array
     {
         return [
-            ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'group' => 'Dashboard', 'ability' => null, 'route' => 'dashboard'],
+            ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'group' => 'Dashboard', 'ability' => 'dashboard.view', 'route' => 'dashboard'],
             ['key' => 'state-workspace', 'label' => 'State workspace', 'icon' => 'landmark', 'group' => 'Dashboard', 'ability' => 'state.operate', 'route' => 'state.dashboard'],
             ['key' => 'states', 'label' => 'States', 'icon' => 'globe', 'group' => 'Organization', 'ability' => 'state.view', 'route' => 'organization.states'],
             ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
@@ -37,6 +37,7 @@ final class OpsNav
             ['key' => 'corporate', 'label' => 'Corporate', 'icon' => 'building-2', 'group' => 'Partners', 'ability' => 'corporate.view'],
             ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC & Documents', 'ability' => 'kyc.view'],
             ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
+            ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'landmark', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
             ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
@@ -242,7 +243,7 @@ final class OpsNav
     {
         $out = [];
         foreach (self::items() as $item) {
-            if ($item['ability'] === null || (method_exists($user, 'can') && $user->can($item['ability']))) {
+            if (NavAccess::allowed($user, $item['ability'] ?? null)) {
                 $out[] = $item;
             }
         }

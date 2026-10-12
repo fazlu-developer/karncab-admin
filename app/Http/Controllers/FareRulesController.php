@@ -117,7 +117,23 @@ class FareRulesController extends Controller
      */
     private function vehicles(): array
     {
-        return [
+        $fromCatalog = [];
+        $db = DB::connection('platform');
+        if ($db->getSchemaBuilder()->hasTable('catalog_services')) {
+            $q = $db->table('catalog_services')->whereNotNull('category_key')->where('category_key', '!=', '');
+            if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'active')) {
+                $q->where('active', 1);
+            }
+            if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'service_group')) {
+                $q->where('service_group', 'RIDE');
+            }
+            foreach ($q->orderBy('sort_order')->get() as $row) {
+                $key = strtoupper((string) $row->category_key);
+                $fromCatalog[$key] = (string) ($row->title ?: $key);
+            }
+        }
+
+        return $fromCatalog !== [] ? $fromCatalog : [
             'BIKE' => 'Bike',
             'AUTO' => 'Auto',
             'E_RICKSHAW' => 'E-Rickshaw',

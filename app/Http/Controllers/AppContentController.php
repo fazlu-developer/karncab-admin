@@ -32,7 +32,7 @@ class AppContentController extends Controller
         $this->ensureTable();
         $this->seed();
         $slugs = array_column(self::catalog(), 'slug');
-        $rows = DB::connection('platform')->table('cms_pages')->whereIn('slug', $slugs)->orderBy('sort_order')->get();
+        $rows = DB::connection('platform')->table('cms_app_pages')->whereIn('slug', $slugs)->orderBy('sort_order')->get();
 
         return view('ops.app-content', ['pages' => $rows]);
     }
@@ -48,7 +48,7 @@ class AppContentController extends Controller
             'image' => ['nullable', 'image', 'max:4096'],
             'remove_image' => ['nullable'],
         ]);
-        $row = DB::connection('platform')->table('cms_pages')->where('slug', $slug)->first();
+        $row = DB::connection('platform')->table('cms_app_pages')->where('slug', $slug)->first();
         abort_unless($row, 404);
         $image = $row->image_url ?? null;
         if ($request->boolean('remove_image') || $request->file('image') instanceof UploadedFile) {
@@ -63,101 +63,86 @@ class AppContentController extends Controller
             'lede' => $data['lede'] ?? '',
             'nav_label' => $data['title'],
             'published' => 1,
+            'body' => json_encode(['html' => $data['body'] ?? ''], JSON_UNESCAPED_UNICODE),
+            'image_url' => $image,
             'updated_at' => now(),
         ];
-        if (Schema::connection('platform')->hasColumn('cms_pages', 'image_url')) {
-            $payload['image_url'] = $image;
-        }
-        if (Schema::connection('platform')->hasColumn('cms_pages', 'body')) {
-            $payload['body'] = json_encode(['html' => $data['body'] ?? ''], JSON_UNESCAPED_UNICODE);
-        }
-        DB::connection('platform')->table('cms_pages')->where('slug', $slug)->update($payload);
-        $websiteSlug = array_search($slug, \App\Http\Controllers\WebsitePagesController::aliases(), true);
-        if (is_string($websiteSlug) && DB::connection('platform')->table('cms_pages')->where('slug', $websiteSlug)->exists()) {
-            DB::connection('platform')->table('cms_pages')->where('slug', $websiteSlug)->update([
-                'title' => $payload['title'],
-                'lede' => $payload['lede'] ?? '',
-                'body' => $payload['body'] ?? null,
-                'published' => 1,
-                'updated_at' => now(),
-            ]);
-        }
+        DB::connection('platform')->table('cms_app_pages')->where('slug', $slug)->update($payload);
 
-        return back()->with('status', $data['title'].' updated. Customer app Account pages will show this content.');
+        return back()->with('status', $data['title'].' updated in cms_app_pages. Website CMS is not changed.');
     }
 
     private function seed(): void
     {
         $sort = 80;
+        $db = DB::connection('platform');
         foreach (self::catalog() as $item) {
-            $exists = DB::connection('platform')->table('cms_pages')->where('slug', $item['slug'])->first();
+            $exists = $db->table('cms_app_pages')->where('slug', $item['slug'])->first();
             if ($exists) {
-                $touch = [];
-                if (in_array($item['slug'], ['about-us', 'privacy-policy', 'terms-conditions'], true) && ($exists->nav_group ?? '') !== 'app') {
-                    $touch['nav_group'] = 'app';
-                }
-                if (Schema::connection('platform')->hasColumn('cms_pages', 'body') && self::bodyIsEmpty($exists->body ?? null) && $item['body'] !== '') {
-                    $touch['body'] = json_encode(['html' => $item['body']], JSON_UNESCAPED_UNICODE);
-                    $touch['published'] = 1;
-                }
-                if ($touch !== []) {
-                    $touch['updated_at'] = now();
-                    DB::connection('platform')->table('cms_pages')->where('slug', $item['slug'])->update($touch);
+                if (self::bodyIsEmpty($exists->body ?? null) && $item['body'] !== '') {
+                    $db->table('cms_app_pages')->where('slug', $item['slug'])->update([
+                        'body' => json_encode(['html' => $item['body']], JSON_UNESCAPED_UNICODE),
+                        'published' => 1,
+                        'updated_at' => now(),
+                    ]);
                 }
                 $sort++;
                 continue;
             }
-            $row = [
+            $legacy = Schema::connection('platform')->hasTable('cms_pages')
+                ? $db->table('cms_pages')->where('slug', $item['slug'])->first()
+                : null;
+            $body = $item['body'];
+            $title = $item['title'];
+            $lede = $item['lede'];
+            $image = null;
+            if ($legacy && ! self::bodyIsEmpty($legacy->body ?? null)) {
+                $decoded = is_string($legacy->body) ? json_decode($legacy->body, true) : $legacy->body;
+                $html = is_array($decoded) ? (string) ($decoded['html'] ?? $decoded['text'] ?? '') : (string) $legacy->body;
+                if (trim($html) !== '') {
+                    $body = $html;
+                }
+                $title = $legacy->title ?: $title;
+                $lede = $legacy->lede ?: $lede;
+                $image = $legacy->image_url ?? null;
+            }
+            $db->table('cms_app_pages')->insert([
                 'slug' => $item['slug'],
-                'title' => $item['title'],
-                'lede' => $item['lede'],
-                'nav_group' => in_array($item['slug'], ['about-us', 'privacy-policy', 'terms-conditions'], true) ? 'app' : 'legal',
-                'nav_label' => $item['title'],
+                'title' => $title,
+                'lede' => $lede,
+                'nav_group' => 'app',
+                'nav_label' => $title,
+                'template' => 'app_legal',
+                'body' => json_encode(['html' => $body], JSON_UNESCAPED_UNICODE),
+                'image_url' => $image,
                 'sort_order' => $sort++,
                 'published' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ];
-            if (Schema::connection('platform')->hasColumn('cms_pages', 'body')) {
-                $row['body'] = json_encode(['html' => $item['body']], JSON_UNESCAPED_UNICODE);
-            }
-            if (Schema::connection('platform')->hasColumn('cms_pages', 'template')) {
-                $row['template'] = 'app_legal';
-            }
-            DB::connection('platform')->table('cms_pages')->insert($row);
+            ]);
         }
     }
 
     private function ensureTable(): void
     {
         $schema = Schema::connection('platform');
-        if (! $schema->hasTable('cms_pages')) {
-            $schema->create('cms_pages', function ($table) {
-                $table->id();
-                $table->string('slug')->unique();
-                $table->string('title');
-                $table->string('eyebrow')->nullable();
-                $table->string('seo_title')->nullable();
-                $table->string('seo_description', 500)->nullable();
-                $table->text('lede')->nullable();
-                $table->json('body')->nullable();
-                $table->string('image_url', 500)->nullable();
-                $table->string('template')->nullable();
-                $table->string('lead_type')->nullable();
-                $table->string('register_kind')->nullable();
-                $table->string('product_key')->nullable();
-                $table->string('nav_group')->nullable();
-                $table->string('nav_label')->nullable();
-                $table->unsignedInteger('sort_order')->default(0);
-                $table->boolean('published')->default(true);
-                $table->timestamps();
-            });
+        if ($schema->hasTable('cms_app_pages')) {
+            return;
         }
-        if (! $schema->hasColumn('cms_pages', 'image_url')) {
-            $schema->table('cms_pages', function ($table) {
-                $table->string('image_url', 500)->nullable();
-            });
-        }
+        $schema->create('cms_app_pages', function ($table) {
+            $table->id();
+            $table->string('slug')->unique();
+            $table->string('title');
+            $table->text('lede')->nullable();
+            $table->json('body')->nullable();
+            $table->string('image_url', 500)->nullable();
+            $table->string('template')->nullable();
+            $table->string('nav_group')->nullable();
+            $table->string('nav_label')->nullable();
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->boolean('published')->default(true);
+            $table->timestamps();
+        });
     }
 
     public static function bodyIsEmpty(mixed $body): bool

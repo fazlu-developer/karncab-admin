@@ -23,7 +23,8 @@
                         <option value="PARCEL">PARCEL</option>
                     </select>
                 </div>
-                <div><label>App category key</label><input name="category_key" placeholder="SEDAN"></div>
+                <div><label>App category key</label><input name="category_key" placeholder="PRIME"></div>
+                <div><label>Seats</label><input name="seats" type="number" min="0" max="60" value="4"></div>
                 <div><label>Sort</label><input name="sort_order" type="number" value="0"></div>
                 <label style="align-self:end"><input type="checkbox" name="active" value="1" checked> Active</label>
                 <button class="btn" type="submit">Add</button>
@@ -32,13 +33,14 @@
     </section>
     <section class="card">
         <table class="data">
-            <thead><tr><th>Title</th><th>Group</th><th>Key</th><th>Sort</th><th>Active</th><th></th></tr></thead>
+            <thead><tr><th>Title</th><th>Group</th><th>Key</th><th>Seats</th><th>Sort</th><th>Active</th><th></th></tr></thead>
             <tbody>
             @forelse ($rows as $row)
                 <tr>
                     <td>{{ $row->title }}<div class="muted">{{ $row->slug }}</div></td>
                     <td>{{ $row->service_group }}</td>
                     <td>{{ data_get($row, 'category_key') }}</td>
+                    <td>{{ data_get($row, 'seats', 4) }}</td>
                     <td>{{ $row->sort_order }}</td>
                     <td>{{ $row->active ? 'Yes' : 'No' }}</td>
                     <td>
@@ -52,6 +54,7 @@
                                 <option value="PARCEL" @selected($row->service_group === 'PARCEL')>PARCEL</option>
                             </select>
                             <input name="category_key" value="{{ data_get($row, 'category_key') }}" style="max-width:110px">
+                            <input name="seats" type="number" min="0" value="{{ data_get($row, 'seats', 4) }}" style="max-width:70px">
                             <input name="sort_order" type="number" value="{{ $row->sort_order }}" style="max-width:70px">
                             <label><input type="checkbox" name="active" value="1" @checked($row->active)> Active</label>
                             @if (!empty($row->image_url))
@@ -59,6 +62,11 @@
                             @endif
                             <input type="file" name="image" accept="image/*">
                             <button class="btn ghost" type="submit">Save</button>
+                        </form>
+                        <form method="POST" action="{{ route('ops.services.destroy', $row->id) }}" style="margin-top:8px" onsubmit="return confirm('Remove this vehicle category from apps?')">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn ghost" type="submit">Remove</button>
                         </form>
                     </td>
                 </tr>

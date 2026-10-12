@@ -9,6 +9,7 @@ use App\Platform\TerritoryScope;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class DistrictFranchiseService
 {
@@ -61,37 +62,41 @@ class DistrictFranchiseService
         $kind = $data['kind'] ?? 'EXCLUSIVE_FRANCHISE';
         abort_unless(in_array($kind, ExclusiveDistrictSeat::KINDS, true), 422, 'Invalid franchise kind.');
         $district = $this->requireDistrict((int) $data['district_id'], $operator);
-        $ownerId = $this->resolveOwner($operator, $data);
 
-        $id = $this->db()->table('franchises')->insertGetId([
-            'district_id' => $district->id,
-            'state_id' => $district->state_id,
-            'owner_user_id' => $ownerId,
-            'kind' => $kind,
-            'status' => 'APPLIED',
-            'active_district_key' => null,
-            'trade_name' => $data['trade_name'],
-            'gstin' => $data['gstin'] ?? null,
-            'pan' => $data['pan'] ?? null,
-            'contact_phone' => $data['contact_phone'] ?? null,
-            'kyc_status' => 'pending',
-            'agreement_status' => 'unsigned',
-            'fee_amount_paise' => (int) ($data['fee_amount_paise'] ?? 0),
-            'commission_percent' => $data['commission_percent'] ?? 0,
-            'notes' => $data['notes'] ?? null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        if ((int) ($data['fee_amount_paise'] ?? 0) > 0) {
-            $this->db()->table('franchise_fees')->insert([
-                'franchise_id' => $id,
-                'kind' => 'application',
-                'amount_paise' => (int) $data['fee_amount_paise'],
-                'status' => 'due',
+        try {
+            $ownerId = $this->resolveOwner($operator, $data);
+            $id = $this->db()->table('franchises')->insertGetId($this->filterRow('franchises', [
+                'district_id' => $district->id,
+                'state_id' => $district->state_id,
+                'owner_user_id' => $ownerId,
+                'kind' => $kind,
+                'status' => 'APPLIED',
+                'active_district_key' => null,
+                'trade_name' => $data['trade_name'],
+                'gstin' => $data['gstin'] ?? null,
+                'pan' => $data['pan'] ?? null,
+                'contact_phone' => $this->normalizePhone($data['contact_phone'] ?? $data['phone'] ?? null),
+                'kyc_status' => 'pending',
+                'agreement_status' => 'unsigned',
+                'fee_amount_paise' => (int) ($data['fee_amount_paise'] ?? 0),
+                'commission_percent' => $data['commission_percent'] ?? 0,
+                'notes' => $data['notes'] ?? null,
                 'created_at' => now(),
-            ]);
+                'updated_at' => now(),
+            ]));
+            if ((int) ($data['fee_amount_paise'] ?? 0) > 0 && Schema::connection('platform')->hasTable('franchise_fees')) {
+                $this->db()->table('franchise_fees')->insert($this->filterRow('franchise_fees', [
+                    'franchise_id' => $id,
+                    'kind' => 'application',
+                    'amount_paise' => (int) $data['fee_amount_paise'],
+                    'status' => 'due',
+                    'created_at' => now(),
+                ]));
+            }
+            $this->record($id, $operator, 'apply', null, 'APPLIED', 'Territory district '.$district->id);
+        } catch (QueryException $exception) {
+            abort(422, $this->friendlyWriteError($exception, 'Could not save the franchise application.'));
         }
-        $this->record($id, $operator, 'apply', null, 'APPLIED', 'Territory district '.$district->id);
 
         return $this->one($operator, $id);
     }
@@ -421,18 +426,30 @@ class DistrictFranchiseService
             return (int) $owner->id;
         }
         if (! empty($data['name']) && ! empty($data['email']) && ! empty($data['password'])) {
-            return (int) $this->db()->table('users')->insertGetId([
+            $email = strtolower(trim((string) $data['email']));
+            $phone = $this->normalizePhone($data['phone'] ?? null);
+            $existing = $this->db()->table('users')->where('email', $email)->first();
+            if ($existing) {
+                return (int) $existing->id;
+            }
+            if ($phone) {
+                $byPhone = $this->db()->table('users')->where('phone', $phone)->first();
+                abort_if($byPhone, 422, 'That phone number is already registered. Use a different phone or pick the existing owner.');
+            }
+
+            return (int) $this->db()->table('users')->insertGetId($this->filterRow('users', [
                 'role' => ($data['kind'] ?? '') === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE',
                 'status' => 'PENDING',
                 'name' => $data['name'],
-                'email' => strtolower($data['email']),
-                'phone' => $data['phone'] ?? null,
+                'email' => $email,
+                'phone' => $phone,
                 'password_hash' => Hash::make($data['password']),
-                'state_id' => null,
+                'password' => Hash::make($data['password']),
+                'state_id' => $data['state_id'] ?? null,
                 'district_id' => (int) $data['district_id'],
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ]));
         }
         abort(422, 'Provide owner_user_id or name, email and password.');
     }
@@ -469,15 +486,70 @@ class DistrictFranchiseService
 
     private function record(int $franchiseId, User $operator, string $action, ?string $from, ?string $to, ?string $note): void
     {
-        $this->db()->table('franchise_events')->insert([
+        if (! Schema::connection('platform')->hasTable('franchise_events')) {
+            return;
+        }
+        $actor = (int) ($operator->nest_user_id ?: 0);
+        if ($actor < 1) {
+            $actor = (int) ($this->db()->table('users')->whereIn('role', ['ADMIN', 'SUPER_ADMIN'])->orderBy('id')->value('id') ?: 0);
+        }
+        if ($actor < 1) {
+            $actor = (int) ($this->db()->table('franchises')->where('id', $franchiseId)->value('owner_user_id') ?: 0);
+        }
+        abort_unless($actor > 0, 422, 'Could not record franchise activity: no platform user is linked to this operator.');
+        $this->db()->table('franchise_events')->insert($this->filterRow('franchise_events', [
             'franchise_id' => $franchiseId,
-            'actor_user_id' => $operator->nest_user_id ?: $operator->id,
+            'actor_user_id' => $actor,
             'action' => $action,
             'from_status' => $from,
             'to_status' => $to,
             'note' => $note,
             'created_at' => now(),
-        ]);
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function filterRow(string $table, array $row): array
+    {
+        if (! Schema::connection('platform')->hasTable($table)) {
+            return $row;
+        }
+
+        return array_filter(
+            $row,
+            fn ($key) => Schema::connection('platform')->hasColumn($table, $key),
+            ARRAY_FILTER_USE_KEY,
+        );
+    }
+
+    private function normalizePhone(mixed $raw): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $raw) ?: '';
+        if ($digits === '') {
+            return null;
+        }
+
+        return strlen($digits) > 10 ? substr($digits, -10) : $digits;
+    }
+
+    private function friendlyWriteError(QueryException $exception, string $fallback): string
+    {
+        $message = $exception->getMessage();
+        if ($this->isUniqueConflict($exception)) {
+            if (str_contains($message, 'users_email') || str_contains($message, 'email')) {
+                return 'That email is already registered. Use a different email or the existing owner.';
+            }
+            if (str_contains($message, 'users_phone') || str_contains($message, 'phone')) {
+                return 'That phone number is already registered. Leave phone empty or use another number.';
+            }
+
+            return 'This franchise conflicts with an existing record.';
+        }
+
+        return $fallback;
     }
 
     /**

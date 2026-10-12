@@ -337,8 +337,15 @@ class WalletLedgerService
                 ->where('status', 'ACTIVE')
                 ->first();
         }
+        $fleetPct = (float) ($this->setting('fleet_owner_commission_percent') ?? $this->setting('fleet_commission_share_percent') ?? 0);
+        if ($fleetUserId && $this->hasColumn('fleet_owners', 'commission_percent')) {
+            $ownPct = $this->db()->table('fleet_owners')->where('user_id', $fleetUserId)->value('commission_percent');
+            if ($ownPct !== null && $ownPct !== '') {
+                $fleetPct = (float) $ownPct;
+            }
+        }
         $split = CommissionEngine::splitPlatformCommission((int) $settled['commissionPaise'], [
-            'fleetPercent' => (float) ($this->setting('fleet_commission_share_percent') ?? 0),
+            'fleetPercent' => $fleetPct,
             'territoryPercent' => $franchise ? (float) $franchise->commission_percent : 0,
         ]);
 
@@ -698,7 +705,116 @@ class WalletLedgerService
             'ownerEmail' => $row->owner_email ?? null,
             'balancePaise' => (int) $row->balance_paise,
             'balanceRupees' => ((int) $row->balance_paise) / 100,
+            'joiningCreditPaise' => (int) ($row->joining_credit_paise ?? 0),
+            'joiningCreditRupees' => ((int) ($row->joining_credit_paise ?? 0)) / 100,
+            'frozenPaise' => (int) ($row->frozen_paise ?? 0),
+            'frozenRupees' => ((int) ($row->frozen_paise ?? 0)) / 100,
         ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function withdrawals(?User $operator): array
+    {
+        abort_unless($operator?->can('wallet.view') || $operator?->can('payments.view'), 403);
+        if (! Schema::connection('platform')->hasTable('wallet_withdrawals')) {
+            return [];
+        }
+
+        return $this->db()->table('wallet_withdrawals')
+            ->leftJoin('users', 'users.id', '=', 'wallet_withdrawals.user_id')
+            ->select('wallet_withdrawals.*', 'users.name as owner_name', 'users.phone as owner_phone')
+            ->orderByDesc('wallet_withdrawals.id')
+            ->limit(80)
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'publicRef' => $row->public_ref,
+                'userId' => (int) $row->user_id,
+                'ownerName' => $row->owner_name,
+                'ownerPhone' => $row->owner_phone,
+                'amountRupees' => ((int) $row->amount_paise) / 100,
+                'status' => $row->status,
+                'transferRef' => $row->transfer_ref,
+                'note' => $row->note,
+                'createdAt' => $row->created_at,
+            ])->all();
+    }
+
+    public function decideWithdrawal(User $operator, int $id, string $decision, ?string $transferRef = null, ?string $note = null): void
+    {
+        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
+        $schema = Schema::connection('platform');
+        if ($schema->hasTable('wallets') && ! $schema->hasColumn('wallets', 'frozen_paise')) {
+            $schema->table('wallets', function ($table) {
+                $table->unsignedBigInteger('frozen_paise')->default(0);
+            });
+        }
+        $row = $this->db()->table('wallet_withdrawals')->where('id', $id)->first();
+        abort_unless($row, 404, 'Withdrawal not found.');
+        $decision = strtolower($decision);
+        abort_unless(in_array($decision, ['approve', 'reject', 'settle'], true), 422, 'Unknown withdrawal action.');
+        abort_unless($row->status !== 'settled' && $row->status !== 'rejected', 422, 'This withdrawal is already closed.');
+        $wallet = $this->db()->table('wallets')->where('id', $row->wallet_id)->first();
+        abort_unless($wallet, 404, 'Wallet not found.');
+        $frozen = max(0, (int) ($wallet->frozen_paise ?? 0));
+        $amount = (int) $row->amount_paise;
+
+        if ($decision === 'approve') {
+            $this->db()->table('wallet_withdrawals')->where('id', $id)->update([
+                'status' => 'approved',
+                'note' => $note ?: $row->note,
+                'reviewed_by' => $operator->nest_user_id ?: null,
+                'reviewed_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return;
+        }
+
+        if ($decision === 'reject') {
+            $this->db()->table('wallets')->where('id', $wallet->id)->update([
+                'frozen_paise' => max(0, $frozen - $amount),
+                'updated_at' => now(),
+            ]);
+            $this->db()->table('wallet_withdrawals')->where('id', $id)->update([
+                'status' => 'rejected',
+                'note' => $note ?: 'Rejected by admin',
+                'reviewed_by' => $operator->nest_user_id ?: null,
+                'reviewed_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return;
+        }
+
+        abort_unless(in_array((string) $row->status, ['requested', 'approved'], true), 422, 'Approve this request before settling.');
+        $before = (int) $wallet->balance_paise;
+        abort_unless($before >= $amount, 422, 'Wallet cash is lower than the frozen withdrawal.');
+        $after = $before - $amount;
+        $this->postLedger([
+            'ownerType' => (string) ($wallet->owner_type ?: 'DRIVER'),
+            'ownerUserId' => (int) $wallet->owner_user_id,
+            'direction' => 'DEBIT',
+            'amountPaise' => $amount,
+            'kind' => 'withdraw',
+            'note' => $note ?: 'Admin settled withdrawal',
+            'paymentRef' => $transferRef,
+        ]);
+        $this->db()->table('wallets')->where('id', $wallet->id)->update([
+            'frozen_paise' => max(0, $frozen - $amount),
+            'updated_at' => now(),
+        ]);
+        $this->db()->table('wallet_withdrawals')->where('id', $id)->update([
+            'status' => 'settled',
+            'transfer_ref' => $transferRef,
+            'note' => $note ?: $row->note,
+            'settled_at' => now(),
+            'reviewed_by' => $operator->nest_user_id ?: null,
+            'reviewed_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**

@@ -43,6 +43,7 @@ class FleetOwnersController extends Controller
             'district_id' => ['required', 'integer'],
             'franchise_id' => ['nullable', 'integer'],
             'status' => ['nullable', 'in:ACTIVE,PENDING,SUSPENDED'],
+            'commission_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $this->fleets->create($request->user(), $data);
 
@@ -84,6 +85,7 @@ class FleetOwnersController extends Controller
             'district_id' => ['required', 'integer'],
             'franchise_id' => ['nullable', 'integer'],
             'status' => ['nullable', 'in:ACTIVE,PENDING,SUSPENDED'],
+            'commission_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $this->fleets->update($request->user(), $id, $data);
 

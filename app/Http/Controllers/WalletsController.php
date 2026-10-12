@@ -24,7 +24,26 @@ class WalletsController extends Controller
             'canCredit' => $canCredit,
             'creditUsers' => $canCredit ? $this->wallets->creditCandidates($operator, (string) $request->query('user_q', '')) : [],
             'userQuery' => (string) $request->query('user_q', ''),
+            'withdrawals' => $this->wallets->withdrawals($operator),
         ]);
+    }
+
+    public function withdrawal(Request $request, int $withdrawal): RedirectResponse
+    {
+        $data = $request->validate([
+            'decision' => ['required', 'in:approve,reject,settle'],
+            'transfer_ref' => ['nullable', 'string', 'max:64'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+        $this->wallets->decideWithdrawal(
+            $request->user(),
+            $withdrawal,
+            $data['decision'],
+            $data['transfer_ref'] ?? null,
+            $data['note'] ?? null,
+        );
+
+        return back()->with('status', 'Withdrawal '.$data['decision'].' saved.');
     }
 
     public function show(Request $request, int $wallet): View

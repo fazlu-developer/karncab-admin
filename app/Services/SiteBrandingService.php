@@ -120,6 +120,11 @@ class SiteBrandingService
                 $table->string('image_url', 255)->nullable();
             });
         }
+        if (! $schema->hasColumn('catalog_services', 'seats')) {
+            $schema->table('catalog_services', function ($table) {
+                $table->unsignedTinyInteger('seats')->default(4);
+            });
+        }
         if (! $schema->hasColumn('catalog_services', 'category_key')) {
             $schema->table('catalog_services', function ($table) {
                 $table->string('category_key', 40)->nullable();

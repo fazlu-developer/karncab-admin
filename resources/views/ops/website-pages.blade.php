@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="globe"></i> Website CMS</h1>
-            <p class="muted">Every public website page reads this table. Edit Privacy, Terms, About and product pages here. Customer-app legal slugs stay in sync.</p>
+            <p class="muted">Public website pages only (<strong>cms_pages</strong>). App About / Privacy / Terms are edited under App account pages and stored in cms_app_pages — they are not copied from this list.</p>
         </div>
     </div>
     @if (session('status'))

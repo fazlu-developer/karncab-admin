@@ -10,7 +10,7 @@ final class AdvertiserNav
     public static function items(): array
     {
         return [
-            ['key' => 'ads', 'label' => 'Campaigns', 'icon' => 'megaphone', 'group' => 'Advertising', 'route' => 'ads.index'],
+            ['key' => 'ads', 'label' => 'Campaigns', 'icon' => 'megaphone', 'group' => 'Advertising', 'ability' => 'advertising.view', 'route' => 'ads.index'],
         ];
     }
 
@@ -27,13 +27,13 @@ final class AdvertiserNav
     /**
      * @return array<string, list<array<string, mixed>>>
      */
-    public static function grouped(): array
+    public static function grouped(?object $user = null): array
     {
-        $groups = [];
-        foreach (self::items() as $item) {
-            $groups[$item['group']][] = $item;
+        $user ??= auth()->user();
+        if (! $user) {
+            return [];
         }
 
-        return $groups;
+        return NavAccess::grouped(self::items(), $user);
     }
 }

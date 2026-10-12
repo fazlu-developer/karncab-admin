@@ -15,43 +15,16 @@
     <aside class="side">
         @php
             $user = auth()->user();
-            $navGroups = $user->isAdvertiser()
-                ? \App\Platform\AdvertiserNav::grouped()
-                : ($user->isStateHead()
-                    ? \App\Platform\StateHeadNav::grouped()
-                    : ($user->isFleetOwner()
-                        ? \App\Platform\FleetNav::grouped()
-                        : ($user->isCustomer()
-                            ? \App\Platform\CustomerNav::grouped()
-                            : \App\Platform\OpsNav::grouped($user))));
+            $navGroups = \App\Platform\ConsoleNav::grouped($user);
         @endphp
         <a class="logo" href="{{ route($user->homeRoute()) }}">
             <img src="{{ $kcBrand['logoUrl'] ?? asset('branding/karnacab-logo-full.png') }}" alt="{{ $kcBrand['name'] ?? 'KarnaRide' }}" class="logo-img">
         </a>
         @foreach ($navGroups as $group => $items)
+            @continue($items === [])
             <div class="group">{{ $group }}</div>
             @foreach ($items as $item)
-                @php
-                    $href = $user->isAdvertiser()
-                        ? \App\Platform\AdvertiserNav::href($item)
-                        : ($user->isStateHead()
-                            ? \App\Platform\StateHeadNav::href($item)
-                            : ($user->isFleetOwner()
-                                ? \App\Platform\FleetNav::href($item)
-                                : ($user->isCustomer()
-                                    ? \App\Platform\CustomerNav::href($item)
-                                    : \App\Platform\OpsNav::href($item))));
-                    $active = $user->isAdvertiser()
-                        ? \App\Platform\AdvertiserNav::active($item)
-                        : ($user->isStateHead()
-                            ? \App\Platform\StateHeadNav::active($item)
-                            : ($user->isFleetOwner()
-                                ? \App\Platform\FleetNav::active($item)
-                                : ($user->isCustomer()
-                                    ? \App\Platform\CustomerNav::active($item)
-                                    : \App\Platform\OpsNav::active($item))));
-                @endphp
-                <a class="nav {{ $active ? 'active' : '' }}" href="{{ $href }}">
+                <a class="nav {{ \App\Platform\ConsoleNav::active($user, $item) ? 'active' : '' }}" href="{{ \App\Platform\ConsoleNav::href($user, $item) }}">
                     <i data-lucide="{{ $item['icon'] }}"></i>
                     {{ $item['label'] }}
                 </a>

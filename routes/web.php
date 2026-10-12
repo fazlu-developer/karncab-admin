@@ -108,6 +108,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/organization/district-kyc', [OrganizationController::class, 'storeDistrictKyc'])->name('organization.district-kyc.store');
     Route::get('/organization/district-kyc/{id}/file', [OrganizationController::class, 'districtKycFile'])->name('organization.district-kyc.file')->whereNumber('id');
     Route::put('/organization/district-kyc/{id}', [OrganizationController::class, 'reviewDistrictKyc'])->name('organization.district-kyc.review')->whereNumber('id');
+    Route::get('/organization/state-kyc', [OrganizationController::class, 'stateKyc'])->name('organization.state-kyc');
+    Route::post('/organization/state-kyc', [OrganizationController::class, 'storeStateKyc'])->name('organization.state-kyc.store');
+    Route::get('/organization/state-kyc/{id}/file', [OrganizationController::class, 'stateKycFile'])->name('organization.state-kyc.file')->whereNumber('id');
+    Route::put('/organization/state-kyc/{id}', [OrganizationController::class, 'reviewStateKyc'])->name('organization.state-kyc.review')->whereNumber('id');
     Route::resource('managers', ManagersController::class)->except(['show', 'destroy']);
     Route::get('/fleet-owners', [FleetOwnersController::class, 'index'])->name('fleet-owners.index');
     Route::get('/fleet-owners/create', [FleetOwnersController::class, 'create'])->name('fleet-owners.create');
@@ -178,6 +182,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/wallets/credit', [WalletsController::class, 'credit'])->name('wallets.credit');
     Route::post('/wallets/post', [WalletsController::class, 'post'])->name('wallets.post');
     Route::post('/wallets/settle', [WalletsController::class, 'settle'])->name('wallets.settle');
+    Route::post('/wallets/withdrawals/{withdrawal}', [WalletsController::class, 'withdrawal'])->name('wallets.withdrawals.decide');
     Route::get('/wallets/{wallet}', [WalletsController::class, 'show'])->name('wallets.show');
     Route::get('/franchises', [FranchisesController::class, 'index'])->name('franchises.index');
     Route::post('/franchises', [FranchisesController::class, 'store'])->name('franchises.store');
@@ -205,12 +210,16 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/ops/ride-settings', [\App\Http\Controllers\RideSettingsController::class, 'index'])->name('ride-settings.index');
     Route::put('/ops/ride-settings', [\App\Http\Controllers\RideSettingsController::class, 'update'])->name('ride-settings.update');
+    Route::post('/ops/ride-settings/bonuses', [\App\Http\Controllers\RideSettingsController::class, 'storeBonus'])->name('ride-settings.bonuses.store');
+    Route::put('/ops/ride-settings/bonuses/{bonus}', [\App\Http\Controllers\RideSettingsController::class, 'updateBonus'])->name('ride-settings.bonuses.update')->whereNumber('bonus');
+    Route::delete('/ops/ride-settings/bonuses/{bonus}', [\App\Http\Controllers\RideSettingsController::class, 'destroyBonus'])->name('ride-settings.bonuses.destroy')->whereNumber('bonus');
 
     Route::get('/ops/branding', [WorkspaceController::class, 'branding'])->name('ops.branding');
     Route::post('/ops/branding', [WorkspaceController::class, 'saveBranding'])->name('ops.branding.save');
     Route::get('/ops/services', [WorkspaceController::class, 'services'])->name('ops.services');
     Route::post('/ops/services', [WorkspaceController::class, 'storeService'])->name('ops.services.store');
     Route::put('/ops/services/{service}', [WorkspaceController::class, 'updateService'])->name('ops.services.update')->whereNumber('service');
+    Route::delete('/ops/services/{service}', [WorkspaceController::class, 'destroyService'])->name('ops.services.destroy')->whereNumber('service');
     Route::post('/ops/services/offers', [WorkspaceController::class, 'storeOffer'])->name('ops.services.offers');
     Route::delete('/ops/services/offers/{offer}', [WorkspaceController::class, 'destroyOffer'])->name('ops.services.offers.destroy')->whereNumber('offer');
     Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');

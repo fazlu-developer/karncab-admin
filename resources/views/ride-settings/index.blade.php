@@ -37,7 +37,7 @@
 
     <section class="card">
         <h2>Saharsa launch incentives</h2>
-        <p class="muted">Bonuses pay only after genuine completed rides — not on registration. Driver amounts go to the driver wallet. Customer amounts are promotional ride credit (not cash).</p>
+        <p class="muted">Driver joining bonus is credited straight to the partner wallet when admin verifies KYC (state/district rules below). No first-ride claim. Driver referral still needs completed rides. Customer amounts are promotional ride credit (not cash).</p>
         <form method="POST" action="{{ route('ride-settings.update') }}" class="filters" style="align-items:end">
             @csrf
             @method('PUT')
@@ -81,6 +81,104 @@
                 <button class="btn" type="submit">Save offers</button>
             </div>
         </form>
+    </section>
+
+    <section class="card">
+        <h2>GST & fleet commission</h2>
+        <p class="muted">GST % is written onto fare rules and shown in the partner app. Fleet owner commission is the percent of fare credited to the fleet (override per fleet owner is allowed).</p>
+        <form method="POST" action="{{ route('ride-settings.update') }}" class="filters" style="align-items:end">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="driver_search_radius_km" value="{{ $radiusKm }}">
+            <input type="hidden" name="ride_request_timeout_seconds" value="{{ $timeoutSeconds }}">
+            <div>
+                <label>GST %</label>
+                <input name="gst_percent" type="number" min="0" max="100" step="0.01" value="{{ $gstPercent }}" required>
+            </div>
+            <div>
+                <label>Default fleet owner commission %</label>
+                <input name="fleet_owner_commission_percent" type="number" min="0" max="100" step="0.01" value="{{ $fleetOwnerCommissionPercent }}" required>
+            </div>
+            <div>
+                <button class="btn" type="submit">Save GST & fleet %</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Territory joining & referral bonuses</h2>
+        <p class="muted">Turn a joining bonus on for a state (all districts) or one district. When Active, the partner app shows the joining-bonus screen and credits the wallet after KYC. District overrides state, state overrides the global amount above.</p>
+        <form method="POST" action="{{ route('ride-settings.bonuses.store') }}" class="filters" style="align-items:end">
+            @csrf
+            <div>
+                <label>Who</label>
+                <select name="audience" required>
+                    <option value="DRIVER">Driver / partner</option>
+                    <option value="CUSTOMER">Customer</option>
+                </select>
+            </div>
+            <div>
+                <label>Kind</label>
+                <select name="kind" required>
+                    <option value="joining">Joining bonus</option>
+                    <option value="referral">Referral bonus</option>
+                </select>
+            </div>
+            @include('partials.geo-fields', ['required' => false, 'emptyState' => 'All states', 'emptyDistrict' => 'All districts in state'])
+            <div>
+                <label>Amount (₹)</label>
+                <input name="amount_rupees" type="number" min="0" max="100000" value="200" required>
+            </div>
+            <div>
+                <label>Referral rides</label>
+                <input name="required_rides" type="number" min="0" max="500" value="10">
+            </div>
+            <label style="align-self:end"><input type="checkbox" name="enabled" value="1" checked> Active</label>
+            <button class="btn" type="submit">Add territory bonus</button>
+        </form>
+        <div class="table-wrap" style="margin-top:16px">
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Who</th>
+                        <th>Kind</th>
+                        <th>Area</th>
+                        <th>₹</th>
+                        <th>On</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($territoryBonuses as $row)
+                        <tr>
+                            <td>{{ $row->audience }}</td>
+                            <td>{{ $row->kind }}</td>
+                            <td>{{ $row->state_name ?: 'All states' }}{{ $row->district_name ? ' · '.$row->district_name : ($row->state_name ? ' · all districts' : '') }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('ride-settings.bonuses.update', $row->id) }}" class="filters" style="margin:0">
+                                    @csrf
+                                    @method('PUT')
+                                    <input name="amount_rupees" type="number" min="0" value="{{ $row->amount_rupees }}" style="max-width:90px">
+                                    <input name="required_rides" type="number" min="0" value="{{ $row->required_rides }}" style="max-width:70px" placeholder="rides">
+                                    <label><input type="checkbox" name="enabled" value="1" @checked($row->enabled)> On</label>
+                                    <button class="btn ghost" type="submit">Save</button>
+                                </form>
+                            </td>
+                            <td>{{ $row->enabled ? 'Yes' : 'No' }}</td>
+                            <td>
+                                <form method="POST" action="{{ route('ride-settings.bonuses.destroy', $row->id) }}" style="margin:0">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="btn ghost" type="submit">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="muted">No territory rules yet. Global amounts above apply everywhere until you add a state or district rule.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section class="card">

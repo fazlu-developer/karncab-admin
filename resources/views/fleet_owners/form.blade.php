@@ -14,6 +14,11 @@
             <div class="field"><label>Company type</label><input name="company_type" value="{{ old('company_type', $owner->company_type ?? '') }}" placeholder="PRIVATE_LIMITED"></div>
             <div class="field"><label>GSTIN</label><input name="gstin" value="{{ old('gstin', $owner->gstin ?? '') }}"></div>
             <div class="field"><label>PAN</label><input name="pan" value="{{ old('pan', $owner->pan ?? '') }}"></div>
+            <div class="field">
+                <label>Fleet commission % of fare</label>
+                <input name="commission_percent" type="number" min="0" max="100" step="0.01" value="{{ old('commission_percent', $owner->commission_percent ?? '') }}" placeholder="Leave blank to use default">
+                <p class="muted">Blank uses the Ride Settings default fleet commission.</p>
+            </div>
             @include('partials.geo-fields', [
                 'required' => true,
                 'stateValue' => (string) old('state_id', $owner->state_id ?? ''),

@@ -27,7 +27,15 @@ class FranchisesController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->applicationData($request);
-        $row = $this->franchises->apply($request->user(), $data);
+        try {
+            $row = $this->franchises->apply($request->user(), $data);
+        } catch (HttpException $exception) {
+            return back()->withInput()->withErrors(['franchise' => $exception->getMessage()]);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withInput()->withErrors(['franchise' => 'Could not save the franchise application. Check owner email/phone and district, then try again.']);
+        }
 
         return redirect()->route('franchises.show', $row['id'])->with('status', 'Application saved as APPLIED. The exclusive district seat is claimed only when status becomes ACTIVE.');
     }

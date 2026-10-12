@@ -28,7 +28,18 @@ class WebsitePagesController extends Controller
         abort_unless($request->user()?->can('platform.admin'), 403);
         $this->ensureTable();
         $this->seed();
-        $pages = DB::connection('platform')->table('cms_pages')->orderBy('sort_order')->orderBy('slug')->get();
+        $appSlugs = array_column(\App\Http\Controllers\AppContentController::catalog(), 'slug');
+        $pages = DB::connection('platform')->table('cms_pages')
+            ->where(function ($q) {
+                $q->whereNull('nav_group')->orWhere('nav_group', '!=', 'app');
+            })
+            ->where(function ($q) {
+                $q->whereNull('template')->orWhere('template', '!=', 'app_legal');
+            })
+            ->whereNotIn('slug', $appSlugs)
+            ->orderBy('sort_order')
+            ->orderBy('slug')
+            ->get();
 
         return view('ops.website-pages', ['pages' => $pages]);
     }
@@ -97,18 +108,8 @@ class WebsitePagesController extends Controller
             $payload['body'] = json_encode(['html' => $data['body'] ?? ''], JSON_UNESCAPED_UNICODE);
         }
         DB::connection('platform')->table('cms_pages')->where('slug', $slug)->update($payload);
-        $alias = self::aliases()[$slug] ?? null;
-        if ($alias && DB::connection('platform')->table('cms_pages')->where('slug', $alias)->exists()) {
-            DB::connection('platform')->table('cms_pages')->where('slug', $alias)->update([
-                'title' => $payload['title'],
-                'lede' => $payload['lede'],
-                'body' => $payload['body'] ?? null,
-                'published' => $payload['published'],
-                'updated_at' => now(),
-            ]);
-        }
 
-        return back()->with('status', $data['title'].' saved. Website and apps read this from cms_pages.');
+        return back()->with('status', $data['title'].' saved on the website (cms_pages). App pages are stored separately.');
     }
 
     private function seed(): void
@@ -176,41 +177,6 @@ class WebsitePagesController extends Controller
                 ]);
             }
             $sort++;
-        }
-        foreach (self::aliases() as $web => $app) {
-            $source = DB::connection('platform')->table('cms_pages')->where('slug', $web)->first();
-            if (! $source) {
-                continue;
-            }
-            if (! DB::connection('platform')->table('cms_pages')->where('slug', $app)->exists()) {
-                $copy = (array) $source;
-                unset($copy['id']);
-                $copy['slug'] = $app;
-                $copy['template'] = 'app_legal';
-                $copy['nav_group'] = 'app';
-                $copy['updated_at'] = $now;
-                $copy['created_at'] = $now;
-                DB::connection('platform')->table('cms_pages')->insert($this->row($copy));
-                continue;
-            }
-            $appRow = DB::connection('platform')->table('cms_pages')->where('slug', $app)->first();
-            if (! $appRow) {
-                continue;
-            }
-            $touch = [];
-            if (($appRow->nav_group ?? '') !== 'app') {
-                $touch['nav_group'] = 'app';
-            }
-            if (Schema::connection('platform')->hasColumn('cms_pages', 'body') && AppContentController::bodyIsEmpty($appRow->body ?? null)) {
-                $touch['title'] = $source->title;
-                $touch['lede'] = $source->lede ?? '';
-                $touch['body'] = $source->body ?? null;
-                $touch['published'] = 1;
-            }
-            if ($touch !== []) {
-                $touch['updated_at'] = now();
-                DB::connection('platform')->table('cms_pages')->where('slug', $app)->update($touch);
-            }
         }
     }
 

@@ -10,22 +10,22 @@ final class StateHeadNav
     public static function items(): array
     {
         return [
-            ['key' => 'dashboard', 'label' => 'State dashboard', 'icon' => 'layout-dashboard', 'group' => 'Overview', 'route' => 'state.dashboard'],
-            ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Network', 'route' => 'state.section'],
-            ['key' => 'district-heads', 'label' => 'District Heads', 'icon' => 'user-cog', 'group' => 'Network', 'route' => 'state.section'],
-            ['key' => 'franchises', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Network', 'route' => 'franchises.index'],
-            ['key' => 'fleets', 'label' => 'Fleets', 'icon' => 'warehouse', 'group' => 'Network', 'route' => 'state.section'],
-            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Network', 'route' => 'state.section'],
-            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Network', 'route' => 'vehicles.index'],
-            ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'route' => 'state.section'],
-            ['key' => 'parcels', 'label' => 'Parcels', 'icon' => 'package', 'group' => 'Operations', 'route' => 'state.section'],
-            ['key' => 'map', 'label' => 'Live fleet map', 'icon' => 'radar', 'group' => 'Operations', 'route' => 'live.map'],
-            ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'route' => 'state.section'],
-            ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'route' => 'state.section'],
-            ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Finance', 'route' => 'wallets.index'],
-            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'route' => 'wallets.commission'],
-            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Finance', 'route' => 'reports.index'],
-            ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'route' => 'state.section'],
+            ['key' => 'dashboard', 'label' => 'State dashboard', 'icon' => 'layout-dashboard', 'group' => 'Overview', 'ability' => 'dashboard.view', 'route' => 'state.dashboard'],
+            ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Network', 'ability' => 'district.view', 'route' => 'state.section'],
+            ['key' => 'district-heads', 'label' => 'District Heads', 'icon' => 'user-cog', 'group' => 'Network', 'ability' => 'manager.view', 'route' => 'state.section'],
+            ['key' => 'franchises', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Network', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
+            ['key' => 'fleets', 'label' => 'Fleets', 'icon' => 'warehouse', 'group' => 'Network', 'ability' => 'fleet.view', 'route' => 'state.section'],
+            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Network', 'ability' => 'drivers.view', 'route' => 'state.section'],
+            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Network', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
+            ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view', 'route' => 'state.section'],
+            ['key' => 'parcels', 'label' => 'Parcels', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'state.section'],
+            ['key' => 'map', 'label' => 'Live fleet map', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
+            ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'complaints.manage', 'route' => 'state.section'],
+            ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'reports.view', 'route' => 'state.section'],
+            ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
+            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
+            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Finance', 'ability' => 'reports.view', 'route' => 'reports.index'],
+            ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'notifications.view', 'route' => 'state.section'],
         ];
     }
 
@@ -86,13 +86,13 @@ final class StateHeadNav
     /**
      * @return array<string, list<array<string, mixed>>>
      */
-    public static function grouped(): array
+    public static function grouped(?object $user = null): array
     {
-        $groups = [];
-        foreach (self::items() as $item) {
-            $groups[$item['group']][] = $item;
+        $user ??= auth()->user();
+        if (! $user) {
+            return [];
         }
 
-        return $groups;
+        return NavAccess::grouped(self::items(), $user);
     }
 }

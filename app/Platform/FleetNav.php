@@ -10,12 +10,12 @@ final class FleetNav
     public static function items(): array
     {
         return [
-            ['key' => 'dashboard', 'label' => 'Fleet home', 'icon' => 'warehouse', 'group' => 'Overview', 'route' => 'fleet.dashboard'],
-            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet', 'route' => 'fleet.vehicles'],
-            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet', 'route' => 'fleet.drivers'],
-            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Fleet', 'route' => 'fleet.reports'],
-            ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Fleet', 'route' => 'wallets.index'],
-            ['key' => 'map', 'label' => 'Live map', 'icon' => 'radar', 'group' => 'Fleet', 'route' => 'live.map'],
+            ['key' => 'dashboard', 'label' => 'Fleet home', 'icon' => 'warehouse', 'group' => 'Overview', 'ability' => 'fleet.view', 'route' => 'fleet.dashboard'],
+            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet', 'ability' => 'vehicles.view', 'route' => 'fleet.vehicles'],
+            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet', 'ability' => 'drivers.view', 'route' => 'fleet.drivers'],
+            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Fleet', 'ability' => 'reports.view', 'route' => 'fleet.reports'],
+            ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Fleet', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
+            ['key' => 'map', 'label' => 'Live map', 'icon' => 'radar', 'group' => 'Fleet', 'ability' => 'tracking.view', 'route' => 'live.map'],
         ];
     }
 
@@ -40,13 +40,13 @@ final class FleetNav
     /**
      * @return array<string, list<array<string, mixed>>>
      */
-    public static function grouped(): array
+    public static function grouped(?object $user = null): array
     {
-        $groups = [];
-        foreach (self::items() as $item) {
-            $groups[$item['group']][] = $item;
+        $user ??= auth()->user();
+        if (! $user) {
+            return [];
         }
 
-        return $groups;
+        return NavAccess::grouped(self::items(), $user);
     }
 }

@@ -51,8 +51,52 @@
                             <input name="note" value="{{ old('note') }}" placeholder="Optional reason">
                         </div>
                     </div>
-                    <button class="btn" type="submit"><i data-lucide="plus"></i> Add money</button>
+                    <button class="btn" type="submit"><i data-lucide="plus"></i> Custom transfer / add money</button>
                 </form>
+            @endif
+        </section>
+        <section class="card">
+            <h2>Driver withdrawals</h2>
+            <p class="muted">Requested cash is frozen on the driver wallet until you approve and settle the transfer.</p>
+            @if (($withdrawals ?? []) === [])
+                <p class="muted">No withdrawal requests yet.</p>
+            @else
+                <div class="table-wrap">
+                    <table class="data">
+                        <thead>
+                            <tr>
+                                <th>Ref</th>
+                                <th>Driver</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Transfer</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($withdrawals as $row)
+                                <tr>
+                                    <td>{{ $row['publicRef'] }}</td>
+                                    <td>{{ $row['ownerName'] }} · {{ $row['userId'] }}</td>
+                                    <td>₹{{ number_format($row['amountRupees'], 2) }}</td>
+                                    <td><span class="pill">{{ $row['status'] }}</span></td>
+                                    <td>{{ $row['transferRef'] ?: '—' }}</td>
+                                    <td>
+                                        @if (! in_array($row['status'], ['settled', 'rejected'], true))
+                                            <form method="POST" action="{{ route('wallets.withdrawals.decide', $row['id']) }}" class="filters" style="margin:0">
+                                                @csrf
+                                                <input name="transfer_ref" placeholder="Bank/UPI ref">
+                                                <button class="btn ghost" name="decision" value="approve">Approve</button>
+                                                <button class="btn ghost" name="decision" value="settle">Settle</button>
+                                                <button class="btn ghost" name="decision" value="reject">Reject</button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
         </section>
         <section class="card">
@@ -134,7 +178,7 @@
                                 <td>{{ $row['ownerType'] }}</td>
                                 <td>{{ $row['userId'] }}</td>
                                 <td>{{ $row['ownerName'] }}</td>
-                                <td>₹{{ number_format($row['balanceRupees'], 2) }}</td>
+                                <td>₹{{ number_format($row['balanceRupees'], 2) }}@if (($row['joiningCreditRupees'] ?? 0) > 0) · credit ₹{{ number_format($row['joiningCreditRupees'], 2) }}@endif @if (($row['frozenRupees'] ?? 0) > 0) · frozen ₹{{ number_format($row['frozenRupees'], 2) }}@endif</td>
                                 <td><a class="icon-btn" href="{{ route('wallets.show', $row['id']) }}"><i data-lucide="eye"></i></a></td>
                             </tr>
                         @endforeach

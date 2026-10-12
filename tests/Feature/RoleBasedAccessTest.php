@@ -108,6 +108,32 @@ class RoleBasedAccessTest extends TestCase
             ->assertDontSee('Other Fleet Driver');
     }
 
+    public function test_sidebar_only_lists_items_the_role_can_access(): void
+    {
+        $franchise = User::factory()->create(['role' => OperatorRole::FRANCHISE]);
+        $keys = collect(\App\Platform\OpsNav::visibleFor($franchise))->pluck('key');
+        $this->assertTrue($keys->contains('dashboard'));
+        $this->assertTrue($keys->contains('drivers'));
+        $this->assertFalse($keys->contains('fare'));
+        $this->assertFalse($keys->contains('roles'));
+        $this->assertFalse($keys->contains('ride-settings'));
+        $this->assertFalse($keys->contains('website-pages'));
+
+        $head = User::factory()->create(['role' => OperatorRole::STATE_HEAD]);
+        $stateKeys = collect(\App\Platform\StateHeadNav::grouped($head))->flatten(1)->pluck('key');
+        $this->assertTrue($stateKeys->contains('dashboard'));
+        $this->assertTrue($stateKeys->contains('commission'));
+        $this->assertFalse($stateKeys->contains('wallets'));
+        $this->assertFalse($stateKeys->contains('complaints'));
+
+        $advertiser = User::factory()->create(['role' => OperatorRole::ADVERTISER]);
+        $adGroups = \App\Platform\ConsoleNav::grouped($advertiser);
+        $adKeys = collect($adGroups)->flatten(1)->pluck('key');
+        $this->assertTrue($adKeys->contains('ads'));
+        $this->assertFalse($adKeys->contains('bookings'));
+        $this->assertFalse($adKeys->contains('fare'));
+    }
+
     public function test_advertiser_cannot_open_bookings_module(): void
     {
         $user = User::factory()->create(['role' => OperatorRole::ADVERTISER]);

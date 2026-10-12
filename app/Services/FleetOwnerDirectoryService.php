@@ -93,6 +93,9 @@ class FleetOwnerDirectoryService
             if (Schema::connection('platform')->hasColumn('fleet_owners', 'kyc_status')) {
                 $payload['kyc_status'] = ($payload['status'] ?? 'ACTIVE') === 'ACTIVE' ? 'approved' : 'pending';
             }
+            if (Schema::connection('platform')->hasColumn('fleet_owners', 'commission_percent') && isset($data['commission_percent']) && $data['commission_percent'] !== '') {
+                $payload['commission_percent'] = (float) $data['commission_percent'];
+            }
         }
 
         $fleetId = $this->db()->table('fleet_owners')->insertGetId($payload);
@@ -170,6 +173,7 @@ class FleetOwnerDirectoryService
             'state_id' => $data['state_id'] ?? null,
             'district_id' => $data['district_id'] ?? null,
             'franchise_id' => $data['franchise_id'] ?? null,
+            'commission_percent' => $data['commission_percent'] ?? null,
         ] as $column => $value) {
             if ($value === null || $value === '' || ! $schema->hasColumn('fleet_owners', $column)) {
                 continue;

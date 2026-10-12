@@ -106,27 +106,15 @@ class User extends Authenticatable
     public function hasPlatformAbility(string $ability): bool
     {
         if ($this->isPrivilegedOperator()) {
-            return PlatformPermission::allows((string) $this->role, $ability);
-        }
-
-        $granted = PlatformPermission::forRole((string) $this->role);
-        if ($this->isManager()) {
-            $granted = array_values(array_unique(array_merge($granted, $this->assignedAbilities())));
-        }
-
-        $canonical = [];
-        foreach ($granted as $item) {
-            $canonical[] = $item;
-            foreach (PlatformPermission::expand($item) as $alias) {
-                $canonical[] = $alias;
-            }
-        }
-
-        if (in_array($ability, $canonical, true)) {
             return true;
         }
-        foreach (PlatformPermission::expand($ability) as $alias) {
-            if (in_array($alias, $canonical, true)) {
+        $granted = PlatformPermission::forRole((string) $this->role);
+        $granted = array_values(array_unique(array_merge($granted, $this->assignedAbilities())));
+        if (in_array($ability, $granted, true)) {
+            return true;
+        }
+        foreach ($granted as $item) {
+            if (in_array($ability, PlatformPermission::expand($item), true)) {
                 return true;
             }
         }

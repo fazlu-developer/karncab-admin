@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="file-text"></i> Account menu pages</h1>
-            <p class="muted">These five pages appear in the customer app Account section. Edit the title, short description, full text and optional image. Saved text stays until you change it again.</p>
+            <p class="muted">These pages live in the <strong>cms_app_pages</strong> table and appear in the customer and partner apps. Website copy is a separate table — saving here does not overwrite the public website.</p>
         </div>
     </div>
     @foreach ($pages as $page)

@@ -104,6 +104,7 @@ class WorkspaceController extends Controller
             'service_group' => ['required', 'in:RIDE,PARCEL'],
             'category_key' => ['nullable', 'string', 'max:40'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
             'active' => ['nullable', 'boolean'],
         ]);
         $slug = Str::slug($data['slug'] ?? $data['title']);
@@ -114,6 +115,7 @@ class WorkspaceController extends Controller
             'service_group' => $data['service_group'],
             'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'seats' => (int) ($data['seats'] ?? 4),
             'active' => $request->boolean('active', true),
             'created_at' => now(),
             'updated_at' => now(),
@@ -133,6 +135,7 @@ class WorkspaceController extends Controller
             'service_group' => ['required', 'in:RIDE,PARCEL'],
             'category_key' => ['nullable', 'string', 'max:40'],
             'sort_order' => ['nullable', 'integer'],
+            'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
             'active' => ['nullable', 'boolean'],
             'image' => ['nullable', 'image', 'max:4096'],
             'remove_image' => ['nullable'],
@@ -152,6 +155,7 @@ class WorkspaceController extends Controller
             'service_group' => $data['service_group'],
             'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
+            'seats' => (int) ($data['seats'] ?? 4),
             'active' => $request->boolean('active'),
             'updated_at' => now(),
         ]);
@@ -163,6 +167,17 @@ class WorkspaceController extends Controller
         DB::connection('platform')->table('catalog_services')->where('id', $service)->update($payload);
 
         return back()->with('status', 'Service updated.');
+    }
+
+    public function destroyService(Request $request, int $service): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $existing = DB::connection('platform')->table('catalog_services')->where('id', $service)->first();
+        StoredUpload::forget($existing?->image_url);
+        DB::connection('platform')->table('catalog_services')->where('id', $service)->delete();
+        OrganizationAudit::record($request->user(), 'service.delete', 'catalog_service', $service, (array) $existing, null, 'catalog');
+
+        return back()->with('status', 'Service removed. Apps stop offering that vehicle category.');
     }
 
     public function storeOffer(Request $request): RedirectResponse

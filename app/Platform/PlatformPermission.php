@@ -173,6 +173,7 @@ final class PlatformPermission
                 'wallet.view',
                 'fleet.view', 'fleet.manage',
                 'reports.view', 'reports.export',
+                'tracking.view',
             ],
             OperatorRole::DRIVER => [
                 'drivers.view',
@@ -228,7 +229,6 @@ final class PlatformPermission
     public static function expand(string $ability): array
     {
         return match ($ability) {
-            'dashboard.view' => ['users.view', 'reports.view'],
             'state.view' => ['state.operate'],
             'state.create', 'state.update' => ['platform.admin'],
             'district.view' => ['users.view', 'state.operate'],

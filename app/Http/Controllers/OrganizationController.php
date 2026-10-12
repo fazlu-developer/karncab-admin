@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\DistrictHeadKycStore;
+use App\Services\StateHeadKycStore;
 use App\Services\OrganizationAudit;
 use App\Support\PlatformSettings;
 use Illuminate\Http\RedirectResponse;
@@ -200,5 +201,61 @@ class OrganizationController extends Controller
         ]);
 
         return back()->with('status', 'KYC marked '.$status.'.');
+    }
+
+    public function stateKyc(Request $request): View
+    {
+        abort_unless($request->user()?->can('kyc.view'), 403);
+        StateHeadKycStore::ensureTable();
+        $heads = StateHeadKycStore::headsFor($request->user());
+        $docs = DB::connection('platform')->table('state_head_kyc as k')
+            ->leftJoin('users as u', 'u.id', '=', 'k.user_id')
+            ->leftJoin('states as s', 's.id', '=', 'k.state_id')
+            ->orderByDesc('k.id')
+            ->select([
+                'k.id', 'k.user_id', 'k.doc_type', 'k.path', 'k.status', 'k.created_at',
+                'u.name as user_name', 'u.email as user_email', 's.name as state_name',
+            ])
+            ->limit(120)
+            ->get();
+
+        return view('organization.state-kyc', compact('docs', 'heads'));
+    }
+
+    public function storeStateKyc(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('kyc.view'), 403);
+        $request->validate([
+            'user_id' => ['required', 'integer'],
+            'doc_type' => ['required', 'string', 'max:40'],
+            'file' => ['required', 'file', 'max:8192', 'mimes:jpg,jpeg,png,pdf,webp'],
+        ]);
+        $saved = StateHeadKycStore::saveFromRequest($request, (int) $request->input('user_id'), $request->user()?->id);
+        abort_if($saved === 0, 422, 'Choose a State Head and a document file.');
+
+        return back()->with('status', 'State Head KYC uploaded.');
+    }
+
+    public function stateKycFile(Request $request, int $id): StreamedResponse
+    {
+        abort_unless($request->user()?->can('kyc.view'), 403);
+        StateHeadKycStore::ensureTable();
+        $row = DB::connection('platform')->table('state_head_kyc')->where('id', $id)->first();
+        abort_if(! $row, 404);
+        abort_unless(Storage::disk('public')->exists($row->path), 404);
+
+        return Storage::disk('public')->response($row->path);
+    }
+
+    public function reviewStateKyc(Request $request, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->can('kyc.approve') || $request->user()?->can('platform.admin'), 403);
+        $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
+        DB::connection('platform')->table('state_head_kyc')->where('id', $id)->update([
+            'status' => $status,
+            'updated_at' => now(),
+        ]);
+
+        return back()->with('status', 'State Head KYC marked '.$status.'.');
     }
 }

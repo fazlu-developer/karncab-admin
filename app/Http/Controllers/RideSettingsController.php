@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\TerritoryBonusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -9,6 +10,8 @@ use Illuminate\View\View;
 
 class RideSettingsController extends Controller
 {
+    public function __construct(private readonly TerritoryBonusService $bonuses) {}
+
     public function index(Request $request): View
     {
         abort_unless($request->user()?->can('platform.admin') || $request->user()?->can('fare.manage'), 403);
@@ -37,6 +40,13 @@ class RideSettingsController extends Controller
             'customerReferralCreditRupees' => $int('customer_referral_credit_rupees', 50),
             'customerPromoMaxRupees' => $int('customer_promo_max_rupees', 50),
             'customerPromoMaxFarePercent' => $int('customer_promo_max_fare_percent', 50),
+            'gstPercent' => $int('gst_percent', 5),
+            'fleetOwnerCommissionPercent' => is_numeric($db->table('system_settings')->where('key', 'fleet_owner_commission_percent')->value('value'))
+                ? (float) $db->table('system_settings')->where('key', 'fleet_owner_commission_percent')->value('value')
+                : 5,
+            'territoryBonuses' => $this->bonuses->list(),
+            'states' => $db->table('states')->orderBy('name')->get(),
+            'districts' => $db->table('districts')->orderBy('name')->get(),
             'incentives' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? $db->table('incentives')->orderByDesc('id')->limit(80)->get()
                 : collect(),
@@ -66,6 +76,8 @@ class RideSettingsController extends Controller
             'customer_referral_credit_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'customer_promo_max_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'customer_promo_max_fare_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'gst_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'fleet_owner_commission_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
         $db = DB::connection('platform');
         $now = now();
@@ -85,6 +97,20 @@ class RideSettingsController extends Controller
             $settings['customer_promo_max_rupees'] = (string) ($data['customer_promo_max_rupees'] ?? 50);
             $settings['customer_promo_max_fare_percent'] = (string) ($data['customer_promo_max_fare_percent'] ?? 50);
         }
+        if ($request->has('gst_percent')) {
+            $settings['gst_percent'] = (string) ($data['gst_percent'] ?? 5);
+            $gst = (int) round((float) ($data['gst_percent'] ?? 5));
+            if ($db->getSchemaBuilder()->hasTable('fare_rules') && $db->getSchemaBuilder()->hasColumn('fare_rules', 'gst_percent')) {
+                $db->table('fare_rules')->update(['gst_percent' => $gst, 'updated_at' => $now]);
+            }
+            if ($db->getSchemaBuilder()->hasTable('parcel_fare_rules') && $db->getSchemaBuilder()->hasColumn('parcel_fare_rules', 'gst_percent')) {
+                $db->table('parcel_fare_rules')->update(['gst_percent' => $gst]);
+            }
+        }
+        if ($request->has('fleet_owner_commission_percent')) {
+            $settings['fleet_owner_commission_percent'] = (string) ($data['fleet_owner_commission_percent'] ?? 5);
+            $settings['fleet_commission_share_percent'] = (string) ($data['fleet_owner_commission_percent'] ?? 5);
+        }
         foreach ($settings as $key => $value) {
             $exists = $db->table('system_settings')->where('key', $key)->exists();
             if ($exists) {
@@ -94,6 +120,46 @@ class RideSettingsController extends Controller
             }
         }
 
-        return back()->with('status', 'Ride search radius and request timeout saved. Customer booking uses these values immediately.');
+        return back()->with('status', 'Ride settings saved. Apps pick up GST, fleet commission and bonuses immediately.');
+    }
+
+    public function storeBonus(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin') || $request->user()?->can('fare.manage'), 403);
+        $data = $request->validate([
+            'audience' => ['required', 'in:DRIVER,CUSTOMER'],
+            'kind' => ['required', 'in:joining,referral'],
+            'state_id' => ['nullable', 'integer'],
+            'district_id' => ['nullable', 'integer'],
+            'amount_rupees' => ['required', 'integer', 'min:0', 'max:100000'],
+            'required_rides' => ['nullable', 'integer', 'min:0', 'max:500'],
+            'enabled' => ['nullable', 'boolean'],
+        ]);
+        $data['enabled'] = $request->boolean('enabled', true);
+        $this->bonuses->store($data);
+
+        return back()->with('status', 'Territory bonus saved. New registrations in that area see this amount in the app.');
+    }
+
+    public function updateBonus(Request $request, int $bonus): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin') || $request->user()?->can('fare.manage'), 403);
+        $data = $request->validate([
+            'amount_rupees' => ['required', 'integer', 'min:0', 'max:100000'],
+            'required_rides' => ['nullable', 'integer', 'min:0', 'max:500'],
+            'enabled' => ['nullable', 'boolean'],
+        ]);
+        $data['enabled'] = $request->boolean('enabled');
+        $this->bonuses->update($bonus, $data);
+
+        return back()->with('status', 'Territory bonus updated.');
+    }
+
+    public function destroyBonus(Request $request, int $bonus): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin') || $request->user()?->can('fare.manage'), 403);
+        $this->bonuses->destroy($bonus);
+
+        return back()->with('status', 'Territory bonus removed.');
     }
 }

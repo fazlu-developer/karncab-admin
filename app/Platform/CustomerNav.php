@@ -10,7 +10,7 @@ final class CustomerNav
     public static function items(): array
     {
         $items = [
-            ['key' => 'home', 'label' => 'Home', 'icon' => 'layout-dashboard', 'group' => 'Overview', 'route' => 'customer.dashboard'],
+            ['key' => 'home', 'label' => 'Home', 'icon' => 'layout-dashboard', 'group' => 'Overview', 'ability' => 'customers.view', 'route' => 'customer.dashboard'],
         ];
         foreach (CustomerDashboard::tools() as $tool) {
             $items[] = [
@@ -18,6 +18,7 @@ final class CustomerNav
                 'label' => $tool['label'],
                 'icon' => $tool['icon'],
                 'group' => $tool['group'],
+                'ability' => $tool['ability'] ?? 'customers.view',
                 'route' => 'customer.section',
                 'section' => $tool['key'],
             ];
@@ -47,13 +48,13 @@ final class CustomerNav
     /**
      * @return array<string, list<array<string, mixed>>>
      */
-    public static function grouped(): array
+    public static function grouped(?object $user = null): array
     {
-        $groups = [];
-        foreach (self::items() as $item) {
-            $groups[$item['group']][] = $item;
+        $user ??= auth()->user();
+        if (! $user) {
+            return [];
         }
 
-        return $groups;
+        return NavAccess::grouped(self::items(), $user);
     }
 }

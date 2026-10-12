@@ -8,6 +8,7 @@ use App\Models\Platform\PlatformUser;
 use App\Platform\GeoCatalog;
 use App\Platform\RideCatalog;
 use App\Platform\TerritoryScope;
+use App\Services\DriverWelcomeBonusService;
 use App\Services\KycFileStore;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
@@ -116,6 +117,7 @@ class DriversController extends Controller
             $driverPayload['district_id'] = $user->district_id;
         }
         $driver = PlatformDriver::query()->create($driverPayload);
+        app(DriverWelcomeBonusService::class)->creditIfApproved($driver);
         \App\Services\OrganizationAudit::record($actor, 'driver.created', 'driver', $driver->id, null, [
             'driver_type' => $fleetOwnerId ? 'fleet_driver' : 'individual_driver',
             'fleet_owner_id' => $fleetOwnerId,
@@ -218,6 +220,7 @@ class DriversController extends Controller
             $driverPatch['district_id'] = $geo['district_id'];
         }
         $driver->update($driverPatch);
+        app(DriverWelcomeBonusService::class)->creditIfApproved($driver->fresh() ?? $driver);
 
         return redirect()->route('drivers.show', $driver)->with('status', 'Driver updated.');
     }
@@ -450,6 +453,7 @@ class DriversController extends Controller
             ]);
             $driver->user?->update(['status' => 'ACTIVE']);
             $this->releaseAssignedVehicles($driver);
+            app(DriverWelcomeBonusService::class)->creditIfApproved($driver->fresh() ?? $driver);
             if ($wasLeftFleet) {
                 return redirect()->route('drivers.show', $driver)->with('status', 'KYC activated. This driver can sign in.');
             }
@@ -578,6 +582,7 @@ class DriversController extends Controller
             ]);
             $driver->user?->update(['status' => 'ACTIVE']);
             $this->releaseAssignedVehicles($driver);
+            app(DriverWelcomeBonusService::class)->creditIfApproved($driver->fresh() ?? $driver);
             try {
                 app(NotificationService::class)->dispatch((int) $driver->user_id, 'kyc_approval', [], [
                     'entity' => ['type' => 'kyc', 'id' => (string) $driver->user_id],
