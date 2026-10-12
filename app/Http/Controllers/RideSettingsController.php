@@ -34,8 +34,8 @@ class RideSettingsController extends Controller
             'driverWelcomeBonusEnabled' => $bonusOn === null || in_array(strtolower((string) $bonusOn), ['1', 'true', 'yes', ''], true),
             'driverWelcomeBonusRupees' => is_numeric($bonusRupees) ? (int) $bonusRupees : 100,
             'customerFirstRideFreeEnabled' => in_array(strtolower((string) $firstRide), ['1', 'true', 'yes'], true),
-            'driverReferralBonusRupees' => $int('driver_referral_bonus_rupees', 150),
-            'driverReferralRequiredRides' => $int('driver_referral_required_rides', 10),
+            'driverReferralBonusRupees' => $int('driver_referral_bonus_rupees', 50),
+            'driverReferralRequiredRides' => $int('driver_referral_required_rides', 0),
             'customerJoiningCreditRupees' => $int('customer_joining_credit_rupees', 50),
             'customerReferralCreditRupees' => $int('customer_referral_credit_rupees', 50),
             'customerPromoMaxRupees' => $int('customer_promo_max_rupees', 50),
@@ -71,7 +71,7 @@ class RideSettingsController extends Controller
             'driver_welcome_bonus_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'customer_first_ride_free_enabled' => ['nullable', 'boolean'],
             'driver_referral_bonus_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
-            'driver_referral_required_rides' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'driver_referral_required_rides' => ['nullable', 'integer', 'min:0', 'max:500'],
             'customer_joining_credit_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'customer_referral_credit_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'customer_promo_max_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
@@ -90,8 +90,8 @@ class RideSettingsController extends Controller
             $settings['driver_welcome_bonus_enabled'] = $request->boolean('driver_welcome_bonus_enabled') ? '1' : '0';
             $settings['driver_welcome_bonus_rupees'] = (string) ($data['driver_welcome_bonus_rupees'] ?? 100);
             $settings['customer_first_ride_free_enabled'] = $request->boolean('customer_first_ride_free_enabled') ? '1' : '0';
-            $settings['driver_referral_bonus_rupees'] = (string) ($data['driver_referral_bonus_rupees'] ?? 150);
-            $settings['driver_referral_required_rides'] = (string) ($data['driver_referral_required_rides'] ?? 10);
+            $settings['driver_referral_bonus_rupees'] = (string) ($data['driver_referral_bonus_rupees'] ?? 50);
+            $settings['driver_referral_required_rides'] = (string) ($data['driver_referral_required_rides'] ?? 0);
             $settings['customer_joining_credit_rupees'] = (string) ($data['customer_joining_credit_rupees'] ?? 50);
             $settings['customer_referral_credit_rupees'] = (string) ($data['customer_referral_credit_rupees'] ?? 50);
             $settings['customer_promo_max_rupees'] = (string) ($data['customer_promo_max_rupees'] ?? 50);

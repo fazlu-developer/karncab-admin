@@ -63,10 +63,10 @@
             </div>
             <h2 style="margin-top:18px">Application control</h2>
             <div class="grid-2">
-                <div class="field"><label>Customer app version</label><input name="customerAppVersion" value="{{ old('customerAppVersion', $site['customerAppVersion']) }}" placeholder="1.0.4"></div>
-                <div class="field"><label>Driver app version</label><input name="driverAppVersion" value="{{ old('driverAppVersion', $site['driverAppVersion']) }}" placeholder="1.0.4"></div>
-                <div class="field"><label>Customer Play Store URL</label><input name="customerPlayStoreUrl" value="{{ old('customerPlayStoreUrl', $site['customerPlayStoreUrl']) }}"></div>
-                <div class="field"><label>Driver Play Store URL</label><input name="driverPlayStoreUrl" value="{{ old('driverPlayStoreUrl', $site['driverPlayStoreUrl']) }}"></div>
+                <div class="field"><label>Customer app version</label><input name="customerAppVersion" value="{{ old('customerAppVersion', $site['customerAppVersion']) }}" placeholder="1.1.10"></div>
+                <div class="field"><label>Driver app version</label><input name="driverAppVersion" value="{{ old('driverAppVersion', $site['driverAppVersion']) }}" placeholder="1.1.9"></div>
+                <div class="field"><label>Customer Play Store URL</label><input name="customerPlayStoreUrl" value="{{ old('customerPlayStoreUrl', $site['customerPlayStoreUrl']) }}" placeholder="https://play.google.com/store/apps/details?id=com.karnacabride"></div>
+                <div class="field"><label>Driver Play Store URL</label><input name="driverPlayStoreUrl" value="{{ old('driverPlayStoreUrl', $site['driverPlayStoreUrl']) }}" placeholder="https://play.google.com/store/apps/details?id=com.karnacabpartner"></div>
                 <div class="field"><label>High alert until</label><input name="highAlertUntil" value="{{ old('highAlertUntil', $site['highAlertUntil']) }}" placeholder="12:00"></div>
             </div>
             <div class="field"><label>High alert message</label><textarea name="highAlertMessage" rows="2" placeholder="Application 12 bje tak chalegi. Please complete your ride before this time.">{{ old('highAlertMessage', $site['highAlertMessage']) }}</textarea></div>

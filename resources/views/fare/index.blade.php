@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="banknote"></i> Vehicle fares by service</h1>
-            <p class="muted">Pick a service, then set the fare for each vehicle and press Save. Cab quotes use these rows. Parcel is its own list and includes Truck. Live states: {{ implode(', ', $liveStates) }}.</p>
+            <p class="muted">Tabs are the 12 services from Service Management. Each fare row is a vehicle ticked on that service. Live states: {{ implode(', ', $liveStates) }}. <a href="{{ route('ops.services') }}">Edit services and photos</a>.</p>
         </div>
     </div>
 
@@ -27,7 +27,7 @@
         <section class="card" id="service-{{ $product }}">
             <h2>{{ $label }}</h2>
             <p class="muted">Set the fare for each vehicle on {{ $label }}.</p>
-            @foreach ($vehicles as $category => $vehicleLabel)
+            @foreach (($vehiclesByService[$product] ?? $vehicles) as $category => $vehicleLabel)
                 @php $row = $rows->get($category); @endphp
                 <form class="fare-line" method="POST" action="{{ $row ? route('fare.update', $row->id) : route('fare.store') }}">
                     @csrf

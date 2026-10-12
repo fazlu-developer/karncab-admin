@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\VehicleCatalogAdmin;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +14,10 @@ class FareRulesController extends Controller
     {
         abort_unless($request->user()?->can('fare.manage'), 403);
         $db = DB::connection('platform');
+        app(VehicleCatalogAdmin::class)->ensure();
         $service = strtoupper((string) $request->query('service', ''));
         $services = $this->services();
+        $vehiclesByService = $this->vehiclesByService($services);
         if ($service !== '' && $service !== 'PARCEL' && ! isset($services[$service])) {
             $service = '';
         }
@@ -35,6 +38,7 @@ class FareRulesController extends Controller
             'categories' => array_keys($this->vehicles()),
             'services' => $services,
             'vehicles' => $this->vehicles(),
+            'vehiclesByService' => $vehiclesByService,
             'parcelVehicles' => $this->parcelVehicles(),
             'parcelLanes' => ['LOCAL' => 'Local parcel', 'BIHAR' => 'Bihar parcel'],
             'selectedService' => $service,
@@ -99,7 +103,7 @@ class FareRulesController extends Controller
      */
     private function services(): array
     {
-        return [
+        $defaults = [
             'LOCAL_CAB' => 'City Ride',
             'ONE_WAY' => 'One Way',
             'ROUND_WAY' => 'Round Trip',
@@ -110,6 +114,71 @@ class FareRulesController extends Controller
             'RAILWAY' => 'Railway',
             'MULTI_STOP' => 'Multi Stop',
         ];
+        $db = DB::connection('platform');
+        if (! $db->getSchemaBuilder()->hasTable('catalog_services')) {
+            return $defaults;
+        }
+        $q = $db->table('catalog_services')->orderBy('sort_order')->orderBy('title');
+        if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'active')) {
+            $q->where('active', 1);
+        }
+        if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'service_group')) {
+            $q->where('service_group', 'RIDE');
+        }
+        $fromCatalog = [];
+        foreach ($q->get() as $row) {
+            $product = VehicleCatalogAdmin::fareProduct((string) ($row->category_key ?? ''), (string) ($row->title ?? ''), (string) ($row->slug ?? ''));
+            if (in_array($product, ['PARCEL', 'TRAVEL', 'BULK', 'CORPORATE'], true)) {
+                continue;
+            }
+            $fromCatalog[$product] = (string) ($row->title ?: $defaults[$product] ?? $product);
+        }
+
+        return $fromCatalog !== [] ? $fromCatalog : $defaults;
+    }
+
+    /**
+     * @param  array<string, string>  $services
+     * @return array<string, array<string, string>>
+     */
+    private function vehiclesByService(array $services): array
+    {
+        $all = $this->vehicles();
+        $out = [];
+        foreach (array_keys($services) as $product) {
+            $assigned = $this->assignedVehiclesForProduct($product);
+            $out[$product] = $assigned !== [] ? $assigned : $all;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function assignedVehiclesForProduct(string $product): array
+    {
+        $labels = app(VehicleCatalogAdmin::class)->labels();
+        $db = DB::connection('platform');
+        if (! $db->getSchemaBuilder()->hasTable('catalog_services')) {
+            return [];
+        }
+        $q = $db->table('catalog_services');
+        if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'active')) {
+            $q->where('active', 1);
+        }
+        $keys = [];
+        foreach ($q->get() as $row) {
+            $mapped = VehicleCatalogAdmin::fareProduct((string) ($row->category_key ?? ''), (string) ($row->title ?? ''), (string) ($row->slug ?? ''));
+            if ($mapped !== $product) {
+                continue;
+            }
+            foreach (\App\Http\Controllers\Ops\WorkspaceController::selectedVehicleKeys($row) as $key) {
+                $keys[$key] = $labels[$key] ?? $key;
+            }
+        }
+
+        return $keys;
     }
 
     /**
@@ -117,23 +186,19 @@ class FareRulesController extends Controller
      */
     private function vehicles(): array
     {
-        $fromCatalog = [];
-        $db = DB::connection('platform');
-        if ($db->getSchemaBuilder()->hasTable('catalog_services')) {
-            $q = $db->table('catalog_services')->whereNotNull('category_key')->where('category_key', '!=', '');
-            if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'active')) {
-                $q->where('active', 1);
+        $fromCatalog = app(VehicleCatalogAdmin::class)->labels();
+        if ($fromCatalog !== []) {
+            $active = [];
+            foreach (app(VehicleCatalogAdmin::class)->options(true) as $row) {
+                if ($row['family_key'] !== 'LOADING') {
+                    $active[$row['key']] = $row['label'];
+                }
             }
-            if ($db->getSchemaBuilder()->hasColumn('catalog_services', 'service_group')) {
-                $q->where('service_group', 'RIDE');
-            }
-            foreach ($q->orderBy('sort_order')->get() as $row) {
-                $key = strtoupper((string) $row->category_key);
-                $fromCatalog[$key] = (string) ($row->title ?: $key);
-            }
+
+            return $active !== [] ? $active : $fromCatalog;
         }
 
-        return $fromCatalog !== [] ? $fromCatalog : [
+        return [
             'BIKE' => 'Bike',
             'AUTO' => 'Auto',
             'E_RICKSHAW' => 'E-Rickshaw',
@@ -149,7 +214,18 @@ class FareRulesController extends Controller
      */
     private function parcelVehicles(): array
     {
-        return [
+        $assigned = $this->assignedVehiclesForProduct('PARCEL');
+        if ($assigned !== []) {
+            return $assigned;
+        }
+        $out = [];
+        foreach (app(VehicleCatalogAdmin::class)->options(true) as $row) {
+            if (in_array($row['family_key'], ['BIKE', 'AUTO', 'LOADING'], true) || in_array($row['key'], ['SEDAN', 'TRAVELLER', 'TRUCK', 'VAN', 'PICKUP'], true)) {
+                $out[$row['key']] = $row['label'];
+            }
+        }
+
+        return $out !== [] ? $out : [
             'BIKE' => 'Bike',
             'AUTO' => 'Auto',
             'SEDAN' => 'Car',

@@ -35,10 +35,10 @@ class SiteBrandingService
             'appStoreUrl' => $site['appStoreUrl'] ?? '',
             'customerAppLogoUrl' => $site['customerAppLogoUrl'] ?? '',
             'driverAppLogoUrl' => $site['driverAppLogoUrl'] ?? '',
-            'customerPlayStoreUrl' => $site['customerPlayStoreUrl'] ?? ($site['playStoreUrl'] ?? ''),
-            'driverPlayStoreUrl' => $site['driverPlayStoreUrl'] ?? '',
-            'customerAppVersion' => $site['customerAppVersion'] ?? '1.0.4',
-            'driverAppVersion' => $site['driverAppVersion'] ?? '1.0.4',
+            'customerPlayStoreUrl' => $site['customerPlayStoreUrl'] ?? ($site['playStoreUrl'] ?? 'https://play.google.com/store/apps/details?id=com.karnacabride'),
+            'driverPlayStoreUrl' => $site['driverPlayStoreUrl'] ?? 'https://play.google.com/store/apps/details?id=com.karnacabpartner',
+            'customerAppVersion' => $site['customerAppVersion'] ?? '1.1.10',
+            'driverAppVersion' => $site['driverAppVersion'] ?? '1.1.9',
             'customerMaintenance' => (bool) ($site['customerMaintenance'] ?? false),
             'driverMaintenance' => (bool) ($site['driverMaintenance'] ?? false),
             'customerForceUpdate' => (bool) ($site['customerForceUpdate'] ?? false),
@@ -136,6 +136,11 @@ class SiteBrandingService
                     'category_key' => $key !== '' ? $key : null,
                 ]);
             }
+        }
+        if (! $schema->hasColumn('catalog_services', 'vehicle_categories')) {
+            $schema->table('catalog_services', function ($table) {
+                $table->text('vehicle_categories')->nullable();
+            });
         }
     }
 }

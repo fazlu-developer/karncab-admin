@@ -37,7 +37,7 @@
 
     <section class="card">
         <h2>Saharsa launch incentives</h2>
-        <p class="muted">Driver joining bonus is credited straight to the partner wallet when admin verifies KYC (state/district rules below). No first-ride claim. Driver referral still needs completed rides. Customer amounts are promotional ride credit (not cash).</p>
+        <p class="muted">New driver joining bonus goes to their wallet when KYC is approved. Referrer gets the referral amount when that driver completes signup/KYC (set rides required to 0). Customer amounts are promotional ride credit (not cash).</p>
         <form method="POST" action="{{ route('ride-settings.update') }}" class="filters" style="align-items:end">
             @csrf
             @method('PUT')
@@ -52,8 +52,8 @@
                 <input name="driver_referral_bonus_rupees" type="number" min="0" max="100000" value="{{ $driverReferralBonusRupees }}" required>
             </div>
             <div>
-                <label>Referral rides required</label>
-                <input name="driver_referral_required_rides" type="number" min="1" max="500" value="{{ $driverReferralRequiredRides }}" required>
+                <label>Referral rides required (0 = pay on KYC)</label>
+                <input name="driver_referral_required_rides" type="number" min="0" max="500" value="{{ $driverReferralRequiredRides }}" required>
             </div>
             <div>
                 <label>Customer joining credit (₹)</label>

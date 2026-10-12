@@ -8,6 +8,7 @@ use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
 use App\Services\OrganizationAudit;
 use App\Services\SiteBrandingService;
+use App\Services\VehicleCatalogAdmin;
 use App\Support\CorporatePlanSchema;
 use App\Support\PlatformSettings;
 use App\Support\StoredUpload;
@@ -21,7 +22,10 @@ use Illuminate\View\View;
 
 class WorkspaceController extends Controller
 {
-    public function __construct(private readonly SiteBrandingService $branding) {}
+    public function __construct(
+        private readonly SiteBrandingService $branding,
+        private readonly VehicleCatalogAdmin $vehicles,
+    ) {}
 
     public function branding(Request $request): View
     {
@@ -84,12 +88,16 @@ class WorkspaceController extends Controller
     {
         abort_unless($request->user()?->can('platform.admin'), 403);
         $this->branding->ensureCatalogTable();
-        $this->seedDefaultServices();
-        $rows = DB::connection('platform')->table('catalog_services')->orderBy('service_group')->orderBy('sort_order')->orderBy('title')->get();
+        $this->vehicles->ensure();
+        $this->ensureCanonicalServices();
+        $rows = DB::connection('platform')->table('catalog_services')->orderBy('sort_order')->orderBy('title')->get();
 
         return view('ops.services', [
             'rows' => $rows,
             'offers' => PlatformSettings::json('cms_home_offers'),
+            'vehicleTypes' => $this->vehicleTypeOptions(),
+            'vehicleFamilies' => $this->vehicles->families(),
+            'canonicalKeys' => array_column($this->canonicalServices(), 'key'),
         ]);
     }
 
@@ -103,9 +111,12 @@ class WorkspaceController extends Controller
             'subtitle' => ['nullable', 'string', 'max:180'],
             'service_group' => ['required', 'in:RIDE,PARCEL'],
             'category_key' => ['nullable', 'string', 'max:40'],
+            'vehicle_keys' => ['nullable', 'array'],
+            'vehicle_keys.*' => ['string', 'max:40'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
             'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
             'active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
         ]);
         $slug = Str::slug($data['slug'] ?? $data['title']);
         $payload = PlatformSettings::filter('catalog_services', [
@@ -114,9 +125,11 @@ class WorkspaceController extends Controller
             'subtitle' => $data['subtitle'] ?? null,
             'service_group' => $data['service_group'],
             'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
+            'vehicle_categories' => $this->encodeVehicleKeys($request->input('vehicle_keys', [])),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'seats' => (int) ($data['seats'] ?? 4),
             'active' => $request->boolean('active', true),
+            'image_url' => $request->file('image') ? StoredUpload::replace($request->file('image'), 'services', null, 'svc') : null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -134,6 +147,8 @@ class WorkspaceController extends Controller
             'subtitle' => ['nullable', 'string', 'max:180'],
             'service_group' => ['required', 'in:RIDE,PARCEL'],
             'category_key' => ['nullable', 'string', 'max:40'],
+            'vehicle_keys' => ['nullable', 'array'],
+            'vehicle_keys.*' => ['string', 'max:40'],
             'sort_order' => ['nullable', 'integer'],
             'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
             'active' => ['nullable', 'boolean'],
@@ -154,6 +169,7 @@ class WorkspaceController extends Controller
             'subtitle' => $data['subtitle'] ?? null,
             'service_group' => $data['service_group'],
             'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
+            'vehicle_categories' => $this->encodeVehicleKeys($request->input('vehicle_keys', [])),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'seats' => (int) ($data['seats'] ?? 4),
             'active' => $request->boolean('active'),
@@ -178,6 +194,115 @@ class WorkspaceController extends Controller
         OrganizationAudit::record($request->user(), 'service.delete', 'catalog_service', $service, (array) $existing, null, 'catalog');
 
         return back()->with('status', 'Service removed. Apps stop offering that vehicle category.');
+    }
+
+    public function storeVehicleType(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'family_key' => ['required', 'string', 'max:40'],
+            'family_label' => ['nullable', 'string', 'max:80'],
+            'new_family_key' => ['nullable', 'string', 'max:40'],
+            'new_family_label' => ['nullable', 'string', 'max:80'],
+            'key' => ['nullable', 'string', 'max:40'],
+            'label' => ['required', 'string', 'max:80'],
+            'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'blurb' => ['nullable', 'string', 'max:180'],
+            'active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
+        ]);
+        if (($data['family_key'] ?? '') === '__NEW__') {
+            $data['family_key'] = $data['new_family_key'] ?: $data['new_family_label'] ?: 'LOADING';
+            $data['family_label'] = $data['new_family_label'] ?: $data['family_key'];
+        } else {
+            foreach ($this->vehicles->families(false) as $family) {
+                if ($family['key'] === strtoupper((string) $data['family_key'])) {
+                    $data['family_label'] = $family['label'];
+                    break;
+                }
+            }
+        }
+        $data['active'] = $request->boolean('active', true);
+        if ($request->file('image')) {
+            $data['image_url'] = StoredUpload::replace($request->file('image'), 'vehicles', null, 'veh');
+        }
+        $id = $this->vehicles->store($data);
+        OrganizationAudit::record($request->user(), 'vehicle_type.create', 'catalog_vehicle_type', $id, null, $data, 'catalog');
+
+        return back()->with('status', 'Vehicle type added. Tick it on a service so the customer app and fare page show it.');
+    }
+
+    public function updateVehicleType(Request $request, int $vehicle): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'family_key' => ['required', 'string', 'max:40'],
+            'family_label' => ['nullable', 'string', 'max:80'],
+            'key' => ['required', 'string', 'max:40'],
+            'label' => ['required', 'string', 'max:80'],
+            'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'blurb' => ['nullable', 'string', 'max:180'],
+            'active' => ['nullable', 'boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
+            'remove_image' => ['nullable'],
+        ]);
+        foreach ($this->vehicles->families(false) as $family) {
+            if ($family['key'] === strtoupper((string) $data['family_key'])) {
+                $data['family_label'] = $data['family_label'] ?: $family['label'];
+                break;
+            }
+        }
+        $data['active'] = $request->boolean('active');
+        $existing = DB::connection('platform')->table('catalog_vehicle_types')->where('id', $vehicle)->first();
+        if ($request->boolean('remove_image') || $request->file('image')) {
+            StoredUpload::forget($existing?->image_url);
+            $data['image_url'] = $request->file('image')
+                ? StoredUpload::replace($request->file('image'), 'vehicles', null, 'veh')
+                : null;
+        }
+        $this->vehicles->update($vehicle, $data);
+
+        return back()->with('status', 'Vehicle type updated.');
+    }
+
+    public function updateVehicleFamily(Request $request, string $family): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $request->validate([
+            'family_label' => ['nullable', 'string', 'max:80'],
+            'image' => ['nullable', 'image', 'max:4096'],
+            'remove_image' => ['nullable'],
+        ]);
+        $key = strtoupper($family);
+        $current = DB::connection('platform')->table('catalog_vehicle_types')->where('family_key', $key)->first();
+        if ($request->filled('family_label')) {
+            DB::connection('platform')->table('catalog_vehicle_types')->where('family_key', $key)->update([
+                'family_label' => $request->string('family_label'),
+                'updated_at' => now(),
+            ]);
+        }
+        if ($request->boolean('remove_image') || $request->file('image')) {
+            StoredUpload::forget($current?->family_image_url);
+            $url = $request->file('image')
+                ? StoredUpload::replace($request->file('image'), 'vehicles', $current?->family_image_url, 'fam')
+                : null;
+            $this->vehicles->saveFamilyImage($key, $url);
+        }
+
+        return back()->with('status', 'Vehicle category image saved. Apps use it when a type has no photo.');
+    }
+
+    public function destroyVehicleType(Request $request, int $vehicle): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $existing = DB::connection('platform')->table('catalog_vehicle_types')->where('id', $vehicle)->first();
+        StoredUpload::forget($existing?->image_url);
+        $this->vehicles->destroy($vehicle);
+        OrganizationAudit::record($request->user(), 'vehicle_type.delete', 'catalog_vehicle_type', $vehicle, null, null, 'catalog');
+
+        return back()->with('status', 'Vehicle type removed.');
     }
 
     public function storeOffer(Request $request): RedirectResponse
@@ -667,29 +792,116 @@ class WorkspaceController extends Controller
         return view('ops.audit', ['rows' => $rows, 'query' => $request->only(['domain', 'q'])]);
     }
 
-    private function seedDefaultServices(): void
+    /**
+     * @return list<array{key: string, label: string}>
+     */
+    private function vehicleTypeOptions(): array
+    {
+        return $this->vehicles->options(false);
+    }
+
+    /**
+     * @param  list<mixed>  $keys
+     */
+    private function encodeVehicleKeys(array $keys): string
+    {
+        $clean = [];
+        $allowed = array_column($this->vehicleTypeOptions(), 'key');
+        foreach ($keys as $key) {
+            $key = strtoupper(trim((string) $key));
+            if ($key !== '' && ($allowed === [] || in_array($key, $allowed, true))) {
+                $clean[] = $key;
+            }
+        }
+
+        return json_encode(array_values(array_unique($clean))) ?: '[]';
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function selectedVehicleKeys(object $row): array
+    {
+        $keys = [];
+        $raw = $row->vehicle_categories ?? '';
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $parts = is_array($decoded) ? $decoded : (preg_split('/[\s,]+/', $raw) ?: []);
+            foreach ($parts as $part) {
+                $key = strtoupper(trim((string) $part));
+                if ($key !== '') {
+                    $keys[] = $key;
+                }
+            }
+        }
+        $legacy = strtoupper((string) ($row->category_key ?? ''));
+        if ($legacy !== '' && ! in_array($legacy, ['CITY_RIDE', 'LOCAL_CAB', 'ONE_WAY', 'ROUND_WAY', 'RENTAL', 'SCHEDULE', 'OUTSTATION', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'PARCEL', 'TRAVEL', 'BULK', 'CORPORATE'], true)) {
+            $keys[] = $legacy;
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * @return list<array{title: string, slug: string, group: string, key: string, sort: int, subtitle: string}>
+     */
+    private function canonicalServices(): array
+    {
+        return [
+            ['title' => 'City Ride', 'slug' => 'city-ride', 'group' => 'RIDE', 'key' => 'LOCAL_CAB', 'sort' => 10, 'subtitle' => 'Local trips in the city'],
+            ['title' => 'One Way', 'slug' => 'one-way', 'group' => 'RIDE', 'key' => 'ONE_WAY', 'sort' => 20, 'subtitle' => 'Outstation one way'],
+            ['title' => 'Round Way', 'slug' => 'round-way', 'group' => 'RIDE', 'key' => 'ROUND_WAY', 'sort' => 30, 'subtitle' => 'Go and return'],
+            ['title' => 'Cab Rental', 'slug' => 'cab-rental', 'group' => 'RIDE', 'key' => 'RENTAL', 'sort' => 40, 'subtitle' => 'Hourly packages'],
+            ['title' => 'Schedule Ride', 'slug' => 'schedule-ride', 'group' => 'RIDE', 'key' => 'SCHEDULE', 'sort' => 50, 'subtitle' => 'Book for later'],
+            ['title' => 'Airport Transfer', 'slug' => 'airport-transfer', 'group' => 'RIDE', 'key' => 'AIRPORT', 'sort' => 60, 'subtitle' => 'To and from the airport'],
+            ['title' => 'Railway Transfer', 'slug' => 'railway-transfer', 'group' => 'RIDE', 'key' => 'RAILWAY', 'sort' => 70, 'subtitle' => 'To and from the station'],
+            ['title' => 'Multi Stop Ride', 'slug' => 'multi-stop-ride', 'group' => 'RIDE', 'key' => 'MULTI_STOP', 'sort' => 80, 'subtitle' => 'Several stops, one fare'],
+            ['title' => 'Parcel Delivery', 'slug' => 'parcel-delivery', 'group' => 'PARCEL', 'key' => 'PARCEL', 'sort' => 90, 'subtitle' => 'Send packages'],
+            ['title' => 'Travel & Tours', 'slug' => 'travel-tours', 'group' => 'RIDE', 'key' => 'TRAVEL', 'sort' => 100, 'subtitle' => 'Holiday packages'],
+            ['title' => 'Bulk Booking', 'slug' => 'bulk-booking', 'group' => 'RIDE', 'key' => 'BULK', 'sort' => 110, 'subtitle' => 'Many cabs at once'],
+            ['title' => 'Corporate Travel', 'slug' => 'corporate-travel', 'group' => 'RIDE', 'key' => 'CORPORATE', 'sort' => 120, 'subtitle' => 'Company accounts'],
+        ];
+    }
+
+    private function ensureCanonicalServices(): void
     {
         $db = DB::connection('platform');
-        if ($db->table('catalog_services')->count() > 0) {
-            return;
-        }
         $now = now();
-        foreach ([
-            ['Bike', 'bike', 'RIDE', 'BIKE', 10],
-            ['Auto', 'auto', 'RIDE', 'AUTO', 20],
-            ['Mini', 'mini', 'RIDE', 'MINI', 30],
-            ['Sedan', 'sedan', 'RIDE', 'SEDAN', 40],
-            ['SUV', 'suv', 'RIDE', 'SUV', 50],
-            ['Traveller', 'traveller', 'RIDE', 'TRAVELLER', 60],
-            ['Parcel local', 'parcel-local', 'PARCEL', 'PARCEL', 70],
-        ] as [$title, $slug, $group, $key, $sort]) {
+        $rideKeys = ['BIKE', 'AUTO', 'E_RICKSHAW', 'MINI', 'SEDAN', 'SUV', 'TRAVELLER'];
+        $parcelKeys = ['BIKE', 'AUTO', 'PICKUP', 'VAN', 'TRUCK'];
+        $tourKeys = ['MINI', 'SEDAN', 'SUV', 'TRAVELLER'];
+        foreach ($this->canonicalServices() as $item) {
+            $exists = $db->table('catalog_services')
+                ->where(function ($q) use ($item) {
+                    $q->where('category_key', $item['key'])->orWhere('slug', $item['slug']);
+                })
+                ->first();
+            if (! $exists) {
+                foreach ($db->table('catalog_services')->get() as $row) {
+                    $mapped = VehicleCatalogAdmin::fareProduct((string) ($row->category_key ?? ''), (string) ($row->title ?? ''), (string) ($row->slug ?? ''));
+                    if ($mapped === $item['key']) {
+                        $exists = $row;
+                        break;
+                    }
+                }
+            }
+            if ($exists) {
+                continue;
+            }
+            $vehicles = match ($item['key']) {
+                'PARCEL' => $parcelKeys,
+                'TRAVEL', 'BULK', 'CORPORATE' => $tourKeys,
+                default => $rideKeys,
+            };
             $db->table('catalog_services')->insert(PlatformSettings::filter('catalog_services', [
-                'title' => $title,
-                'slug' => $slug,
-                'subtitle' => $title.' on KarnaRide',
-                'service_group' => $group,
-                'category_key' => $key,
-                'sort_order' => $sort,
+                'title' => $item['title'],
+                'slug' => $item['slug'],
+                'subtitle' => $item['subtitle'],
+                'service_group' => $item['group'],
+                'category_key' => $item['key'],
+                'vehicle_categories' => json_encode($vehicles),
+                'sort_order' => $item['sort'],
+                'seats' => 4,
                 'active' => 1,
                 'created_at' => $now,
                 'updated_at' => $now,

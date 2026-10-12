@@ -220,6 +220,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/ops/services', [WorkspaceController::class, 'storeService'])->name('ops.services.store');
     Route::put('/ops/services/{service}', [WorkspaceController::class, 'updateService'])->name('ops.services.update')->whereNumber('service');
     Route::delete('/ops/services/{service}', [WorkspaceController::class, 'destroyService'])->name('ops.services.destroy')->whereNumber('service');
+    Route::post('/ops/services/families/{family}', [WorkspaceController::class, 'updateVehicleFamily'])->name('ops.services.families.update');
+    Route::post('/ops/services/vehicles', [WorkspaceController::class, 'storeVehicleType'])->name('ops.services.vehicles.store');
+    Route::put('/ops/services/vehicles/{vehicle}', [WorkspaceController::class, 'updateVehicleType'])->name('ops.services.vehicles.update')->whereNumber('vehicle');
+    Route::delete('/ops/services/vehicles/{vehicle}', [WorkspaceController::class, 'destroyVehicleType'])->name('ops.services.vehicles.destroy')->whereNumber('vehicle');
     Route::post('/ops/services/offers', [WorkspaceController::class, 'storeOffer'])->name('ops.services.offers');
     Route::delete('/ops/services/offers/{offer}', [WorkspaceController::class, 'destroyOffer'])->name('ops.services.offers.destroy')->whereNumber('offer');
     Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');
