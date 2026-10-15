@@ -30,6 +30,16 @@
                     <p class="muted">10 means a ₹1,000 wallet can accept a ₹10,000 booking.</p>
                 </div>
                 <div class="field">
+                    <label>Add money minimum (₹)</label>
+                    <input name="driver_topup_min_rupees" type="number" min="1" max="50000" step="1" value="{{ $topupMinRupees }}">
+                    <p class="muted">Driver app cannot add less than this. Default ₹100.</p>
+                </div>
+                <div class="field">
+                    <label>Withdrawal minimum (₹)</label>
+                    <input name="driver_withdraw_min_rupees" type="number" min="1" max="500000" step="1" value="{{ $withdrawMinRupees }}">
+                    <p class="muted">Driver request freezes this amount until you settle. Default ₹500.</p>
+                </div>
+                <div class="field">
                     <label>Website enquiry notify email</label>
                     <input name="leads_notify_email" type="email" value="{{ $leadsEmail }}">
                 </div>

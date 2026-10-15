@@ -676,12 +676,17 @@ class WorkspaceController extends Controller
     {
         abort_unless($request->user()?->can('platform.admin'), 403);
 
+        $methods = strtoupper((string) (PlatformSettings::get('driver_withdraw_methods', 'UPI,BANK')));
+
         return view('ops.settings', [
             'radiusKm' => (float) (PlatformSettings::get('driver_search_radius_km') ?? PlatformSettings::get('driver_offer_radius_km', '20')),
             'timeoutSeconds' => (int) (PlatformSettings::get('ride_request_timeout_seconds', '30')),
             'walletMinRupees' => ((int) (PlatformSettings::get('driver_wallet_min_paise', '0'))) / 100,
             'walletMinPercent' => (float) (PlatformSettings::get('driver_wallet_min_fare_percent', '0')),
             'walletCoverCommission' => PlatformSettings::get('driver_wallet_must_cover_commission', '1') !== '0',
+            'topupMinRupees' => (int) (PlatformSettings::get('driver_topup_min_rupees', '100')),
+            'withdrawMinRupees' => (int) (PlatformSettings::get('driver_withdraw_min_rupees', '500')),
+            'withdrawMethods' => array_values(array_filter(preg_split('/[,\s]+/', $methods) ?: [])),
             'leadsEmail' => PlatformSettings::get('leads_notify_email', ''),
             'bookingEmail' => PlatformSettings::get('booking_notify_email', 'karnaride@gmail.com'),
         ]);
@@ -696,6 +701,10 @@ class WorkspaceController extends Controller
             'driver_wallet_min_rupees' => ['nullable', 'numeric', 'min:0'],
             'driver_wallet_min_fare_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'driver_wallet_must_cover_commission' => ['nullable', 'boolean'],
+            'driver_topup_min_rupees' => ['nullable', 'integer', 'min:1', 'max:50000'],
+            'driver_withdraw_min_rupees' => ['nullable', 'integer', 'min:1', 'max:500000'],
+            'withdraw_methods' => ['nullable', 'array'],
+            'withdraw_methods.*' => ['in:UPI,BANK,CASH'],
             'leads_notify_email' => ['nullable', 'email', 'max:180'],
             'booking_notify_email' => ['nullable', 'email', 'max:180'],
         ]);
@@ -705,6 +714,10 @@ class WorkspaceController extends Controller
         PlatformSettings::put('driver_wallet_min_paise', (string) ((int) round(((float) ($data['driver_wallet_min_rupees'] ?? 0)) * 100)));
         PlatformSettings::put('driver_wallet_min_fare_percent', (string) ($data['driver_wallet_min_fare_percent'] ?? 0));
         PlatformSettings::put('driver_wallet_must_cover_commission', $request->boolean('driver_wallet_must_cover_commission') ? '1' : '0');
+        PlatformSettings::put('driver_topup_min_rupees', (string) max(1, (int) ($data['driver_topup_min_rupees'] ?? 100)));
+        PlatformSettings::put('driver_withdraw_min_rupees', (string) max(1, (int) ($data['driver_withdraw_min_rupees'] ?? 500)));
+        $methods = array_values(array_unique($data['withdraw_methods'] ?? []));
+        PlatformSettings::put('driver_withdraw_methods', $methods !== [] ? implode(',', $methods) : 'UPI');
         if (! empty($data['leads_notify_email'])) {
             PlatformSettings::put('leads_notify_email', $data['leads_notify_email']);
         }
@@ -889,11 +902,8 @@ class WorkspaceController extends Controller
             if ($schema->hasColumn('catalog_services', 'category_key')) {
                 $patch['category_key'] = $item['key'];
             }
-            if ($schema->hasColumn('catalog_services', 'slug')) {
+            if ($schema->hasColumn('catalog_services', 'slug') && trim((string) ($exists->slug ?? '')) === '') {
                 $patch['slug'] = $item['slug'];
-            }
-            if ($schema->hasColumn('catalog_services', 'sort_order')) {
-                $patch['sort_order'] = $item['sort'];
             }
             $db->table('catalog_services')->where('id', $exists->id)->update($patch);
         }

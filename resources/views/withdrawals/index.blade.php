@@ -35,6 +35,7 @@
                             <th>Ref</th>
                             <th>User</th>
                             <th>Amount</th>
+                            <th>Pay by</th>
                             <th>Status</th>
                             <th>Transfer</th>
                             <th>Requested</th>
@@ -49,6 +50,7 @@
                                 <td>{{ $row['publicRef'] }}</td>
                                 <td>{{ $row['ownerName'] }} · {{ $row['userId'] }}@if ($row['ownerPhone']) · {{ $row['ownerPhone'] }}@endif</td>
                                 <td>₹{{ number_format($row['amountRupees'], 2) }}</td>
+                                <td>{{ $row['payoutMethod'] ?: '—' }}@if ($row['destination']) · {{ $row['destination'] }}@endif</td>
                                 <td><span class="pill">{{ $row['status'] }}</span></td>
                                 <td>{{ $row['transferRef'] ?: '—' }}</td>
                                 <td>{{ $row['createdAt'] }}</td>
@@ -61,7 +63,7 @@
                                                 @if ($row['status'] === 'requested')
                                                     <button class="btn ghost" name="decision" value="approve">Approve</button>
                                                 @endif
-                                                <button class="btn" name="decision" value="settle">Settle</button>
+                                                <button class="btn" name="decision" value="settle">Settle (debit frozen)</button>
                                                 <button class="btn ghost" name="decision" value="reject">Reject</button>
                                             </form>
                                         @endif

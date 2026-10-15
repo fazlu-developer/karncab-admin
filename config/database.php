@@ -93,6 +93,25 @@ return [
                 'engine' => null,
             ],
 
+        /*
+         | Legacy KarnaCab website users (karnacab_website / krna_cab).
+         */
+        'legacy_website' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_WEBSITE_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('LEGACY_WEBSITE_PORT', env('DB_PORT', '3306')),
+            'database' => env('LEGACY_WEBSITE_DB', 'karnacab_website'),
+            'username' => env('LEGACY_WEBSITE_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('LEGACY_WEBSITE_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => false,
+            'engine' => null,
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

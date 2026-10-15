@@ -930,6 +930,7 @@ class WalletLedgerService
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->unsignedBigInteger('amount_paise');
                 $table->string('status', 24)->default('requested');
+                $table->string('payout_method', 16)->nullable();
                 $table->string('upi_or_account', 120)->nullable();
                 $table->string('transfer_ref', 64)->nullable();
                 $table->string('note', 255)->nullable();

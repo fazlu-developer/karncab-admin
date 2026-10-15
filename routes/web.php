@@ -22,6 +22,7 @@ use App\Http\Controllers\ManagersController;
 use App\Http\Controllers\FleetOwnersController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\UsersController;
+use App\Http\Controllers\OldUsersController;
 use App\Http\Controllers\CustomerWorkspaceController;
 use App\Http\Controllers\CouponsController;
 use App\Http\Controllers\AdvertisingController;
