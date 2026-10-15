@@ -29,7 +29,15 @@
                 <div><label>Customer</label><input name="customer" value="{{ $query['customer'] ?? '' }}"></div>
                 <div><label>Driver</label><input name="driver" value="{{ $query['driver'] ?? '' }}"></div>
                 <div><label>Vehicle</label><input name="vehicle" value="{{ $query['vehicle'] ?? '' }}"></div>
-                <div><label>Booking type</label><input name="product" value="{{ $query['product'] ?? '' }}" placeholder="ONE_WAY"></div>
+                <div>
+                    <label>Booking type</label>
+                    <select name="product">
+                        <option value="">All types</option>
+                        @foreach (['LOCAL_CAB','ONE_WAY','ROUND_TRIP','RENTAL','AIRPORT','OUTSTATION','PARCEL'] as $product)
+                            <option value="{{ $product }}" @selected(($query['product'] ?? '') === $product)>{{ $product }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <div><label>Status</label><input name="status" value="{{ $query['status'] ?? '' }}"></div>
                 <div><label>Payment status</label><input name="paymentStatus" value="{{ $query['paymentStatus'] ?? '' }}"></div>
                 @include('partials.geo-fields', [
@@ -78,7 +86,7 @@
                     <thead>
                         <tr>
                             @foreach (array_keys($rows[0]) as $col)
-                                <th>{{ $col }}</th>
+                                <th>{{ \Illuminate\Support\Str::headline(str_replace(['Inr', 'inr'], ['INR', 'INR'], $col)) }}</th>
                             @endforeach
                             <th></th>
                         </tr>
@@ -90,8 +98,8 @@
                                 $newRequest = in_array($status, ['SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING', 'PENDING'], true);
                             @endphp
                             <tr @if ($newRequest) style="background:#FFF4CC;font-weight:700" @endif>
-                                @foreach ($row as $value)
-                                    <td>{{ $value }}</td>
+                                @foreach ($row as $key => $value)
+                                    <td title="{{ is_scalar($value) ? $value : '' }}" style="white-space:normal">{{ is_scalar($value) ? $value : json_encode($value) }}</td>
                                 @endforeach
                                 <td>
                                     @if (($def['key'] ?? '') === 'bookings' && !empty($row['Id'] ?? $row['id']))

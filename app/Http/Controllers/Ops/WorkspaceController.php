@@ -105,38 +105,9 @@ class WorkspaceController extends Controller
     {
         abort_unless($request->user()?->can('platform.admin'), 403);
         $this->branding->ensureCatalogTable();
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:120'],
-            'slug' => ['nullable', 'string', 'max:80'],
-            'subtitle' => ['nullable', 'string', 'max:180'],
-            'service_group' => ['required', 'in:RIDE,PARCEL'],
-            'category_key' => ['nullable', 'string', 'max:40'],
-            'vehicle_keys' => ['nullable', 'array'],
-            'vehicle_keys.*' => ['string', 'max:40'],
-            'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
-            'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
-            'active' => ['nullable', 'boolean'],
-            'image' => ['nullable', 'image', 'max:4096'],
-        ]);
-        $slug = Str::slug($data['slug'] ?? $data['title']);
-        $payload = PlatformSettings::filter('catalog_services', [
-            'title' => $data['title'],
-            'slug' => $slug !== '' ? $slug : Str::slug($data['title']),
-            'subtitle' => $data['subtitle'] ?? null,
-            'service_group' => $data['service_group'],
-            'category_key' => strtoupper((string) ($data['category_key'] ?? '')),
-            'vehicle_categories' => $this->encodeVehicleKeys($request->input('vehicle_keys', [])),
-            'sort_order' => (int) ($data['sort_order'] ?? 0),
-            'seats' => (int) ($data['seats'] ?? 4),
-            'active' => $request->boolean('active', true),
-            'image_url' => $request->file('image') ? StoredUpload::replace($request->file('image'), 'services', null, 'svc') : null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $id = DB::connection('platform')->table('catalog_services')->insertGetId($payload);
-        OrganizationAudit::record($request->user(), 'service.create', 'catalog_service', $id, null, $payload, 'catalog');
+        $this->ensureCanonicalServices();
 
-        return back()->with('status', 'Service added. Apps and the website can use this category.');
+        return back()->withErrors(['title' => 'Only the 12 customer services are allowed. Extra rows are removed automatically.']);
     }
 
     public function updateService(Request $request, int $service): RedirectResponse
@@ -866,18 +837,23 @@ class WorkspaceController extends Controller
     private function ensureCanonicalServices(): void
     {
         $db = DB::connection('platform');
+        if (! $db->getSchemaBuilder()->hasTable('catalog_services')) {
+            return;
+        }
         $now = now();
         $rideKeys = ['BIKE', 'AUTO', 'E_RICKSHAW', 'MINI', 'SEDAN', 'SUV', 'TRAVELLER'];
         $parcelKeys = ['BIKE', 'AUTO', 'PICKUP', 'VAN', 'TRUCK'];
         $tourKeys = ['MINI', 'SEDAN', 'SUV', 'TRAVELLER'];
+        $keepIds = [];
         foreach ($this->canonicalServices() as $item) {
             $exists = $db->table('catalog_services')
+                ->whereNotIn('id', $keepIds ?: [0])
                 ->where(function ($q) use ($item) {
                     $q->where('category_key', $item['key'])->orWhere('slug', $item['slug']);
                 })
                 ->first();
             if (! $exists) {
-                foreach ($db->table('catalog_services')->get() as $row) {
+                foreach ($db->table('catalog_services')->whereNotIn('id', $keepIds ?: [0])->get() as $row) {
                     $mapped = VehicleCatalogAdmin::fareProduct((string) ($row->category_key ?? ''), (string) ($row->title ?? ''), (string) ($row->slug ?? ''));
                     if ($mapped === $item['key']) {
                         $exists = $row;
@@ -885,27 +861,44 @@ class WorkspaceController extends Controller
                     }
                 }
             }
-            if ($exists) {
+            if (! $exists) {
+                $vehicles = match ($item['key']) {
+                    'PARCEL' => $parcelKeys,
+                    'TRAVEL', 'BULK', 'CORPORATE' => $tourKeys,
+                    default => $rideKeys,
+                };
+                $id = $db->table('catalog_services')->insertGetId(PlatformSettings::filter('catalog_services', [
+                    'title' => $item['title'],
+                    'slug' => $item['slug'],
+                    'subtitle' => $item['subtitle'],
+                    'service_group' => $item['group'],
+                    'category_key' => $item['key'],
+                    'vehicle_categories' => json_encode($vehicles),
+                    'sort_order' => $item['sort'],
+                    'seats' => 4,
+                    'active' => 1,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]));
+                $keepIds[] = (int) $id;
                 continue;
             }
-            $vehicles = match ($item['key']) {
-                'PARCEL' => $parcelKeys,
-                'TRAVEL', 'BULK', 'CORPORATE' => $tourKeys,
-                default => $rideKeys,
-            };
-            $db->table('catalog_services')->insert(PlatformSettings::filter('catalog_services', [
-                'title' => $item['title'],
-                'slug' => $item['slug'],
-                'subtitle' => $item['subtitle'],
-                'service_group' => $item['group'],
-                'category_key' => $item['key'],
-                'vehicle_categories' => json_encode($vehicles),
-                'sort_order' => $item['sort'],
-                'seats' => 4,
-                'active' => 1,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]));
+            $keepIds[] = (int) $exists->id;
+            $schema = Schema::connection('platform');
+            $patch = ['updated_at' => $now];
+            if ($schema->hasColumn('catalog_services', 'category_key')) {
+                $patch['category_key'] = $item['key'];
+            }
+            if ($schema->hasColumn('catalog_services', 'slug')) {
+                $patch['slug'] = $item['slug'];
+            }
+            if ($schema->hasColumn('catalog_services', 'sort_order')) {
+                $patch['sort_order'] = $item['sort'];
+            }
+            $db->table('catalog_services')->where('id', $exists->id)->update($patch);
+        }
+        if (count($keepIds) === 12) {
+            $db->table('catalog_services')->whereNotIn('id', $keepIds)->delete();
         }
     }
 }

@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1>District Head / exclusive franchise</h1>
-            <p class="muted">One district can have only one <strong>ACTIVE</strong> District Head or exclusive franchise. Applications do not occupy the seat.</p>
+            <p class="muted">Apply, upload KYC, then <strong>Verify &amp; activate</strong>. Only ACTIVE occupies the district seat.</p>
         </div>
     </div>
     @can('franchise.manage')
@@ -33,7 +33,7 @@
                 <div class="field"><label>Owner email</label><input name="email" type="email" required></div>
                 <div class="field"><label>Phone</label><input name="phone"></div>
                 <div class="field"><label>Password</label><input name="password" type="password" required></div>
-                <div class="field"><label>Application fee (paise)</label><input name="fee_amount_paise" type="number" min="0" value="0"></div>
+                <div class="field"><label>Application fee (₹)</label><input name="fee_amount_rupees" type="number" min="0" step="0.01" value="0"></div>
                 <button class="btn" type="submit"><i data-lucide="plus"></i> Apply</button>
             </form>
         </section>
@@ -46,6 +46,8 @@
                         <th>Trade</th>
                         <th>Kind</th>
                         <th>District</th>
+                        <th>Owner</th>
+                        <th>KYC</th>
                         <th>Status</th>
                         <th>Seat</th>
                         <th></th>
@@ -56,17 +58,32 @@
                     <tr>
                         <td><strong>{{ $row['tradeName'] }}</strong></td>
                         <td><span class="pill muted">{{ $row['kind'] }}</span></td>
-                        <td>{{ $row['districtId'] }}</td>
+                        <td>{{ $row['districtName'] ?: ('#'.$row['districtId']) }}</td>
+                        <td>
+                            {{ $row['ownerName'] ?: ('User #'.$row['ownerUserId']) }}
+                            @if ($row['ownerEmail'])
+                                <div class="muted">{{ $row['ownerEmail'] }}</div>
+                            @endif
+                        </td>
+                        <td><span class="pill muted">{{ $row['kycStatus'] }}</span></td>
                         <td>
                             <span class="pill {{ $row['status'] === 'ACTIVE' ? 'ok' : ($row['status'] === 'TERMINATED' ? 'bad' : 'warn') }}">{{ $row['status'] }}</span>
                         </td>
                         <td>{{ $row['exclusiveSeat'] ? 'Held' : '—' }}</td>
                         <td class="row-actions">
                             <a class="icon-btn" href="{{ route('franchises.show', $row['id']) }}" title="Open"><i data-lucide="eye"></i></a>
+                            @if ($row['status'] !== 'ACTIVE' && $row['status'] !== 'TERMINATED')
+                                @canany(['franchise.manage', 'kyc.approve', 'platform.admin'])
+                                    <form method="POST" action="{{ route('franchises.verify', $row['id']) }}">
+                                        @csrf
+                                        <button class="btn" type="submit">Verify</button>
+                                    </form>
+                                @endcanany
+                            @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="muted">No franchise applications.</td></tr>
+                    <tr><td colspan="8" class="muted">No franchise applications.</td></tr>
                 @endforelse
                 </tbody>
             </table>

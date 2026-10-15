@@ -15,6 +15,6 @@ class ExclusiveDistrictSeatTest extends TestCase
         $this->assertFalse(ExclusiveDistrictSeat::holdsSeat('SUSPENDED'));
         $this->assertSame('10', ExclusiveDistrictSeat::key(10));
         $this->assertTrue(ExclusiveDistrictSeat::canTransition('APPROVED', 'ACTIVE'));
-        $this->assertFalse(ExclusiveDistrictSeat::canTransition('APPLIED', 'ACTIVE'));
+        $this->assertTrue(ExclusiveDistrictSeat::canTransition('APPLIED', 'ACTIVE'));
     }
 }

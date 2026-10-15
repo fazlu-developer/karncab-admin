@@ -37,9 +37,17 @@ class PlatformOpsService
         $todayPaise = (int) (clone $completed)->where('created_at', '>=', $startToday)->sum('quote_paise');
         $monthPaise = (int) (clone $completed)->where('created_at', '>=', $startMonth)->sum('quote_paise');
         $earnPaise = (int) $this->q('wallet_ledger')->where('account', 'DRIVER')->where('direction', 'CREDIT')->sum('amount_paise');
-        $commissionPaise = (int) $this->q('wallet_ledger')->sum('commission_paise');
+        $schema = Schema::connection('platform');
+        $commissionPaise = $schema->hasColumn('bookings', 'commission_paise')
+            ? (int) (clone $completed)->sum('commission_paise')
+            : (int) $this->q('wallet_ledger')->where('kind', 'commission')->where('direction', 'DEBIT')->sum('amount_paise');
+        $fleetSharePaise = (int) $this->q('wallet_ledger')
+            ->whereIn('account', ['FLEET_OWNER', 'FLEET'])
+            ->where('direction', 'CREDIT')
+            ->whereIn('kind', ['fleet_commission', 'commission'])
+            ->sum('amount_paise');
+        $platformKeepPaise = max(0, $commissionPaise - $fleetSharePaise);
         $liveCustomersQuery = (clone $users)->where('role', 'CUSTOMER');
-        $schema = \Illuminate\Support\Facades\Schema::connection('platform');
         if ($schema->hasColumn('users', 'last_seen_at')) {
             $liveCustomersQuery->where('last_seen_at', '>=', now()->subMinutes(5));
         } else {
@@ -70,6 +78,10 @@ class PlatformOpsService
                 'driverEarningsRupees' => $earnPaise / 100,
                 'commissionEarnedPaise' => $commissionPaise,
                 'commissionEarnedRupees' => $commissionPaise / 100,
+                'fleetSettlementPaise' => $fleetSharePaise,
+                'fleetSettlementRupees' => $fleetSharePaise / 100,
+                'platformKeepPaise' => $platformKeepPaise,
+                'platformKeepRupees' => $platformKeepPaise / 100,
                 'parcelOrders' => (clone $parcels)->count(),
                 'corporateBookings' => (clone $bookings)->whereNotNull('corporate_account_id')->count(),
                 'bulkBookings' => $this->q('bulk_bookings')->count(),
@@ -101,12 +113,10 @@ class PlatformOpsService
     {
         $role = $query['role'] ?? null;
         if ($module === 'state-heads') {
-            $role = 'STATE_HEAD';
-            $module = 'users';
+            return ['users' => $this->listTerritoryOperators($operator, 'STATE_HEAD')];
         }
         if ($module === 'district-heads') {
-            $role = 'DISTRICT_HEAD';
-            $module = 'users';
+            return ['users' => $this->listTerritoryOperators($operator, 'DISTRICT_HEAD')];
         }
 
         $query = TerritoryScope::constrainQuery($query, $operator);
@@ -328,6 +338,108 @@ class PlatformOpsService
         return $this->map($q->orderByDesc('users.id')->limit(200)->get(), fn ($row) => $this->presentUser($row));
     }
 
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function listTerritoryOperators(?User $operator, string $role): array
+    {
+        $fromPlatform = $this->listUsers(['role' => $role], $operator, $role);
+        $seen = [];
+        foreach ($fromPlatform as $row) {
+            $email = strtolower((string) ($row['email'] ?? ''));
+            if ($email !== '') {
+                $seen[$email] = true;
+            }
+        }
+        if ($role === OperatorRole::STATE_HEAD) {
+            try {
+                $assignments = \App\Models\StateHeadAssignment::query()
+                    ->with('user')
+                    ->where(function ($q) {
+                        $q->whereNull('ended_at')->orWhere('status', 'ACTIVE');
+                    })
+                    ->orderByDesc('id')
+                    ->limit(200)
+                    ->get();
+                foreach ($assignments as $assignment) {
+                    $user = $assignment->user;
+                    if (! $user) {
+                        continue;
+                    }
+                    if ($operator && ! TerritoryScope::isUnrestricted($operator)) {
+                        if (TerritoryScope::effectiveRole($operator) === OperatorRole::STATE_HEAD
+                            && (int) $assignment->state_id !== (int) $operator->state_id) {
+                            continue;
+                        }
+                    }
+                    $email = strtolower((string) $user->email);
+                    if ($email !== '' && isset($seen[$email])) {
+                        continue;
+                    }
+                    if ($email !== '') {
+                        $seen[$email] = true;
+                    }
+                    $fromPlatform[] = [
+                        'id' => 'ops-'.$user->id,
+                        'role' => OperatorRole::STATE_HEAD,
+                        'status' => $user->status,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'phone' => $user->phone ?? null,
+                        'state' => \App\Platform\GeoCatalog::stateName($assignment->state_id ? (int) $assignment->state_id : null) ?: '—',
+                        'district' => '—',
+                        'lastAddress' => null,
+                        'emergencyName' => null,
+                    ];
+                }
+            } catch (\Throwable) {
+                // Assignments table may be missing on a fresh install.
+            }
+        }
+        try {
+            $ops = \App\Models\User::query()->where('role', $role)->orderByDesc('id')->limit(200)->get();
+            foreach ($ops as $row) {
+                $email = strtolower((string) $row->email);
+                if ($email !== '' && isset($seen[$email])) {
+                    continue;
+                }
+                if ($operator && ! TerritoryScope::isUnrestricted($operator)) {
+                    $effective = TerritoryScope::effectiveRole($operator);
+                    if ($role === OperatorRole::STATE_HEAD) {
+                        $actorState = (int) ($operator->state_id ?: 0);
+                        if (! $actorState && $operator->district_id) {
+                            $actorState = (int) (DB::connection('platform')->table('districts')->where('id', $operator->district_id)->value('state_id') ?? 0);
+                        }
+                        if ($actorState && (int) $row->state_id !== $actorState) {
+                            continue;
+                        }
+                    } elseif (in_array($effective, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)
+                        && (int) $row->district_id !== (int) $operator->district_id) {
+                        continue;
+                    } elseif ($effective === OperatorRole::STATE_HEAD && (int) $row->state_id !== (int) $operator->state_id) {
+                        continue;
+                    }
+                }
+                $fromPlatform[] = [
+                    'id' => 'ops-'.$row->id,
+                    'role' => $row->role,
+                    'status' => $row->status,
+                    'name' => $row->name,
+                    'email' => $row->email,
+                    'phone' => $row->phone ?? null,
+                    'state' => \App\Platform\GeoCatalog::stateName($row->state_id ? (int) $row->state_id : null) ?: '—',
+                    'district' => \App\Platform\GeoCatalog::districtName($row->district_id ? (int) $row->district_id : null) ?: '—',
+                    'lastAddress' => null,
+                    'emergencyName' => null,
+                ];
+            }
+        } catch (\Throwable) {
+            return $fromPlatform;
+        }
+
+        return $fromPlatform;
+    }
+
     public function user(int $id, ?User $operator = null): array
     {
         $row = $this->scopedUsers($operator)->where('users.id', $id)->first();
@@ -457,7 +569,10 @@ class PlatformOpsService
             $term = $query['publicRef'] ?? $query['q'];
             $q->where(function (Builder $inner) use ($term) {
                 $inner->where('bookings.public_ref', 'like', "%{$term}%")
-                    ->orWhere('customers.name', 'like', "%{$term}%");
+                    ->orWhere('customers.name', 'like', "%{$term}%")
+                    ->orWhere('bookings.pickup_text', 'like', "%{$term}%")
+                    ->orWhere('bookings.drop_text', 'like', "%{$term}%")
+                    ->orWhere('districts.name', 'like', "%{$term}%");
             });
         }
         foreach (['customer' => 'customers.name', 'driver' => 'driver_users.name', 'vehicle' => 'vehicles.registration_no'] as $key => $col) {
@@ -472,10 +587,30 @@ class PlatformOpsService
             $q->where('bookings.status', $query['status']);
         }
         if (! empty($query['districtId'])) {
-            $q->where('bookings.district_id', $query['districtId']);
+            $districtId = (int) $query['districtId'];
+            $districtName = \App\Platform\GeoCatalog::districtName($districtId);
+            $q->where(function (Builder $inner) use ($districtId, $districtName) {
+                $inner->where('bookings.district_id', $districtId);
+                if ($districtName !== '') {
+                    $inner->orWhere('bookings.pickup_text', 'like', '%'.$districtName.'%')
+                        ->orWhere('bookings.drop_text', 'like', '%'.$districtName.'%');
+                }
+            });
         }
         if (! empty($query['stateId'])) {
-            $q->where('districts.state_id', $query['stateId']);
+            $stateId = (int) $query['stateId'];
+            $districtIds = TerritoryScope::districtIdsForState($stateId);
+            $names = \App\Platform\GeoCatalog::districtNamesForState($stateId);
+            $q->where(function (Builder $inner) use ($stateId, $districtIds, $names) {
+                $inner->where('districts.state_id', $stateId);
+                if ($districtIds !== []) {
+                    $inner->orWhereIn('bookings.district_id', $districtIds);
+                }
+                foreach ($names as $name) {
+                    $inner->orWhere('bookings.pickup_text', 'like', '%'.$name.'%')
+                        ->orWhere('bookings.drop_text', 'like', '%'.$name.'%');
+                }
+            });
         }
         if (! empty($query['fleetId'])) {
             $q->where('vehicles.fleet_owner_id', $query['fleetId']);
@@ -496,6 +631,13 @@ class PlatformOpsService
 
         return $this->map($q->orderByDesc('bookings.id')->limit(100)->get(), function ($row) {
             $track = $this->tripTrack((string) $row->status);
+            $matched = \App\Platform\GeoCatalog::matchDistrictId((string) ($row->pickup_text ?? '').' '.(string) ($row->drop_text ?? ''));
+            $district = $row->district_name
+                ?: \App\Platform\GeoCatalog::districtName(isset($row->district_id) ? (int) $row->district_id : null)
+                ?: ($matched ? \App\Platform\GeoCatalog::districtName($matched) : null);
+            $state = $row->state_name ?: ($matched ? \App\Platform\GeoCatalog::stateName(
+                (int) (DB::connection('platform')->table('districts')->where('id', $matched)->value('state_id') ?? 0)
+            ) : null);
 
             return [
                 'id' => (string) $row->id,
@@ -505,10 +647,10 @@ class PlatformOpsService
                 'customer' => $row->customer_name,
                 'driver' => $row->driver_name,
                 'vehicle' => $row->vehicle_reg,
-                'district' => $row->district_name,
-                'state' => $row->state_name,
-                'quotePaise' => $row->quote_paise,
-                'track' => $track,
+                'district' => $district ?: '—',
+                'state' => $state ?: '—',
+                'fareInr' => '₹'.number_format(((int) $row->quote_paise) / 100, 2),
+                'track' => $track['label'] ?? $row->status,
                 'createdAt' => $row->created_at,
             ];
         });

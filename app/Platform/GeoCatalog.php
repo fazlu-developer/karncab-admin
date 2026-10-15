@@ -73,4 +73,53 @@ final class GeoCatalog
             return '';
         }
     }
+
+    public static function matchDistrictId(?string $text, ?int $stateId = null): ?int
+    {
+        $hay = strtolower(trim((string) $text));
+        if ($hay === '') {
+            return null;
+        }
+        try {
+            $q = DB::connection('platform')->table('districts')->orderByRaw('CHAR_LENGTH(name) desc');
+            if ($stateId) {
+                $q->where('state_id', $stateId);
+            }
+            foreach ($q->get(['id', 'name']) as $row) {
+                $name = strtolower((string) $row->name);
+                if ($name === '') {
+                    continue;
+                }
+                if ($name === $hay || str_contains($hay, $name)) {
+                    return (int) $row->id;
+                }
+            }
+        } catch (Throwable) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function districtNamesForState(?int $stateId): array
+    {
+        if (! $stateId) {
+            return [];
+        }
+        try {
+            return DB::connection('platform')->table('districts')
+                ->where('state_id', $stateId)
+                ->orderByRaw('CHAR_LENGTH(name) desc')
+                ->pluck('name')
+                ->map(fn ($name) => (string) $name)
+                ->filter()
+                ->values()
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
 }

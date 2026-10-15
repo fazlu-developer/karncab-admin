@@ -17,8 +17,8 @@ final class ExclusiveDistrictSeat
     public const KINDS = ['DISTRICT_HEAD', 'EXCLUSIVE_FRANCHISE'];
 
     public const TRANSITIONS = [
-        'APPLIED' => ['UNDER_REVIEW', 'TERMINATED'],
-        'UNDER_REVIEW' => ['APPROVED', 'TERMINATED'],
+        'APPLIED' => ['UNDER_REVIEW', 'APPROVED', 'ACTIVE', 'TERMINATED'],
+        'UNDER_REVIEW' => ['APPROVED', 'ACTIVE', 'TERMINATED'],
         'APPROVED' => ['ACTIVE', 'TERMINATED'],
         'ACTIVE' => ['SUSPENDED', 'EXPIRED', 'TERMINATED'],
         'SUSPENDED' => ['ACTIVE', 'TERMINATED'],

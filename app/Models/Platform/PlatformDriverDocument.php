@@ -34,7 +34,7 @@ class PlatformDriverDocument extends Model
 
     public function storedPath(): ?string
     {
-        return app(\App\Services\KycFileStore::class)->absolutePath((string) $this->storage_key);
+        return app(\App\Services\KycFileStore::class)->absolutePath((string) $this->storage_key, false);
     }
 
     public function isMissing(): bool

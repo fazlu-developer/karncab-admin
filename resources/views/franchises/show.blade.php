@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1>{{ $row['tradeName'] }}</h1>
-            <p class="muted">{{ $row['kind'] }} · district {{ $row['districtId'] }} · owner #{{ $row['ownerUserId'] }}</p>
+            <p class="muted">{{ $row['kind'] }} · {{ $row['districtName'] ?: ('district #'.$row['districtId']) }} · {{ $row['ownerName'] ?: ('owner #'.$row['ownerUserId']) }} {{ $row['ownerEmail'] ? '· '.$row['ownerEmail'] : '' }}</p>
         </div>
         <a class="btn ghost" href="{{ route('franchises.index') }}"><i data-lucide="list"></i> List</a>
     </div>
@@ -28,7 +28,17 @@
         <p class="muted">Performance — vehicles {{ $row['performance']['vehicles'] }}, completed trips {{ $row['performance']['completedTrips'] }}, gross ₹{{ number_format($row['performance']['grossRupees'], 2) }}</p>
     </section>
 
-    @can('franchise.manage')
+    @canany(['franchise.manage', 'kyc.approve', 'platform.admin'])
+        @if ($row['status'] !== 'ACTIVE' && $row['status'] !== 'TERMINATED')
+            <section class="card">
+                <h3 style="margin-top:0">Verify application</h3>
+                <p class="muted">Documents uploaded for this District Head are listed under KYC. Verify marks KYC verified and sets the franchise ACTIVE so they can sign in.</p>
+                <form method="POST" action="{{ route('franchises.verify', $row['id']) }}">
+                    @csrf
+                    <button class="btn" type="submit">Verify &amp; activate</button>
+                </form>
+            </section>
+        @endif
         <section class="card">
             <h3 style="margin-top:0">Lifecycle</h3>
             <p class="muted">ACTIVE claims the unique district seat. Suspend, expire, terminate, or reassign releases or moves it in the database.</p>
@@ -57,20 +67,65 @@
                     <button class="btn" type="submit">Save KYC</button>
                 </div>
             </form>
-            <form method="POST" action="{{ route('franchises.document', $row['id']) }}" style="margin-top:12px">
+            <form method="POST" action="{{ route('franchises.document', $row['id']) }}" enctype="multipart/form-data" style="margin-top:12px">
                 @csrf
                 <div class="filters">
-                    <input name="type" placeholder="Document type" required>
-                    <input name="storage_key" placeholder="Storage key" required>
-                    <input name="original_name" placeholder="File name">
-                    <button class="btn ghost" type="submit">Record document</button>
+                    <select name="type" required>
+                        <option value="PAN">PAN</option>
+                        <option value="AADHAAR">Aadhaar</option>
+                        <option value="APPOINTMENT">Appointment letter</option>
+                        <option value="ADDRESS">Address proof</option>
+                        <option value="GST">GST</option>
+                        <option value="PHOTO">Photo</option>
+                    </select>
+                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.webp" required>
+                    <button class="btn ghost" type="submit">Upload document</button>
                 </div>
             </form>
-            <ul>
-                @foreach ($row['documents'] as $doc)
-                    <li>{{ is_array($doc) ? ($doc['type'] ?? '') : $doc->type }} · {{ is_array($doc) ? ($doc['status'] ?? '') : $doc->status }}</li>
-                @endforeach
-            </ul>
+            <div class="table-wrap" style="margin-top:12px">
+                <table class="data">
+                    <thead><tr><th>Type</th><th>File</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                    @forelse (($row['kycFiles'] ?? []) as $doc)
+                        <tr>
+                            <td>{{ $doc['type'] }}</td>
+                            <td>{{ $doc['originalName'] ?: ($doc['path'] ?: '—') }}</td>
+                            <td><span class="pill muted">{{ $doc['status'] }}</span></td>
+                            <td class="row-actions">
+                                @if (! empty($doc['id']))
+                                    <a class="btn ghost" href="{{ route('organization.district-kyc.file', $doc['id']) }}" target="_blank">Open</a>
+                                    @if (! in_array($doc['status'], ['verified', 'rejected'], true))
+                                        <form method="POST" action="{{ route('franchises.documents.review', [$row['id'], $doc['id']]) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="verified">
+                                            <button class="btn" type="submit">Verify</button>
+                                        </form>
+                                    @endif
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        @foreach ($row['documents'] as $doc)
+                            @php $doc = (array) $doc; @endphp
+                            <tr>
+                                <td>{{ $doc['type'] ?? '' }}</td>
+                                <td>{{ $doc['original_name'] ?? $doc['storage_key'] ?? '' }}</td>
+                                <td>{{ $doc['status'] ?? '' }}</td>
+                                <td>
+                                    @if (! empty($doc['id']) && ! in_array($doc['status'] ?? '', ['verified', 'rejected'], true))
+                                        <form method="POST" action="{{ route('franchises.documents.review', [$row['id'], $doc['id']]) }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="verified">
+                                            <button class="btn" type="submit">Verify</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
         </section>
         <section class="card">
             <h3 style="margin-top:0">Agreement</h3>
@@ -88,7 +143,7 @@
                 @csrf
                 <div class="filters">
                     <input name="kind" placeholder="Kind" value="onboarding" required>
-                    <input name="amount_paise" type="number" min="1" placeholder="Paise" required>
+                    <input name="amount_rupees" type="number" min="0.01" step="0.01" placeholder="Amount ₹" required>
                     <button class="btn" type="submit">Add fee</button>
                 </div>
             </form>
@@ -100,7 +155,7 @@
                         @php $fee = (array) $fee; @endphp
                         <tr>
                             <td>{{ $fee['kind'] }}</td>
-                            <td>{{ $fee['amount_paise'] }}</td>
+                            <td>₹{{ number_format(((int) ($fee['amount_paise'] ?? 0)) / 100, 2) }}</td>
                             <td>{{ $fee['status'] }}</td>
                             <td>
                                 @if (($fee['status'] ?? '') === 'due')
@@ -162,7 +217,7 @@
                 </div>
             </form>
         </section>
-    @endcan
+    @endcanany
     <section class="card">
         <h3 style="margin-top:0">Audit</h3>
         <ul>

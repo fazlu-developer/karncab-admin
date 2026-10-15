@@ -46,7 +46,9 @@ class DashboardController extends Controller
             $liveRides = DB::connection('platform')->table('bookings as b')
                 ->leftJoin('users as c', 'c.id', '=', 'b.customer_id')
                 ->leftJoin('drivers as d', 'd.id', '=', 'b.driver_id')
-                ->leftJoin('users as du', 'du.id', '=', 'd.user_id')
+                ->leftJoin('users as du', 'du.id', '=', 'd.user_id');
+            \App\Platform\TerritoryScope::applyBookings($liveRides, $request->user(), 'b');
+            $liveRides = $liveRides
                 ->whereIn('b.status', [
                     'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING', 'PENDING', 'CONFIRMED',
                     'DRIVER_ACCEPTED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING',

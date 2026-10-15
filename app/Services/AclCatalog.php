@@ -40,6 +40,7 @@ final class AclCatalog
             return PlatformPermission::builtInCatalog();
         }
         self::seedIfEmpty();
+        self::syncBuiltIns();
         if (self::$catalogMemo !== null) {
             return self::$catalogMemo;
         }
@@ -58,6 +59,7 @@ final class AclCatalog
             return null;
         }
         self::seedIfEmpty();
+        self::syncBuiltIns();
         if ($role === OperatorRole::SUPER_ADMIN) {
             return self::catalog();
         }
@@ -88,6 +90,7 @@ final class AclCatalog
             return [];
         }
         self::seedIfEmpty();
+        self::syncBuiltIns();
 
         return DB::table('acl_modules')->orderBy('sort_order')->orderBy('label')->get()->all();
     }
@@ -100,6 +103,8 @@ final class AclCatalog
         if (! self::ready()) {
             return [];
         }
+        self::seedIfEmpty();
+        self::syncBuiltIns();
         $q = DB::table('acl_abilities')->orderBy('sort_order')->orderBy('ability');
         if ($moduleId) {
             $q->where('module_id', $moduleId);
@@ -241,6 +246,106 @@ final class AclCatalog
     {
         self::$catalogMemo = null;
         self::$roleMemo = [];
+    }
+
+    private static function syncBuiltIns(): void
+    {
+        if (self::$seeding || ! self::ready()) {
+            return;
+        }
+        $navByKey = [];
+        foreach (OpsNav::coreItems() as $item) {
+            $navByKey[$item['key']] = $item;
+        }
+        $now = now();
+        $added = false;
+        foreach (PlatformPermission::builtInCatalog() as $ability) {
+            if (DB::table('acl_abilities')->where('ability', $ability)->exists()) {
+                continue;
+            }
+            $parts = explode('.', $ability, 2);
+            $mod = $parts[0] ?: 'platform';
+            $action = $parts[1] ?? 'access';
+            $module = DB::table('acl_modules')->where('key', $mod)->first();
+            if (! $module) {
+                $nav = $navByKey[$mod] ?? null;
+                $moduleId = DB::table('acl_modules')->insertGetId([
+                    'key' => $mod,
+                    'label' => $nav['label'] ?? Str::headline(str_replace('_', ' ', $mod)),
+                    'nav_group' => $nav['group'] ?? 'Finance',
+                    'icon' => $nav['icon'] ?? 'layout-grid',
+                    'is_system' => true,
+                    'show_in_nav' => $nav !== null,
+                    'active' => true,
+                    'sort_order' => 80 + (int) DB::table('acl_modules')->count(),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            } else {
+                $moduleId = (int) $module->id;
+            }
+            DB::table('acl_abilities')->insert([
+                'module_id' => $moduleId,
+                'ability' => $ability,
+                'action' => $action,
+                'label' => Str::headline(str_replace('_', ' ', $action)),
+                'sort_order' => (int) DB::table('acl_abilities')->where('module_id', $moduleId)->max('sort_order') + 1,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            $added = true;
+            if (DB::table('acl_role_permissions')->where('role', OperatorRole::ADMIN)->exists()
+                && in_array($ability, PlatformPermission::builtInForRole(OperatorRole::ADMIN), true)
+                && ! DB::table('acl_role_permissions')->where('role', OperatorRole::ADMIN)->where('ability', $ability)->exists()) {
+                DB::table('acl_role_permissions')->insert([
+                    'role' => OperatorRole::ADMIN,
+                    'ability' => $ability,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+        }
+        foreach (['payout.view', 'payout.approve'] as $ability) {
+            if (DB::table('acl_role_permissions')->where('role', OperatorRole::ADMIN)->exists()
+                && ! DB::table('acl_role_permissions')->where('role', OperatorRole::ADMIN)->where('ability', $ability)->exists()
+                && DB::table('acl_abilities')->where('ability', $ability)->exists()) {
+                DB::table('acl_role_permissions')->insert([
+                    'role' => OperatorRole::ADMIN,
+                    'ability' => $ability,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+                $added = true;
+            }
+        }
+        $ensure = [
+            OperatorRole::MANAGER => ['users.view', 'state_head.view', 'tracking.view'],
+            OperatorRole::STATE_HEAD => ['users.view', 'state_head.view'],
+            OperatorRole::DISTRICT_HEAD => ['users.view', 'vehicles.view', 'bookings.view'],
+        ];
+        foreach ($ensure as $role => $abilities) {
+            if (! DB::table('acl_role_permissions')->where('role', $role)->exists()) {
+                continue;
+            }
+            foreach ($abilities as $ability) {
+                if (! DB::table('acl_abilities')->where('ability', $ability)->exists()) {
+                    continue;
+                }
+                if (DB::table('acl_role_permissions')->where('role', $role)->where('ability', $ability)->exists()) {
+                    continue;
+                }
+                DB::table('acl_role_permissions')->insert([
+                    'role' => $role,
+                    'ability' => $ability,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+                $added = true;
+            }
+        }
+        if ($added) {
+            self::flush();
+        }
     }
 
     private static function seedIfEmpty(): void

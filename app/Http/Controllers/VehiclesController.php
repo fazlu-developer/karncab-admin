@@ -67,7 +67,9 @@ class VehiclesController extends Controller
             'totalCount' => $allQuery->count(),
             'filters' => $request->only(['q', 'family', 'category']),
             'catalog' => RideCatalog::VEHICLES,
-            'drivers' => PlatformDriver::query()->with('user')->orderByDesc('id')->limit(200)->get(),
+            'drivers' => tap(PlatformDriver::query()->with('user')->orderByDesc('id'), function ($q) use ($request) {
+                TerritoryScope::applyDrivers($q, $request->user());
+            })->limit(200)->get(),
             'stateNames' => DB::connection('platform')->table('states')->pluck('name', 'id'),
             'districtNames' => DB::connection('platform')->table('districts')->pluck('name', 'id'),
         ]);
@@ -89,6 +91,14 @@ class VehiclesController extends Controller
             'fuel' => ['nullable', 'string', 'max:20'],
             'status' => ['nullable', 'string', 'max:20'],
         ]);
+        $actor = $request->user();
+        if ($actor && ! TerritoryScope::isUnrestricted($actor) && $actor->district_id) {
+            $data['district_id'] = (int) $actor->district_id;
+            $ownDistrict = DB::connection('platform')->table('districts')->where('id', $data['district_id'])->first();
+            if ($ownDistrict) {
+                $data['state_id'] = (int) $ownDistrict->state_id;
+            }
+        }
         $district = DB::connection('platform')->table('districts')->where('id', $data['district_id'])->first();
         abort_unless($district && (int) $district->state_id === (int) $data['state_id'], 422, 'District does not belong to the selected state.');
         PlatformVehicle::query()->create([

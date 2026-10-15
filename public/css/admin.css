@@ -143,8 +143,8 @@ label + input, label + select, label + textarea {
 .fare-line .fare-check { max-width: 48px; min-width: 48px; padding-bottom: 8px; }
 .fare-line .btn { margin-bottom: 2px; }
 table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.data th { text-align: left; color: var(--muted); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); }
-table.data td { padding: 12px 8px; border-bottom: 1px solid #eef2ef; vertical-align: middle; }
+table.data th { text-align: left; color: var(--muted); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.data td { padding: 12px 8px; border-bottom: 1px solid #eef2ef; vertical-align: middle; white-space: nowrap; overflow: visible; }
 table.data tr:hover td { background: #f7faf8; }
 .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
 .pill.ok { background: #d1fadf; color: var(--ok); }

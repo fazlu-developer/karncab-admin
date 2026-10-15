@@ -40,7 +40,9 @@ final class OpsNav
             ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'landmark', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
+            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'platform.admin', 'route' => 'wallets.commission'],
+            ['key' => 'settlements', 'label' => 'Commission settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'settlements.index'],
+            ['key' => 'payout', 'label' => 'Withdraw requests', 'icon' => 'hand-coins', 'group' => 'Finance', 'ability' => 'payout.view', 'route' => 'withdrawals.index'],
             ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Finance', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
             ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Growth', 'ability' => 'advertising.view', 'route' => 'ads.index'],
             ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
@@ -149,6 +151,12 @@ final class OpsNav
         }
         if (($item['key'] ?? '') === 'commission') {
             return request()->routeIs('wallets.commission*');
+        }
+        if (($item['key'] ?? '') === 'settlements') {
+            return request()->routeIs('settlements.*');
+        }
+        if (($item['key'] ?? '') === 'payout') {
+            return request()->routeIs('withdrawals.*');
         }
         if (($item['key'] ?? '') === 'payments') {
             return request()->routeIs('payments.*');

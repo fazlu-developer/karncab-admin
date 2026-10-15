@@ -68,46 +68,9 @@
                             <button class="btn" type="submit">Save</button>
                         </div>
                     </form>
-                    @if (! in_array(\App\Services\VehicleCatalogAdmin::fareProduct((string) data_get($row, 'category_key'), (string) $row->title, (string) $row->slug), $canonicalKeys, true))
-                        <form method="POST" action="{{ route('ops.services.destroy', $row->id) }}" onsubmit="return confirm('Remove this service from the apps?')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="btn ghost" type="submit">Remove extra row</button>
-                        </form>
-                    @endif
                 </article>
             @endforeach
         </div>
-        <details class="catalog-add">
-            <summary>Add another service</summary>
-            <form method="POST" action="{{ route('ops.services.store') }}" enctype="multipart/form-data">
-                @csrf
-                <div class="filters">
-                    <div><label>Title</label><input name="title" required placeholder="City Ride"></div>
-                    <div><label>Slug</label><input name="slug" placeholder="city-ride"></div>
-                    <div><label>Subtitle</label><input name="subtitle" placeholder="Local trips"></div>
-                    <div>
-                        <label>Group</label>
-                        <select name="service_group">
-                            <option value="RIDE">Ride</option>
-                            <option value="PARCEL">Parcel</option>
-                        </select>
-                    </div>
-                    <div><label>Booking key</label><input name="category_key" placeholder="LOCAL_CAB"></div>
-                    <div><label>Photo</label><input type="file" name="image" accept="image/*"></div>
-                    <label class="inline" style="align-self:end"><input type="checkbox" name="active" value="1" checked> On app</label>
-                    <button class="btn" type="submit">Add service</button>
-                </div>
-                @foreach ($vehicleFamilies as $family)
-                    <p class="catalog-family">{{ $family['label'] }}</p>
-                    <div class="catalog-checks">
-                        @foreach ($family['types'] as $type)
-                            <label class="inline"><input type="checkbox" name="vehicle_keys[]" value="{{ $type['key'] }}"> {{ $type['label'] }}</label>
-                        @endforeach
-                    </div>
-                @endforeach
-            </form>
-        </details>
     </section>
 
     <section class="card">

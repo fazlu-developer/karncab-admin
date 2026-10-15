@@ -27,6 +27,10 @@ class AuthenticatedSessionController extends Controller
         }
 
         $request->session()->regenerate();
+        $user = $request->user();
+        if ($user) {
+            \App\Services\OperatorTerritorySync::apply($user);
+        }
 
         return redirect()->intended(route($request->user()->homeRoute()));
     }

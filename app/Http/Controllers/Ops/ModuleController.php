@@ -61,6 +61,11 @@ class ModuleController extends Controller
 
             return redirect()->route('wallets.commission');
         }
+        if ($module === 'settlements') {
+            abort_unless($request->user()?->can('payments.view') || $request->user()?->can('wallet.view') || $request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('settlements.index');
+        }
         if ($module === 'payments') {
             abort_unless($request->user()?->can('payments.view'), 403);
 

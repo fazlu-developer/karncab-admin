@@ -40,11 +40,12 @@ class DistrictFranchiseService
         abort_if($row === null, 404, 'Franchise not found');
 
         $payload = $this->present($row);
-        $payload['documents'] = $this->db()->table('franchise_documents')->where('franchise_id', $id)->orderBy('id')->get()->toArray();
-        $payload['agreements'] = $this->db()->table('franchise_agreements')->where('franchise_id', $id)->orderByDesc('id')->get()->toArray();
-        $payload['fees'] = $this->db()->table('franchise_fees')->where('franchise_id', $id)->orderByDesc('id')->get()->toArray();
-        $payload['renewals'] = $this->db()->table('franchise_renewals')->where('franchise_id', $id)->orderByDesc('id')->get()->toArray();
-        $payload['events'] = $this->db()->table('franchise_events')->where('franchise_id', $id)->orderByDesc('id')->limit(40)->get()->toArray();
+        $payload['documents'] = $this->rowsIfTable('franchise_documents', fn () => $this->db()->table('franchise_documents')->where('franchise_id', $id)->orderBy('id')->get()->toArray());
+        $payload['kycFiles'] = $this->ownerKycFiles((int) $row->owner_user_id);
+        $payload['agreements'] = $this->rowsIfTable('franchise_agreements', fn () => $this->db()->table('franchise_agreements')->where('franchise_id', $id)->orderByDesc('id')->get()->toArray());
+        $payload['fees'] = $this->rowsIfTable('franchise_fees', fn () => $this->db()->table('franchise_fees')->where('franchise_id', $id)->orderByDesc('id')->get()->toArray());
+        $payload['renewals'] = $this->rowsIfTable('franchise_renewals', fn () => $this->db()->table('franchise_renewals')->where('franchise_id', $id)->orderByDesc('id')->get()->toArray());
+        $payload['events'] = $this->rowsIfTable('franchise_events', fn () => $this->db()->table('franchise_events')->where('franchise_id', $id)->orderByDesc('id')->limit(40)->get()->toArray());
         $payload['wallet'] = $this->walletFor((int) $row->owner_user_id, (string) $row->kind);
         $payload['performance'] = $this->performance((int) $row->district_id);
 
@@ -124,7 +125,7 @@ class DistrictFranchiseService
 
     public function lifecycle(User $operator, int $id, string $status, ?string $reason = null): array
     {
-        abort_unless($operator->can('franchise.manage'), 403);
+        abort_unless($operator->can('franchise.manage') || $operator->can('kyc.approve') || $operator->can('platform.admin'), 403);
         abort_unless(in_array($status, ExclusiveDistrictSeat::STATUSES, true), 422, 'Unknown franchise status.');
         $row = $this->requireRow($operator, $id);
         abort_unless(ExclusiveDistrictSeat::canTransition((string) $row->status, $status), 422, "Cannot move from {$row->status} to {$status}.");
@@ -136,14 +137,14 @@ class DistrictFranchiseService
 
         try {
             $this->db()->transaction(function () use ($row, $id, $status, $hold, $reason, $operator) {
-                $this->db()->table('franchises')->where('id', $id)->update([
+                $this->db()->table('franchises')->where('id', $id)->update($this->filterRow('franchises', [
                     'status' => $status,
                     'active_district_key' => $hold ? ExclusiveDistrictSeat::key((int) $row->district_id) : null,
                     'terminated_at' => $status === 'TERMINATED' ? now() : $row->terminated_at,
                     'termination_reason' => $reason ?? $row->termination_reason,
                     'starts_on' => $hold && ! $row->starts_on ? now() : $row->starts_on,
                     'updated_at' => now(),
-                ]);
+                ]));
                 if ($hold) {
                     $this->activateOwner((int) $row->owner_user_id, (string) $row->kind, (int) $row->district_id, (int) $row->state_id);
                     $this->ensureWallet((int) $row->owner_user_id, (string) $row->kind);
@@ -154,13 +155,17 @@ class DistrictFranchiseService
             if ($this->isUniqueConflict($exception)) {
                 abort(409, self::CONFLICT);
             }
-            throw $exception;
+            abort(422, $this->friendlyWriteError($exception, 'Could not set this franchise to '.$status.'.'));
         }
 
         if ($status === 'ACTIVE') {
-            app(NotificationService::class)->dispatch((int) $row->owner_user_id, 'franchise_approval', [
-                'ref' => (string) $id,
-            ], ['entity' => ['type' => 'franchise', 'id' => (string) $id]]);
+            try {
+                app(NotificationService::class)->dispatch((int) $row->owner_user_id, 'franchise_approval', [
+                    'ref' => (string) $id,
+                ], ['entity' => ['type' => 'franchise', 'id' => (string) $id]]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         return $this->one($operator, $id);
@@ -168,14 +173,59 @@ class DistrictFranchiseService
 
     public function setKyc(User $operator, int $id, string $kycStatus, ?string $reason = null): array
     {
-        abort_unless($operator->can('franchise.manage'), 403);
+        abort_unless($operator->can('franchise.manage') || $operator->can('kyc.approve') || $operator->can('platform.admin'), 403);
         abort_unless(in_array($kycStatus, ['pending', 'submitted', 'verified', 'rejected'], true), 422, 'Invalid KYC status.');
-        $this->requireRow($operator, $id);
+        $row = $this->requireRow($operator, $id);
         $this->db()->table('franchises')->where('id', $id)->update([
             'kyc_status' => $kycStatus,
             'updated_at' => now(),
         ]);
+        if ($kycStatus === 'verified') {
+            $this->markOwnerKyc((int) $row->owner_user_id, $id, 'verified');
+        }
         $this->record($id, $operator, 'kyc', null, null, $reason ?? $kycStatus);
+
+        return $this->one($operator, $id);
+    }
+
+    public function verifyAndActivate(User $operator, int $id): array
+    {
+        abort_unless($operator->can('franchise.manage') || $operator->can('kyc.approve') || $operator->can('platform.admin'), 403);
+        $row = $this->requireRow($operator, $id);
+        $this->markOwnerKyc((int) $row->owner_user_id, $id, 'verified');
+        $this->db()->table('franchises')->where('id', $id)->update([
+            'kyc_status' => 'verified',
+            'updated_at' => now(),
+        ]);
+        $this->record($id, $operator, 'kyc', null, null, 'verified');
+        $status = strtoupper((string) $row->status);
+        if ($status !== 'ACTIVE') {
+            $this->lifecycle($operator, $id, 'ACTIVE');
+        }
+
+        return $this->one($operator, $id);
+    }
+
+    public function reviewDocument(User $operator, int $id, int $documentId, string $status): array
+    {
+        abort_unless($operator->can('franchise.manage') || $operator->can('kyc.approve') || $operator->can('platform.admin'), 403);
+        abort_unless(in_array($status, ['verified', 'rejected', 'submitted'], true), 422, 'Invalid document status.');
+        $row = $this->requireRow($operator, $id);
+        $updated = 0;
+        if (Schema::connection('platform')->hasTable('franchise_documents')) {
+            $updated += $this->db()->table('franchise_documents')->where('id', $documentId)->where('franchise_id', $id)->update([
+                'status' => $status,
+                'updated_at' => now(),
+            ]);
+        }
+        if ($updated === 0 && Schema::connection('platform')->hasTable('district_head_kyc')) {
+            $updated += $this->db()->table('district_head_kyc')->where('id', $documentId)->where('user_id', $row->owner_user_id)->update([
+                'status' => $status,
+                'updated_at' => now(),
+            ]);
+        }
+        abort_if($updated === 0, 404, 'Document not found.');
+        $this->record($id, $operator, 'kyc-document', null, null, $status);
 
         return $this->one($operator, $id);
     }
@@ -279,18 +329,38 @@ class DistrictFranchiseService
      */
     public function addDocument(User $operator, int $id, array $data): array
     {
-        abort_unless($operator->can('franchise.manage'), 403);
-        $this->requireRow($operator, $id);
-        $this->db()->table('franchise_documents')->insert([
-            'franchise_id' => $id,
-            'type' => $data['type'],
-            'status' => $data['status'] ?? 'pending',
-            'storage_key' => $data['storage_key'],
-            'original_name' => $data['original_name'] ?? null,
-            'mime' => $data['mime'] ?? 'application/octet-stream',
-            'size_bytes' => (int) ($data['size_bytes'] ?? 0),
-            'checksum_sha256' => $data['checksum_sha256'] ?? str_repeat('0', 64),
-            'created_at' => now(),
+        abort_unless($operator->can('franchise.manage') || $operator->can('kyc.view') || $operator->can('platform.admin'), 403);
+        $row = $this->requireRow($operator, $id);
+        if (Schema::connection('platform')->hasTable('franchise_documents')) {
+            $this->db()->table('franchise_documents')->insert($this->filterRow('franchise_documents', [
+                'franchise_id' => $id,
+                'type' => $data['type'],
+                'status' => $data['status'] ?? 'submitted',
+                'storage_key' => $data['storage_key'],
+                'original_name' => $data['original_name'] ?? null,
+                'mime' => $data['mime'] ?? 'application/octet-stream',
+                'size_bytes' => (int) ($data['size_bytes'] ?? 0),
+                'checksum_sha256' => $data['checksum_sha256'] ?? str_repeat('0', 64),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        }
+        if ((string) $row->kind === 'DISTRICT_HEAD' && Schema::connection('platform')->hasTable('district_head_kyc')) {
+            DistrictHeadKycStore::ensureTable();
+            $this->db()->table('district_head_kyc')->insert($this->filterRow('district_head_kyc', [
+                'user_id' => (int) $row->owner_user_id,
+                'state_id' => $row->state_id,
+                'district_id' => $row->district_id,
+                'doc_type' => strtoupper((string) $data['type']),
+                'path' => $data['storage_key'],
+                'original_name' => $data['original_name'] ?? null,
+                'status' => 'submitted',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        }
+        $this->db()->table('franchises')->where('id', $id)->update([
+            'kyc_status' => 'submitted',
             'updated_at' => now(),
         ]);
         $this->record($id, $operator, 'kyc-document', null, null, $data['type']);
@@ -361,26 +431,84 @@ class DistrictFranchiseService
 
     private function activateOwner(int $ownerUserId, string $kind, int $districtId, int $stateId): void
     {
+        if ($ownerUserId < 1) {
+            return;
+        }
         $role = $kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE';
-        $this->db()->table('users')->where('id', $ownerUserId)->whereNotIn('role', ['ADMIN', 'SUPER_ADMIN'])->update([
+        $this->db()->table('users')->where('id', $ownerUserId)->whereNotIn('role', ['ADMIN', 'SUPER_ADMIN'])->update($this->filterRow('users', [
             'role' => $role,
             'district_id' => $districtId,
             'state_id' => $stateId,
             'status' => 'ACTIVE',
             'updated_at' => now(),
+        ]));
+        try {
+            $this->ensureOpsOperator($ownerUserId, $role, $districtId, $stateId);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function ensureOpsOperator(int $platformUserId, string $role, int $districtId, int $stateId): void
+    {
+        if ($platformUserId < 1) {
+            return;
+        }
+        $owner = $this->db()->table('users')->where('id', $platformUserId)->first();
+        if (! $owner || empty($owner->email)) {
+            return;
+        }
+        $ops = User::query()->where('email', $owner->email)->first();
+        $payload = [
+            'name' => $owner->name ?: 'District operator',
+            'role' => $role,
+            'status' => 'ACTIVE',
+            'nest_user_id' => $platformUserId,
+            'state_id' => $stateId ?: null,
+            'district_id' => $districtId ?: null,
+        ];
+        if ($ops) {
+            $ops->forceFill($payload)->save();
+
+            return;
+        }
+        User::query()->create($payload + [
+            'email' => $owner->email,
+            'password' => \Illuminate\Support\Str::password(16),
         ]);
     }
 
     private function ensureWallet(int $ownerUserId, string $kind): void
     {
+        if ($ownerUserId < 1 || ! Schema::connection('platform')->hasTable('wallets')) {
+            return;
+        }
         $ownerType = $kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE';
-        $exists = $this->db()->table('wallets')->where('owner_type', $ownerType)->where('owner_user_id', $ownerUserId)->exists();
-        if (! $exists) {
-            $this->db()->table('wallets')->insert([
+        $q = $this->db()->table('wallets')->where('owner_user_id', $ownerUserId);
+        if (Schema::connection('platform')->hasColumn('wallets', 'owner_type')) {
+            $q->where('owner_type', $ownerType);
+        }
+        if ($q->exists()) {
+            return;
+        }
+        try {
+            $this->db()->table('wallets')->insert($this->filterRow('wallets', [
                 'owner_type' => $ownerType,
                 'owner_user_id' => $ownerUserId,
                 'balance_paise' => 0,
-            ]);
+                'promo_balance_paise' => 0,
+                'joining_credit_limit_paise' => 0,
+                'joining_credit_paise' => 0,
+                'joining_credit_used_paise' => 0,
+                'frozen_paise' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        } catch (QueryException $exception) {
+            if ($this->isUniqueConflict($exception)) {
+                return;
+            }
+            throw $exception;
         }
     }
 
@@ -389,11 +517,27 @@ class DistrictFranchiseService
      */
     private function performance(int $districtId): array
     {
-        return [
-            'vehicles' => $this->db()->table('vehicles')->where('district_id', $districtId)->count(),
-            'completedTrips' => $this->db()->table('bookings')->where('district_id', $districtId)->where('status', 'COMPLETED')->count(),
-            'grossRupees' => ((int) $this->db()->table('bookings')->where('district_id', $districtId)->where('status', 'COMPLETED')->sum('quote_paise')) / 100,
-        ];
+        $empty = ['vehicles' => 0, 'completedTrips' => 0, 'grossRupees' => 0.0];
+        try {
+            $vehicles = Schema::connection('platform')->hasTable('vehicles') && Schema::connection('platform')->hasColumn('vehicles', 'district_id')
+                ? (int) $this->db()->table('vehicles')->where('district_id', $districtId)->count()
+                : 0;
+            $trips = 0;
+            $gross = 0;
+            if (Schema::connection('platform')->hasTable('bookings') && Schema::connection('platform')->hasColumn('bookings', 'district_id')) {
+                $q = $this->db()->table('bookings')->where('district_id', $districtId)->where('status', 'COMPLETED');
+                $trips = (int) (clone $q)->count();
+                $gross = (int) (clone $q)->sum('quote_paise');
+            }
+
+            return [
+                'vehicles' => $vehicles,
+                'completedTrips' => $trips,
+                'grossRupees' => $gross / 100,
+            ];
+        } catch (QueryException) {
+            return $empty;
+        }
     }
 
     /**
@@ -478,10 +622,73 @@ class DistrictFranchiseService
 
     private function scoped(User $operator)
     {
-        $q = $this->db()->table('franchises');
+        $q = $this->db()->table('franchises')
+            ->leftJoin('districts', 'districts.id', '=', 'franchises.district_id')
+            ->leftJoin('users as owners', 'owners.id', '=', 'franchises.owner_user_id')
+            ->select(
+                'franchises.*',
+                'districts.name as district_name',
+                'owners.name as owner_name',
+                'owners.email as owner_email',
+                'owners.phone as owner_phone',
+            );
         TerritoryScope::applyFranchises($q, $operator);
 
         return $q;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function ownerKycFiles(int $ownerUserId): array
+    {
+        if (! Schema::connection('platform')->hasTable('district_head_kyc') || $ownerUserId < 1) {
+            return [];
+        }
+
+        return $this->db()->table('district_head_kyc')
+            ->where('user_id', $ownerUserId)
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'type' => $row->doc_type,
+                'status' => $row->status,
+                'path' => $row->path ?? null,
+                'originalName' => $row->original_name ?? null,
+                'createdAt' => $row->created_at,
+                'source' => 'district_head_kyc',
+            ])
+            ->all();
+    }
+
+    private function markOwnerKyc(int $ownerUserId, int $franchiseId, string $status): void
+    {
+        if (Schema::connection('platform')->hasTable('franchise_documents')) {
+            $this->db()->table('franchise_documents')->where('franchise_id', $franchiseId)->whereNotIn('status', ['rejected'])->update([
+                'status' => $status,
+                'updated_at' => now(),
+            ]);
+        }
+        if (Schema::connection('platform')->hasTable('district_head_kyc') && $ownerUserId > 0) {
+            $this->db()->table('district_head_kyc')->where('user_id', $ownerUserId)->whereNotIn('status', ['rejected'])->update([
+                'status' => $status,
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  callable():list<mixed>  $fetch
+     * @return list<mixed>
+     */
+    private function rowsIfTable(string $table, callable $fetch): array
+    {
+        if (! Schema::connection('platform')->hasTable($table)) {
+            return [];
+        }
+
+        return $fetch();
     }
 
     private function record(int $franchiseId, User $operator, string $action, ?string $from, ?string $to, ?string $note): void
@@ -496,16 +703,22 @@ class DistrictFranchiseService
         if ($actor < 1) {
             $actor = (int) ($this->db()->table('franchises')->where('id', $franchiseId)->value('owner_user_id') ?: 0);
         }
-        abort_unless($actor > 0, 422, 'Could not record franchise activity: no platform user is linked to this operator.');
-        $this->db()->table('franchise_events')->insert($this->filterRow('franchise_events', [
-            'franchise_id' => $franchiseId,
-            'actor_user_id' => $actor,
-            'action' => $action,
-            'from_status' => $from,
-            'to_status' => $to,
-            'note' => $note,
-            'created_at' => now(),
-        ]));
+        if ($actor < 1) {
+            return;
+        }
+        try {
+            $this->db()->table('franchise_events')->insert($this->filterRow('franchise_events', [
+                'franchise_id' => $franchiseId,
+                'actor_user_id' => $actor,
+                'action' => $action,
+                'from_status' => $from,
+                'to_status' => $to,
+                'note' => $note,
+                'created_at' => now(),
+            ]));
+        } catch (QueryException) {
+            // Seat activation must not fail because the audit row could not be written.
+        }
     }
 
     /**
@@ -563,12 +776,17 @@ class DistrictFranchiseService
             'status' => $row->status,
             'tradeName' => $row->trade_name,
             'districtId' => (int) $row->district_id,
+            'districtName' => $row->district_name ?? null,
             'stateId' => (int) $row->state_id,
             'ownerUserId' => (int) $row->owner_user_id,
+            'ownerName' => $row->owner_name ?? null,
+            'ownerEmail' => $row->owner_email ?? null,
+            'ownerPhone' => $row->owner_phone ?? null,
             'kycStatus' => $row->kyc_status ?? 'pending',
             'agreementStatus' => $row->agreement_status ?? 'unsigned',
             'commissionPercent' => (float) ($row->commission_percent ?? 0),
             'feeAmountPaise' => (int) ($row->fee_amount_paise ?? 0),
+            'feeAmountRupees' => ((int) ($row->fee_amount_paise ?? 0)) / 100,
             'exclusiveSeat' => ExclusiveDistrictSeat::holdsSeat((string) $row->status),
             'activeDistrictKey' => $row->active_district_key,
             'terminationReason' => $row->termination_reason ?? null,

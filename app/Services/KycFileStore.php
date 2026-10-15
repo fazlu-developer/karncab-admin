@@ -47,7 +47,7 @@ class KycFileStore
         }
     }
 
-    public function absolutePath(?string $key): ?string
+    public function absolutePath(?string $key, bool $fetchRemote = true): ?string
     {
         $key = ltrim(str_replace('\\', '/', (string) $key), '/');
         if ($key === '' || str_starts_with($key, 'http://') || str_starts_with($key, 'https://')) {
@@ -59,7 +59,7 @@ class KycFileStore
             }
         }
 
-        return $this->pullFromApi($key);
+        return $fetchRemote ? $this->pullFromApi($key) : null;
     }
 
     /**

@@ -9,8 +9,39 @@
             <h1><i data-lucide="wallet"></i> Wallets & ledger</h1>
             <p class="muted">Every credit or debit is an immutable ledger row: transaction id, wallet, booking, user, type, amount, commission, previous/new balance, payment reference, status, and time.</p>
         </div>
-        <a class="btn ghost" href="{{ route('wallets.commission') }}"><i data-lucide="percent"></i> Commission rule</a>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @if ($canViewWithdrawals ?? false)
+                <a class="btn ghost" href="{{ route('withdrawals.index') }}"><i data-lucide="hand-coins"></i> Withdraw requests</a>
+            @endif
+            @can('platform.admin')
+                <a class="btn ghost" href="{{ route('wallets.commission') }}"><i data-lucide="percent"></i> Commission rule</a>
+            @endcan
+        </div>
     </div>
+
+    @if (!empty($platformEarnings))
+        <section class="card">
+            <h2>Admin / platform earnings</h2>
+            <p class="muted">Commission credited to the platform wallet. This is admin earning, not a driver or fleet wallet.</p>
+            <div class="kpis">
+                <div class="kpi">
+                    <div class="label">Platform wallet</div>
+                    <b>₹{{ number_format($platformEarnings['balanceRupees'], 2) }}</b>
+                </div>
+                <div class="kpi">
+                    <div class="label">Today commission</div>
+                    <b>₹{{ number_format($platformEarnings['todayRupees'], 2) }}</b>
+                </div>
+                <div class="kpi">
+                    <div class="label">This month</div>
+                    <b>₹{{ number_format($platformEarnings['monthRupees'], 2) }}</b>
+                </div>
+            </div>
+            @if (!empty($platformEarnings['walletId']))
+                <p><a class="btn ghost" href="{{ route('wallets.show', $platformEarnings['walletId']) }}">Open platform wallet</a></p>
+            @endif
+        </section>
+    @endif
 
     @if ($canCredit)
         <section class="card">
@@ -53,50 +84,6 @@
                     </div>
                     <button class="btn" type="submit"><i data-lucide="plus"></i> Custom transfer / add money</button>
                 </form>
-            @endif
-        </section>
-        <section class="card">
-            <h2>Driver withdrawals</h2>
-            <p class="muted">Requested cash is frozen on the driver wallet until you approve and settle the transfer.</p>
-            @if (($withdrawals ?? []) === [])
-                <p class="muted">No withdrawal requests yet.</p>
-            @else
-                <div class="table-wrap">
-                    <table class="data">
-                        <thead>
-                            <tr>
-                                <th>Ref</th>
-                                <th>Driver</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Transfer</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($withdrawals as $row)
-                                <tr>
-                                    <td>{{ $row['publicRef'] }}</td>
-                                    <td>{{ $row['ownerName'] }} · {{ $row['userId'] }}</td>
-                                    <td>₹{{ number_format($row['amountRupees'], 2) }}</td>
-                                    <td><span class="pill">{{ $row['status'] }}</span></td>
-                                    <td>{{ $row['transferRef'] ?: '—' }}</td>
-                                    <td>
-                                        @if (! in_array($row['status'], ['settled', 'rejected'], true))
-                                            <form method="POST" action="{{ route('wallets.withdrawals.decide', $row['id']) }}" class="filters" style="margin:0">
-                                                @csrf
-                                                <input name="transfer_ref" placeholder="Bank/UPI ref">
-                                                <button class="btn ghost" name="decision" value="approve">Approve</button>
-                                                <button class="btn ghost" name="decision" value="settle">Settle</button>
-                                                <button class="btn ghost" name="decision" value="reject">Reject</button>
-                                            </form>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
             @endif
         </section>
         <section class="card">

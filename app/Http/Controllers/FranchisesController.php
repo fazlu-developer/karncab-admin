@@ -63,6 +63,15 @@ class FranchisesController extends Controller
         });
     }
 
+    public function verify(Request $request, int $franchise): RedirectResponse
+    {
+        return $this->guardConflict(function () use ($request, $franchise) {
+            $this->franchises->verifyAndActivate($request->user(), $franchise);
+
+            return back()->with('status', 'District Head / franchise verified and set ACTIVE. They can sign in.');
+        });
+    }
+
     public function kyc(Request $request, int $franchise): RedirectResponse
     {
         $data = $request->validate([
@@ -78,12 +87,28 @@ class FranchisesController extends Controller
     {
         $data = $request->validate([
             'type' => ['required', 'string', 'max:32'],
-            'storage_key' => ['required', 'string', 'max:255'],
-            'original_name' => ['nullable', 'string', 'max:180'],
+            'file' => ['required', 'file', 'max:8192', 'mimes:jpg,jpeg,png,pdf,webp'],
         ]);
-        $this->franchises->addDocument($request->user(), $franchise, $data);
+        $file = $request->file('file');
+        $path = $file->store('franchise-kyc', 'public');
+        $this->franchises->addDocument($request->user(), $franchise, [
+            'type' => $data['type'],
+            'storage_key' => $path,
+            'original_name' => $file->getClientOriginalName(),
+            'mime' => $file->getClientMimeType(),
+            'size_bytes' => $file->getSize(),
+            'status' => 'submitted',
+        ]);
 
-        return back()->with('status', 'KYC document recorded.');
+        return back()->with('status', 'KYC document uploaded.');
+    }
+
+    public function reviewDocument(Request $request, int $franchise, int $document): RedirectResponse
+    {
+        $data = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']]);
+        $this->franchises->reviewDocument($request->user(), $franchise, $document, $data['status']);
+
+        return back()->with('status', 'Document marked '.$data['status'].'.');
     }
 
     public function agreement(Request $request, int $franchise): RedirectResponse
@@ -98,10 +123,12 @@ class FranchisesController extends Controller
     {
         $data = $request->validate([
             'kind' => ['required', 'string', 'max:24'],
-            'amount_paise' => ['required', 'integer', 'min:1'],
+            'amount_rupees' => ['required', 'numeric', 'min:0.01'],
             'due_on' => ['nullable', 'date'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
+        $data['amount_paise'] = (int) round(((float) $data['amount_rupees']) * 100);
+        unset($data['amount_rupees']);
         $this->franchises->addFee($request->user(), $franchise, $data);
 
         return back()->with('status', 'Fee added.');
@@ -157,7 +184,7 @@ class FranchisesController extends Controller
      */
     private function applicationData(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'kind' => ['required', 'in:DISTRICT_HEAD,EXCLUSIVE_FRANCHISE'],
             'trade_name' => ['required', 'string', 'max:160'],
             'district_id' => ['required', 'integer'],
@@ -169,8 +196,15 @@ class FranchisesController extends Controller
             'gstin' => ['nullable', 'string', 'max:20'],
             'pan' => ['nullable', 'string', 'max:20'],
             'fee_amount_paise' => ['nullable', 'integer', 'min:0'],
+            'fee_amount_rupees' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
+        if (isset($data['fee_amount_rupees']) && $data['fee_amount_rupees'] !== null && $data['fee_amount_rupees'] !== '') {
+            $data['fee_amount_paise'] = (int) round(((float) $data['fee_amount_rupees']) * 100);
+        }
+        unset($data['fee_amount_rupees']);
+
+        return $data;
     }
 
     private function guardConflict(callable $action): RedirectResponse
@@ -178,10 +212,14 @@ class FranchisesController extends Controller
         try {
             return $action();
         } catch (HttpException $exception) {
-            if ($exception->getStatusCode() === 409) {
-                return back()->withErrors(['seat' => $exception->getMessage()]);
+            if (in_array($exception->getStatusCode(), [409, 422, 403], true)) {
+                return back()->withErrors(['franchise' => $exception->getMessage()]);
             }
             throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withErrors(['franchise' => 'Could not update this franchise. '.$exception->getMessage()]);
         }
     }
 }

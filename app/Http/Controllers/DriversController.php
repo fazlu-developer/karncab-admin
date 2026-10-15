@@ -385,7 +385,7 @@ class DriversController extends Controller
         if ($path) {
             return response()->file($path, [
                 'Content-Type' => $document->mime ?: 'application/octet-stream',
-                'Cache-Control' => 'private, max-age=120',
+                'Cache-Control' => 'private, max-age=86400',
             ]);
         }
         $url = $document->externalUrl();
@@ -457,13 +457,7 @@ class DriversController extends Controller
             if ($wasLeftFleet) {
                 return redirect()->route('drivers.show', $driver)->with('status', 'KYC activated. This driver can sign in.');
             }
-            try {
-                app(NotificationService::class)->dispatch((int) $driver->user_id, 'kyc_approval', [], [
-                    'entity' => ['type' => 'kyc', 'id' => (string) $driver->user_id],
-                ]);
-            } catch (\Throwable) {
-                /* notification delivery is optional */
-            }
+            $this->notifyKycLater((int) $driver->user_id, 'kyc_approval');
         } elseif ($data['status'] === 'rejected') {
             $driver->update([
                 'kyc_status' => 'rejected',
@@ -471,13 +465,9 @@ class DriversController extends Controller
                 'online' => false,
             ]);
             $driver->user?->update(['status' => 'SUSPENDED']);
-            try {
-                app(NotificationService::class)->dispatch((int) $driver->user_id, 'kyc_rejection', [
-                    'reason' => $data['reason'] ?: 'Application rejected',
-                ], ['entity' => ['type' => 'kyc', 'id' => (string) $driver->user_id]]);
-            } catch (\Throwable) {
-                /* notification delivery is optional */
-            }
+            $this->notifyKycLater((int) $driver->user_id, 'kyc_rejection', [
+                'reason' => $data['reason'] ?: 'Application rejected',
+            ]);
         } else {
             $driver->update(['kyc_status' => 'under_review']);
         }
@@ -535,7 +525,7 @@ class DriversController extends Controller
         if ($path) {
             return response()->file($path, [
                 'Content-Type' => $row->mime ?: 'application/octet-stream',
-                'Cache-Control' => 'private, max-age=120',
+                'Cache-Control' => 'private, max-age=86400',
             ]);
         }
         $key = (string) $row->storage_key;
@@ -583,14 +573,27 @@ class DriversController extends Controller
             $driver->user?->update(['status' => 'ACTIVE']);
             $this->releaseAssignedVehicles($driver);
             app(DriverWelcomeBonusService::class)->creditIfApproved($driver->fresh() ?? $driver);
+            $this->notifyKycLater((int) $driver->user_id, 'kyc_approval');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $vars
+     */
+    private function notifyKycLater(int $userId, string $event, array $vars = []): void
+    {
+        if ($userId < 1) {
+            return;
+        }
+        app()->terminating(function () use ($userId, $event, $vars) {
             try {
-                app(NotificationService::class)->dispatch((int) $driver->user_id, 'kyc_approval', [], [
-                    'entity' => ['type' => 'kyc', 'id' => (string) $driver->user_id],
+                app(NotificationService::class)->dispatch($userId, $event, $vars, [
+                    'entity' => ['type' => 'kyc', 'id' => (string) $userId],
                 ]);
             } catch (\Throwable) {
                 /* notification delivery is optional */
             }
-        }
+        });
     }
 
     private function assertCanSetKyc(Request $request, string $kyc, ?string $previous = null): void

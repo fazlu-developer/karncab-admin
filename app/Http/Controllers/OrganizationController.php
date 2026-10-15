@@ -186,19 +186,33 @@ class OrganizationController extends Controller
         DistrictHeadKycStore::ensureTable();
         $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
-        abort_unless(Storage::disk('public')->exists($row->path), 404);
+        $path = (string) $row->path;
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->response($path);
+        }
+        $absolute = app(\App\Services\KycFileStore::class)->absolutePath($path, false);
+        abort_unless($absolute && is_file($absolute), 404);
 
-        return Storage::disk('public')->response($row->path);
+        return response()->file($absolute);
     }
 
     public function reviewDistrictKyc(Request $request, int $id): RedirectResponse
     {
         abort_unless($request->user()?->can('kyc.approve') || $request->user()?->can('platform.admin'), 403);
         $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
+        $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
+        abort_if(! $row, 404);
         DB::connection('platform')->table('district_head_kyc')->where('id', $id)->update([
             'status' => $status,
             'updated_at' => now(),
         ]);
+        if ($status === 'verified' && Schema::connection('platform')->hasTable('franchises') && $row->user_id) {
+            DB::connection('platform')->table('franchises')
+                ->where('owner_user_id', $row->user_id)
+                ->where('kind', 'DISTRICT_HEAD')
+                ->where('status', '!=', 'TERMINATED')
+                ->update(['kyc_status' => 'verified', 'updated_at' => now()]);
+        }
 
         return back()->with('status', 'KYC marked '.$status.'.');
     }

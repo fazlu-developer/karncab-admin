@@ -110,7 +110,6 @@ final class PlatformPermission
             'franchise.view', 'franchise.manage',
             'reports.view', 'reports.export',
             'commission.view',
-            'payout.view',
             'agreement.view', 'agreement.upload',
             'district.view', 'district.create', 'district.update', 'district.activate',
             'manager.view', 'manager.manage',
@@ -123,7 +122,9 @@ final class PlatformPermission
 
         $manager = [
             'dashboard.view',
+            'users.view',
             'district.view',
+            'state_head.view',
             'franchise.view', 'franchise.manage',
             'drivers.view', 'drivers.create', 'drivers.edit', 'drivers.approve',
             'vehicles.view', 'vehicles.edit', 'vehicle.create', 'vehicle.update',
@@ -136,6 +137,8 @@ final class PlatformPermission
             'fleet.view',
             'reports.view', 'reports.export',
             'agreement.view', 'agreement.upload',
+            'tracking.view',
+            'wallet.view',
         ];
 
         $franchise = [
@@ -148,7 +151,6 @@ final class PlatformPermission
             'customers.view',
             'fleet.view',
             'commission.view',
-            'payout.view',
             'reports.view', 'reports.export',
             'agreement.view',
             'franchise.view',

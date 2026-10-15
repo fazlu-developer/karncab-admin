@@ -257,7 +257,15 @@ final class TerritoryScope
 
                 return;
             }
-            $query->where($table.'.district_id', $operator->district_id);
+            $districtId = (int) $operator->district_id;
+            $districtName = GeoCatalog::districtName($districtId);
+            $query->where(function ($inner) use ($table, $districtId, $districtName) {
+                $inner->where($table.'.district_id', $districtId);
+                if ($districtName !== '') {
+                    $inner->orWhere($table.'.pickup_text', 'like', '%'.$districtName.'%')
+                        ->orWhere($table.'.drop_text', 'like', '%'.$districtName.'%');
+                }
+            });
 
             return;
         }
@@ -372,7 +380,17 @@ final class TerritoryScope
 
                 return;
             }
-            $query->where($table.'.district_id', $operator->district_id);
+            $districtId = (int) $operator->district_id;
+            $query->where(function ($inner) use ($table, $districtId) {
+                $inner->where($table.'.district_id', $districtId)
+                    ->orWhereExists(function ($sub) use ($table, $districtId) {
+                        $sub->selectRaw('1')
+                            ->from('drivers')
+                            ->join('users', 'users.id', '=', 'drivers.user_id')
+                            ->whereColumn('drivers.id', $table.'.driver_id')
+                            ->where('users.district_id', $districtId);
+                    });
+            });
 
             return;
         }
@@ -384,7 +402,16 @@ final class TerritoryScope
 
                 return;
             }
-            $query->whereIn($table.'.district_id', $districtIds);
+            $query->where(function ($inner) use ($table, $districtIds) {
+                $inner->whereIn($table.'.district_id', $districtIds)
+                    ->orWhereExists(function ($sub) use ($table, $districtIds) {
+                        $sub->selectRaw('1')
+                            ->from('drivers')
+                            ->join('users', 'users.id', '=', 'drivers.user_id')
+                            ->whereColumn('drivers.id', $table.'.driver_id')
+                            ->whereIn('users.district_id', $districtIds);
+                    });
+            });
 
             return;
         }
@@ -562,7 +589,14 @@ final class TerritoryScope
 
             return;
         }
-        $query->whereIn($table.'.district_id', $districtIds);
+        $names = GeoCatalog::districtNamesForState((int) $operator->state_id);
+        $query->where(function ($inner) use ($table, $districtIds, $names) {
+            $inner->whereIn($table.'.district_id', $districtIds);
+            foreach ($names as $name) {
+                $inner->orWhere($table.'.pickup_text', 'like', '%'.$name.'%')
+                    ->orWhere($table.'.drop_text', 'like', '%'.$name.'%');
+            }
+        });
     }
 
     /**
@@ -576,7 +610,14 @@ final class TerritoryScope
 
             return;
         }
-        $query->whereIn($table.'.district_id', $districtIds);
+        $names = GeoCatalog::districtNamesForState($stateId);
+        $query->where(function ($inner) use ($table, $districtIds, $names) {
+            $inner->whereIn($table.'.district_id', $districtIds);
+            foreach ($names as $name) {
+                $inner->orWhere($table.'.pickup_text', 'like', '%'.$name.'%')
+                    ->orWhere($table.'.drop_text', 'like', '%'.$name.'%');
+            }
+        });
     }
 
     /**

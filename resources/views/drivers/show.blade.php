@@ -242,18 +242,16 @@
                     @if ($doc->expires_at)
                         <p class="muted">Expires {{ $doc->expires_at->toDateString() }}</p>
                     @endif
-                    @if ($doc->isMissing())
-                        <p class="error">The file is not on the server. Upload this document again to preview it.</p>
-                    @elseif ($doc->fileUrl())
+                    @if ($doc->fileUrl())
                         @if ($doc->isImage())
                             <a href="{{ $doc->fileUrl() }}" target="_blank" rel="noopener">
-                                <img class="doc-thumb" src="{{ $doc->fileUrl() }}" alt="{{ $doc->label() }}">
+                                <img class="doc-thumb" src="{{ $doc->fileUrl() }}" alt="{{ $doc->label() }}" loading="lazy" decoding="async" width="220" height="160">
                             </a>
                         @else
                             <a class="btn ghost" href="{{ $doc->fileUrl() }}" target="_blank" rel="noopener">Open file</a>
                         @endif
                     @else
-                        <p class="muted">No preview available.</p>
+                        <p class="muted">No preview available. Open the file after upload.</p>
                     @endif
                     <p class="muted">{{ $doc->original_name }} · {{ $doc->mime }}</p>
                     @if ($doc->rejection_reason)
@@ -291,7 +289,7 @@
                     </div>
                     @if ($isImage)
                         <a href="{{ $fileUrl }}" target="_blank" rel="noopener">
-                            <img class="doc-thumb" src="{{ $fileUrl }}" alt="{{ $vehicleDocLabel((string) $doc->type) }}">
+                            <img class="doc-thumb" src="{{ $fileUrl }}" alt="{{ $vehicleDocLabel((string) $doc->type) }}" loading="lazy" decoding="async" width="220" height="160">
                         </a>
                     @else
                         <a class="btn ghost" href="{{ $fileUrl }}" target="_blank" rel="noopener">Open file</a>

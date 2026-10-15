@@ -92,9 +92,69 @@ class WalletLedgerService
         $type = $query['owner_type'] ?? $query['ownerType'] ?? null;
         if (is_string($type) && $type !== '') {
             $q->where('wallets.owner_type', $type);
+        } elseif ($operator?->can('platform.admin') || $operator?->isPrivilegedOperator()) {
+            $q->where('wallets.owner_type', '!=', 'PLATFORM');
         }
 
         return $q->orderByDesc('wallets.id')->limit(200)->get()->map(fn ($row) => $this->presentWallet($row))->all();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function platformEarnings(?User $operator): ?array
+    {
+        if (! $operator || (! $operator->can('platform.admin') && ! $operator->isPrivilegedOperator())) {
+            return null;
+        }
+        $q = $this->db()->table('wallets')->where('owner_type', 'PLATFORM')->orderByDesc('id');
+        $row = $q->first();
+        if (! $row) {
+            try {
+                $insert = [
+                    'owner_type' => 'PLATFORM',
+                    'owner_user_id' => null,
+                    'balance_paise' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+                $this->db()->table('wallets')->insert(array_filter(
+                    $insert,
+                    fn ($key) => $this->hasColumn('wallets', $key),
+                    ARRAY_FILTER_USE_KEY,
+                ));
+                $row = $this->db()->table('wallets')->where('owner_type', 'PLATFORM')->orderByDesc('id')->first();
+            } catch (QueryException) {
+                $row = null;
+            }
+        }
+        $today = 0;
+        $month = 0;
+        try {
+            if (Schema::connection('platform')->hasTable('wallet_ledger')) {
+                $base = $this->db()->table('wallet_ledger')->where('direction', 'CREDIT');
+                if (Schema::connection('platform')->hasColumn('wallet_ledger', 'account')) {
+                    $base->where('account', 'PLATFORM');
+                } elseif (Schema::connection('platform')->hasColumn('wallet_ledger', 'owner_type')) {
+                    $base->where('owner_type', 'PLATFORM');
+                }
+                if (Schema::connection('platform')->hasColumn('wallet_ledger', 'kind')) {
+                    $base->whereIn('kind', ['platform_commission', 'commission', 'trip', 'settlement']);
+                }
+                $today = (int) (clone $base)->whereDate('created_at', now()->toDateString())->sum('amount_paise');
+                $month = (int) (clone $base)->where('created_at', '>=', now()->startOfMonth())->sum('amount_paise');
+            }
+        } catch (QueryException) {
+            $today = 0;
+            $month = 0;
+        }
+
+        return [
+            'walletId' => $row->id ?? null,
+            'balanceRupees' => ((int) ($row->balance_paise ?? 0)) / 100,
+            'todayRupees' => $today / 100,
+            'monthRupees' => $month / 100,
+        ];
     }
 
     /**
@@ -713,44 +773,75 @@ class WalletLedgerService
     }
 
     /**
+     * @param  array<string, mixed>  $filters
      * @return list<array<string, mixed>>
      */
-    public function withdrawals(?User $operator): array
+    public function withdrawals(?User $operator, array $filters = []): array
     {
-        abort_unless($operator?->can('wallet.view') || $operator?->can('payments.view'), 403);
+        abort_unless($this->canViewWithdrawals($operator), 403);
+        $this->ensureWithdrawalSchema();
         if (! Schema::connection('platform')->hasTable('wallet_withdrawals')) {
             return [];
         }
 
-        return $this->db()->table('wallet_withdrawals')
-            ->leftJoin('users', 'users.id', '=', 'wallet_withdrawals.user_id')
-            ->select('wallet_withdrawals.*', 'users.name as owner_name', 'users.phone as owner_phone')
+        $q = $this->db()->table('wallet_withdrawals')
+            ->leftJoin('wallets', 'wallets.id', '=', 'wallet_withdrawals.wallet_id');
+        if ($this->hasColumn('wallet_withdrawals', 'user_id')) {
+            $q->leftJoin('users', 'users.id', '=', 'wallet_withdrawals.user_id');
+        } else {
+            $q->leftJoin('users', 'users.id', '=', 'wallets.owner_user_id');
+        }
+        $status = strtolower(trim((string) ($filters['status'] ?? '')));
+        if ($status !== '' && $status !== 'all') {
+            $q->where('wallet_withdrawals.status', $status);
+        }
+        if ($operator && ! TerritoryScope::isUnrestricted($operator)) {
+            $ids = $this->scopedWallets($operator)->pluck('id');
+            if ($ids->isEmpty()) {
+                $q->whereRaw('0 = 1');
+            } else {
+                $q->whereIn('wallet_withdrawals.wallet_id', $ids);
+            }
+        }
+
+        return $q->select(
+            'wallet_withdrawals.*',
+            'wallets.owner_user_id as wallet_owner_user_id',
+            'users.name as owner_name',
+            'users.phone as owner_phone',
+        )
             ->orderByDesc('wallet_withdrawals.id')
-            ->limit(80)
+            ->limit(120)
             ->get()
             ->map(fn ($row) => [
                 'id' => (int) $row->id,
-                'publicRef' => $row->public_ref,
-                'userId' => (int) $row->user_id,
-                'ownerName' => $row->owner_name,
+                'publicRef' => $row->public_ref ?? null,
+                'userId' => (int) ($row->user_id ?? $row->wallet_owner_user_id ?? 0),
+                'walletId' => (int) ($row->wallet_id ?? 0),
+                'ownerName' => $row->owner_name ?: 'User #'.($row->user_id ?? $row->wallet_owner_user_id ?? '?'),
                 'ownerPhone' => $row->owner_phone,
                 'amountRupees' => ((int) $row->amount_paise) / 100,
                 'status' => $row->status,
-                'transferRef' => $row->transfer_ref,
+                'transferRef' => $row->transfer_ref ?? null,
                 'note' => $row->note,
                 'createdAt' => $row->created_at,
             ])->all();
     }
 
+    public function canViewWithdrawals(?User $operator): bool
+    {
+        return (bool) ($operator?->can('payout.view') || $operator?->can('payout.approve') || $operator?->can('platform.admin'));
+    }
+
+    public function canSettleWithdrawals(?User $operator): bool
+    {
+        return (bool) ($operator?->can('payout.approve') || $operator?->can('platform.admin'));
+    }
+
     public function decideWithdrawal(User $operator, int $id, string $decision, ?string $transferRef = null, ?string $note = null): void
     {
-        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
-        $schema = Schema::connection('platform');
-        if ($schema->hasTable('wallets') && ! $schema->hasColumn('wallets', 'frozen_paise')) {
-            $schema->table('wallets', function ($table) {
-                $table->unsignedBigInteger('frozen_paise')->default(0);
-            });
-        }
+        abort_unless($this->canSettleWithdrawals($operator), 403);
+        $this->ensureWithdrawalSchema();
         $row = $this->db()->table('wallet_withdrawals')->where('id', $id)->first();
         abort_unless($row, 404, 'Withdrawal not found.');
         $decision = strtolower($decision);
@@ -760,31 +851,36 @@ class WalletLedgerService
         abort_unless($wallet, 404, 'Wallet not found.');
         $frozen = max(0, (int) ($wallet->frozen_paise ?? 0));
         $amount = (int) $row->amount_paise;
+        $reviewer = $operator->nest_user_id ?: null;
 
         if ($decision === 'approve') {
-            $this->db()->table('wallet_withdrawals')->where('id', $id)->update([
+            $this->db()->table('wallet_withdrawals')->where('id', $id)->update($this->withdrawalUpdate([
                 'status' => 'approved',
                 'note' => $note ?: $row->note,
-                'reviewed_by' => $operator->nest_user_id ?: null,
+                'reviewed_by' => $reviewer,
+                'reviewed_by_id' => $reviewer,
                 'reviewed_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ]));
 
             return;
         }
 
         if ($decision === 'reject') {
-            $this->db()->table('wallets')->where('id', $wallet->id)->update([
-                'frozen_paise' => max(0, $frozen - $amount),
-                'updated_at' => now(),
-            ]);
-            $this->db()->table('wallet_withdrawals')->where('id', $id)->update([
+            if ($this->hasColumn('wallets', 'frozen_paise')) {
+                $this->db()->table('wallets')->where('id', $wallet->id)->update([
+                    'frozen_paise' => max(0, $frozen - $amount),
+                    'updated_at' => now(),
+                ]);
+            }
+            $this->db()->table('wallet_withdrawals')->where('id', $id)->update($this->withdrawalUpdate([
                 'status' => 'rejected',
                 'note' => $note ?: 'Rejected by admin',
-                'reviewed_by' => $operator->nest_user_id ?: null,
+                'reviewed_by' => $reviewer,
+                'reviewed_by_id' => $reviewer,
                 'reviewed_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ]));
 
             return;
         }
@@ -792,7 +888,6 @@ class WalletLedgerService
         abort_unless(in_array((string) $row->status, ['requested', 'approved'], true), 422, 'Approve this request before settling.');
         $before = (int) $wallet->balance_paise;
         abort_unless($before >= $amount, 422, 'Wallet cash is lower than the frozen withdrawal.');
-        $after = $before - $amount;
         $this->postLedger([
             'ownerType' => (string) ($wallet->owner_type ?: 'DRIVER'),
             'ownerUserId' => (int) $wallet->owner_user_id,
@@ -802,19 +897,99 @@ class WalletLedgerService
             'note' => $note ?: 'Admin settled withdrawal',
             'paymentRef' => $transferRef,
         ]);
-        $this->db()->table('wallets')->where('id', $wallet->id)->update([
-            'frozen_paise' => max(0, $frozen - $amount),
-            'updated_at' => now(),
-        ]);
-        $this->db()->table('wallet_withdrawals')->where('id', $id)->update([
+        $walletUpdate = ['updated_at' => now()];
+        if ($this->hasColumn('wallets', 'frozen_paise')) {
+            $walletUpdate['frozen_paise'] = max(0, $frozen - $amount);
+        }
+        $this->db()->table('wallets')->where('id', $wallet->id)->update($walletUpdate);
+        $this->db()->table('wallet_withdrawals')->where('id', $id)->update($this->withdrawalUpdate([
             'status' => 'settled',
             'transfer_ref' => $transferRef,
             'note' => $note ?: $row->note,
             'settled_at' => now(),
-            'reviewed_by' => $operator->nest_user_id ?: null,
+            'reviewed_by' => $reviewer,
+            'reviewed_by_id' => $reviewer,
             'reviewed_at' => now(),
             'updated_at' => now(),
-        ]);
+        ]));
+    }
+
+    public function ensureWithdrawalSchema(): void
+    {
+        $schema = Schema::connection('platform');
+        if ($schema->hasTable('wallets') && ! $schema->hasColumn('wallets', 'frozen_paise')) {
+            $schema->table('wallets', function ($table) {
+                $table->unsignedBigInteger('frozen_paise')->default(0);
+            });
+        }
+        if (! $schema->hasTable('wallet_withdrawals')) {
+            $schema->create('wallet_withdrawals', function ($table) {
+                $table->id();
+                $table->string('public_ref', 24)->unique();
+                $table->unsignedBigInteger('wallet_id');
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->unsignedBigInteger('amount_paise');
+                $table->string('status', 24)->default('requested');
+                $table->string('upi_or_account', 120)->nullable();
+                $table->string('transfer_ref', 64)->nullable();
+                $table->string('note', 255)->nullable();
+                $table->unsignedBigInteger('reviewed_by')->nullable();
+                $table->timestamp('reviewed_at')->nullable();
+                $table->timestamp('settled_at')->nullable();
+                $table->timestamps();
+            });
+
+            return;
+        }
+        $adds = [];
+        foreach (['user_id', 'upi_or_account', 'transfer_ref', 'reviewed_by', 'reviewed_at', 'settled_at'] as $column) {
+            if (! $schema->hasColumn('wallet_withdrawals', $column)) {
+                $adds[] = $column;
+            }
+        }
+        if ($adds !== []) {
+            $schema->table('wallet_withdrawals', function ($table) use ($adds) {
+                if (in_array('user_id', $adds, true)) {
+                    $table->unsignedBigInteger('user_id')->nullable();
+                }
+                if (in_array('upi_or_account', $adds, true)) {
+                    $table->string('upi_or_account', 120)->nullable();
+                }
+                if (in_array('transfer_ref', $adds, true)) {
+                    $table->string('transfer_ref', 64)->nullable();
+                }
+                if (in_array('reviewed_by', $adds, true)) {
+                    $table->unsignedBigInteger('reviewed_by')->nullable();
+                }
+                if (in_array('reviewed_at', $adds, true)) {
+                    $table->timestamp('reviewed_at')->nullable();
+                }
+                if (in_array('settled_at', $adds, true)) {
+                    $table->timestamp('settled_at')->nullable();
+                }
+            });
+        }
+        if ($this->hasColumn('wallet_withdrawals', 'user_id') && $this->hasColumn('wallets', 'owner_user_id')) {
+            $this->db()->statement(
+                'UPDATE wallet_withdrawals w INNER JOIN wallets wa ON wa.id = w.wallet_id SET w.user_id = wa.owner_user_id WHERE w.user_id IS NULL OR w.user_id = 0'
+            );
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function withdrawalUpdate(array $payload): array
+    {
+        $out = [];
+        foreach ($payload as $column => $value) {
+            if ($this->hasColumn('wallet_withdrawals', $column)) {
+                $out[$column] = $value;
+            }
+        }
+
+        return $out;
     }
 
     /**
