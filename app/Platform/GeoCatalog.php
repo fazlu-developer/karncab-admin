@@ -76,29 +76,7 @@ final class GeoCatalog
 
     public static function matchDistrictId(?string $text, ?int $stateId = null): ?int
     {
-        $hay = strtolower(trim((string) $text));
-        if ($hay === '') {
-            return null;
-        }
-        try {
-            $q = DB::connection('platform')->table('districts')->orderByRaw('CHAR_LENGTH(name) desc');
-            if ($stateId) {
-                $q->where('state_id', $stateId);
-            }
-            foreach ($q->get(['id', 'name']) as $row) {
-                $name = strtolower((string) $row->name);
-                if ($name === '') {
-                    continue;
-                }
-                if ($name === $hay || str_contains($hay, $name)) {
-                    return (int) $row->id;
-                }
-            }
-        } catch (Throwable) {
-            return null;
-        }
-
-        return null;
+        return DistrictLocator::resolve(null, null, $text, $stateId);
     }
 
     /**

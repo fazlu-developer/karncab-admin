@@ -23,6 +23,7 @@ final class OpsNav
             ['key' => 'district-heads', 'label' => 'District Heads', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'users.view'],
             ['key' => 'fleet', 'label' => 'Fleet Owners / Operators', 'icon' => 'warehouse', 'group' => 'Fleet Management', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
             ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet Management', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
+            ['key' => 'district-vehicles', 'label' => 'District vehicles', 'icon' => 'map', 'group' => 'Fleet Management', 'ability' => 'vehicles.view', 'route' => 'vehicles.districts'],
             ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet Management', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
             ['key' => 'users', 'label' => 'Users', 'icon' => 'users', 'group' => 'People', 'ability' => 'users.view', 'route' => 'users.index'],
             ['key' => 'old-users', 'label' => 'Old users', 'icon' => 'history', 'group' => 'People', 'ability' => 'users.view', 'route' => 'old-users.index'],
@@ -140,7 +141,10 @@ final class OpsNav
             return request()->routeIs('drivers.*');
         }
         if (($item['key'] ?? '') === 'vehicles') {
-            return request()->routeIs('vehicles.*');
+            return request()->routeIs('vehicles.*') && ! request()->routeIs('vehicles.districts');
+        }
+        if (($item['key'] ?? '') === 'district-vehicles') {
+            return request()->routeIs('vehicles.districts');
         }
 
         if (($item['key'] ?? '') === 'franchise') {

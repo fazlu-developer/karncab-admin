@@ -43,6 +43,7 @@ class WalletsController extends Controller
 
         return view('wallets.commission', [
             'policy' => $this->wallets->policy(),
+            'share' => $this->wallets->shareSummary($request->user()),
         ]);
     }
 

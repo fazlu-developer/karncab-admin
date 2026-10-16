@@ -19,6 +19,10 @@ class OldUsersController extends Controller
         $tag = (string) $request->query('tag', '');
         $perPage = (int) $request->query('per_page', 25);
         $payload = $this->oldUsers->listing($q, $role, $tag, $perPage);
+        $removed = $this->oldUsers->purgeTestRows();
+        if ($removed > 0) {
+            $payload = $this->oldUsers->listing($q, $role, $tag, $perPage);
+        }
 
         return view('old-users.index', [
             'rows' => $payload['rows'],
@@ -26,6 +30,7 @@ class OldUsersController extends Controller
             'filters' => ['q' => $q, 'role' => $role, 'tag' => $tag, 'per_page' => in_array($perPage, [25, 50, 100], true) ? $perPage : 25],
             'source' => $this->oldUsers->resolveLegacyDatabase(),
             'sources' => $this->oldUsers->discoverLegacyCounts(),
+            'purgedTest' => $removed,
         ]);
     }
 
@@ -36,10 +41,12 @@ class OldUsersController extends Controller
             $file = $request->file('dump');
             abort_unless($file?->isValid(), 422, 'Upload a valid CSV or SQL file.');
             $result = $this->oldUsers->importUpload($file->getRealPath(), $file->getClientOriginalName());
+            $this->oldUsers->purgeTestRows();
 
             return back()->with('status', 'Imported '.$result['imported'].' users from upload ('.$result['source'].'). Table now has '.$result['total'].' old users.');
         }
         $result = $this->oldUsers->import();
+        $this->oldUsers->purgeTestRows();
 
         return back()->with('status', 'Imported '.$result['imported'].' of '.$result['source_count'].' rows from '.$result['source'].'. Table now has '.$result['total'].' old users.');
     }

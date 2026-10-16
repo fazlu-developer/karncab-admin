@@ -74,10 +74,13 @@ class LiveFleetMapService
     /**
      * @return array<string, mixed>
      */
-    public function snapshot(User $operator, ?string $status = null): array
+    public function snapshot(User $operator, ?string $status = null, array $filters = []): array
     {
         abort_unless(LiveFleetMapAccess::canUseMap($operator), 403, 'Live fleet map is limited to Super Admin, State Head, District Head, and Fleet Owner.');
         abort_unless($operator->can('vehicles.view'), 403);
+        $q = strtolower(trim((string) ($filters['q'] ?? '')));
+        $vehicleId = (int) ($filters['vehicleId'] ?? 0);
+        $familyFilter = strtoupper(trim((string) ($filters['family'] ?? '')));
 
         $vehicles = $this->db()->table('vehicles');
         TerritoryScope::applyVehicles($vehicles, $operator);
@@ -115,6 +118,7 @@ class LiveFleetMapService
                 'driverName' => $user->name ?? null,
                 'driverId' => $row->driver_id ? (int) $row->driver_id : null,
                 'vehicleType' => $row->category,
+                'vehicleFamily' => $this->vehicleFamily($row->category),
                 'driverStatus' => $resolved['status'],
                 'statusLabel' => $resolved['label'],
                 'districtId' => $row->district_id ? (int) $row->district_id : null,
@@ -132,6 +136,18 @@ class LiveFleetMapService
             ];
             if ($status && $item['driverStatus'] !== $status) {
                 continue;
+            }
+            if ($vehicleId > 0 && $item['vehicleId'] !== $vehicleId) {
+                continue;
+            }
+            if ($familyFilter !== '' && $item['vehicleFamily'] !== $familyFilter) {
+                continue;
+            }
+            if ($q !== '') {
+                $hay = strtolower(trim(($item['vehicleNumber'] ?? '').' '.($item['driverName'] ?? '').' '.$item['vehicleId']));
+                if (! str_contains($hay, $q)) {
+                    continue;
+                }
             }
             $list[] = $item;
         }
@@ -426,6 +442,19 @@ class LiveFleetMapService
         }
 
         return (int) floor(microtime(true) * 1000);
+    }
+
+    private function vehicleFamily(?string $category): string
+    {
+        $cat = strtoupper((string) $category);
+        if ($cat === 'BIKE') {
+            return 'BIKE';
+        }
+        if (in_array($cat, ['AUTO', 'E_RICKSHAW'], true)) {
+            return 'AUTO';
+        }
+
+        return 'CAR';
     }
 
     private function db()

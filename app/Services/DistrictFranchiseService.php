@@ -435,6 +435,9 @@ class DistrictFranchiseService
             return;
         }
         $role = $kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE';
+        if ($role === 'DISTRICT_HEAD') {
+            ExclusiveDistrictSeat::assertAvailable($districtId, $ownerUserId);
+        }
         $this->db()->table('users')->where('id', $ownerUserId)->whereNotIn('role', ['ADMIN', 'SUPER_ADMIN'])->update($this->filterRow('users', [
             'role' => $role,
             'district_id' => $districtId,

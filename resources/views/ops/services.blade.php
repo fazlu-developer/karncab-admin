@@ -28,7 +28,7 @@
 
     <section class="card">
         <h2>1. Customer services</h2>
-        <p class="muted">Tick vehicles for each service, then Save. Fare Management uses the same list.</p>
+        <p class="muted">Customer home fetches this list live. <b>On app</b> = show the tile, untick = hide it. <b>Sort</b> is the home-page order (smaller number first). Pull to refresh in the customer app after you Save.</p>
         <div class="catalog-grid">
             @foreach ($rows as $row)
                 @php $picked = $pickedFor($row); $src = $photo($row->image_url ?? ''); @endphp
@@ -50,6 +50,7 @@
                         <input type="hidden" name="seats" value="{{ data_get($row, 'seats', 4) }}">
                         <div class="catalog-meta">
                             <label>Sort <input name="sort_order" type="number" value="{{ $row->sort_order }}"></label>
+                            <input type="hidden" name="active" value="0">
                             <label class="inline"><input type="checkbox" name="active" value="1" @checked($row->active)> On app</label>
                         </div>
                         <label>Service photo (optional)<input type="file" name="image" accept="image/*"></label>

@@ -22,6 +22,15 @@ class DashboardController extends Controller
         if ($request->user()?->isCustomer()) {
             return redirect()->route('customer.dashboard');
         }
+        if ($request->user()?->isStateHead()) {
+            return redirect()->route('state.dashboard');
+        }
+        if ($request->user()?->isDistrictHead()) {
+            return redirect()->route('district.dashboard');
+        }
+        if ($request->user()?->isFleetOwner()) {
+            return redirect()->route('fleet.dashboard');
+        }
         $error = null;
         $kpis = [];
         $liveCustomers = [];

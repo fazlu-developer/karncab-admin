@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Platform\DistrictLocator;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
 use Illuminate\Support\Facades\DB;
@@ -177,22 +178,35 @@ class StateHeadService
      */
     private function districtRows(array $ctx): array
     {
-        $rows = [];
+        $counts = [];
         foreach ($this->districtOptions($ctx) as $district) {
-            $id = (int) $district['id'];
-            $bookings = $this->db()->table('bookings')->where('district_id', $id);
-            $rows[] = [
-                'id' => $id,
+            $counts[(int) $district['id']] = [
+                'id' => (int) $district['id'],
                 'name' => $district['name'],
-                'districtHeads' => $this->users($ctx)->where('role', 'DISTRICT_HEAD')->where('district_id', $id)->count(),
-                'drivers' => $this->db()->table('drivers')->join('users', 'users.id', '=', 'drivers.user_id')->where('users.district_id', $id)->count(),
-                'vehicles' => $this->db()->table('vehicles')->where('district_id', $id)->count(),
-                'bookings' => (clone $bookings)->count(),
-                'revenueRupees' => ((int) (clone $bookings)->where('status', 'COMPLETED')->sum('quote_paise')) / 100,
+                'districtHeads' => $this->users($ctx)->where('role', 'DISTRICT_HEAD')->where('district_id', (int) $district['id'])->count(),
+                'drivers' => $this->db()->table('drivers')->join('users', 'users.id', '=', 'drivers.user_id')->where('users.district_id', (int) $district['id'])->count(),
+                'vehicles' => $this->db()->table('vehicles')->where('district_id', (int) $district['id'])->count(),
+                'bookings' => 0,
+                'revenueRupees' => 0,
             ];
         }
+        foreach ($this->bookings($ctx)->get(['district_id', 'status', 'quote_paise', 'pickup_text', 'pickup_lat', 'pickup_lng']) as $booking) {
+            $resolved = DistrictLocator::resolve(
+                $booking->pickup_lat !== null ? (float) $booking->pickup_lat : null,
+                $booking->pickup_lng !== null ? (float) $booking->pickup_lng : null,
+                (string) ($booking->pickup_text ?? ''),
+                (int) $ctx['stateId'],
+            ) ?: ((int) ($booking->district_id ?? 0) ?: null);
+            if (! $resolved || ! isset($counts[$resolved])) {
+                continue;
+            }
+            $counts[$resolved]['bookings']++;
+            if (strtoupper((string) $booking->status) === 'COMPLETED') {
+                $counts[$resolved]['revenueRupees'] += ((int) $booking->quote_paise) / 100;
+            }
+        }
 
-        return $rows;
+        return array_values($counts);
     }
 
     /**

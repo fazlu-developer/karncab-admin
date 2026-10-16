@@ -15,6 +15,9 @@ final class ConsoleNav
         if (method_exists($user, 'isStateHead') && $user->isStateHead()) {
             return StateHeadNav::grouped($user);
         }
+        if (method_exists($user, 'isDistrictHead') && $user->isDistrictHead()) {
+            return DistrictHeadNav::grouped($user);
+        }
         if (method_exists($user, 'isFleetOwner') && $user->isFleetOwner()) {
             return FleetNav::grouped($user);
         }
@@ -33,6 +36,9 @@ final class ConsoleNav
         if (method_exists($user, 'isStateHead') && $user->isStateHead()) {
             return StateHeadNav::href($item);
         }
+        if (method_exists($user, 'isDistrictHead') && $user->isDistrictHead()) {
+            return DistrictHeadNav::href($item);
+        }
         if (method_exists($user, 'isFleetOwner') && $user->isFleetOwner()) {
             return FleetNav::href($item);
         }
@@ -50,6 +56,9 @@ final class ConsoleNav
         }
         if (method_exists($user, 'isStateHead') && $user->isStateHead()) {
             return StateHeadNav::active($item);
+        }
+        if (method_exists($user, 'isDistrictHead') && $user->isDistrictHead()) {
+            return DistrictHeadNav::active($item);
         }
         if (method_exists($user, 'isFleetOwner') && $user->isFleetOwner()) {
             return FleetNav::active($item);

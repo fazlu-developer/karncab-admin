@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Platform\CommissionEngine;
+use App\Platform\FareCommissionSplit;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
 use Illuminate\Database\Query\Builder;
@@ -380,34 +381,31 @@ class WalletLedgerService
             return;
         }
         $fleetUserId = null;
+        $fleetOwnerId = 0;
         if (! empty($row->vehicle_id)) {
             $vehicle = $this->db()->table('vehicles')->where('id', $row->vehicle_id)->first();
             if ($vehicle?->fleet_owner_id) {
+                $fleetOwnerId = (int) $vehicle->fleet_owner_id;
                 $fleetUserId = $this->db()->table('fleet_owners')->where('id', $vehicle->fleet_owner_id)->value('user_id');
             }
         }
         if (! $fleetUserId && ! empty($driver->fleet_owner_id)) {
+            $fleetOwnerId = (int) $driver->fleet_owner_id;
             $fleetUserId = $this->db()->table('fleet_owners')->where('id', $driver->fleet_owner_id)->value('user_id');
         }
 
-        $franchise = null;
+        $fleetPct = $this->fleetCutPercent($fleetOwnerId);
+        $farePaise = $totalPaise ?: ((int) ($fromQuote['netPaise'] ?? 0) + (int) ($settled['commissionPaise'] ?? 0));
+        $split = FareCommissionSplit::split($farePaise, (int) $settled['commissionPaise'], $fleetPct);
+        $districtUserId = 0;
         if (! empty($row->district_id)) {
-            $franchise = $this->db()->table('franchises')
-                ->where('district_id', $row->district_id)
+            $districtUserId = (int) ($this->db()->table('users')
+                ->where('role', OperatorRole::DISTRICT_HEAD)
+                ->where('district_id', (int) $row->district_id)
                 ->where('status', 'ACTIVE')
-                ->first();
+                ->orderBy('id')
+                ->value('id') ?? 0);
         }
-        $fleetPct = (float) ($this->setting('fleet_owner_commission_percent') ?? $this->setting('fleet_commission_share_percent') ?? 0);
-        if ($fleetUserId && $this->hasColumn('fleet_owners', 'commission_percent')) {
-            $ownPct = $this->db()->table('fleet_owners')->where('user_id', $fleetUserId)->value('commission_percent');
-            if ($ownPct !== null && $ownPct !== '') {
-                $fleetPct = (float) $ownPct;
-            }
-        }
-        $split = CommissionEngine::splitPlatformCommission((int) $settled['commissionPaise'], [
-            'fleetPercent' => $fleetPct,
-            'territoryPercent' => $franchise ? (float) $franchise->commission_percent : 0,
-        ]);
 
         $payment = $this->db()->table('payments')
             ->where('booking_id', $row->id)
@@ -457,60 +455,45 @@ class WalletLedgerService
                 'commissionPaise' => $split['fleetPaise'],
                 'grossPaise' => (int) $settled['commissionPaise'],
                 'bookingId' => (int) $row->id,
-                'kind' => 'commission',
-                'note' => 'Fleet share of platform commission',
+                'kind' => 'fleet_commission',
+                'note' => 'Fleet cut from the district 4% share',
                 'paymentRef' => $paymentRef,
             ]);
         }
 
-        if ($franchise && $split['territoryPaise'] > 0) {
+        if ($districtUserId > 0 && $split['districtHeadPaise'] > 0) {
             $this->postLedger([
-                'ownerType' => $franchise->kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE',
-                'ownerUserId' => (int) $franchise->owner_user_id,
+                'ownerType' => 'DISTRICT_HEAD',
+                'ownerUserId' => $districtUserId,
                 'direction' => 'CREDIT',
-                'amountPaise' => $split['territoryPaise'],
-                'commissionPaise' => $split['territoryPaise'],
+                'amountPaise' => $split['districtHeadPaise'],
+                'commissionPaise' => $split['districtHeadPaise'],
                 'grossPaise' => (int) $settled['commissionPaise'],
                 'bookingId' => (int) $row->id,
-                'kind' => 'commission',
-                'note' => 'Territory share of platform commission',
+                'kind' => 'district_head_commission',
+                'note' => 'District Head net 4% after fleet cut',
                 'paymentRef' => $paymentRef,
             ]);
         }
 
-        if (! empty($row->corporate_account_id) && $split['unallocatedPaise'] > 0 && $this->hasColumn('corporate_accounts', 'owner_user_id')) {
-            $account = $this->db()->table('corporate_accounts')->where('id', $row->corporate_account_id)->first();
-            if ($account?->owner_user_id) {
-                $this->postLedger([
-                    'ownerType' => 'CORPORATE',
-                    'ownerUserId' => (int) $account->owner_user_id,
-                    'direction' => 'CREDIT',
-                    'amountPaise' => $split['unallocatedPaise'],
-                    'commissionPaise' => $split['unallocatedPaise'],
-                    'grossPaise' => (int) $settled['commissionPaise'],
-                    'bookingId' => (int) $row->id,
-                    'kind' => 'commission',
-                    'note' => 'Corporate share of unallocated platform commission',
-                    'paymentRef' => $paymentRef,
-                ]);
-            }
-        } elseif ($split['unallocatedPaise'] > 0) {
+        if ($split['platformPaise'] > 0) {
             $platformUserId = $this->platformWalletUserId();
             if ($platformUserId) {
                 $this->postLedger([
                     'ownerType' => 'PLATFORM',
                     'ownerUserId' => $platformUserId,
                     'direction' => 'CREDIT',
-                    'amountPaise' => $split['unallocatedPaise'],
-                    'commissionPaise' => $split['unallocatedPaise'],
+                    'amountPaise' => $split['platformPaise'],
+                    'commissionPaise' => $split['platformPaise'],
                     'grossPaise' => (int) $settled['commissionPaise'],
                     'bookingId' => (int) $row->id,
-                    'kind' => 'commission',
-                    'note' => 'Platform / admin share of commission',
+                    'kind' => 'platform_commission',
+                    'note' => 'Platform 6% of fare',
                     'paymentRef' => $paymentRef,
                 ]);
             }
         }
+        $this->persistCommissionSplit($row, $split);
     }
 
     /**
@@ -659,6 +642,128 @@ class WalletLedgerService
         return 'CUSTOMER';
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function shareSummary(?User $operator): array
+    {
+        $summary = [
+            'platformPercent' => FareCommissionSplit::PLATFORM_PERCENT,
+            'districtPercent' => FareCommissionSplit::DISTRICT_PERCENT,
+            'totalPercent' => FareCommissionSplit::TOTAL_PERCENT,
+            'audience' => 'platform',
+            'title' => 'Platform 6%',
+            'note' => 'A completed fare keeps a 10% commission. Super Admin receives 6% of the fare. The District Head receives 4%, and a fleet cut is taken only from that 4%.',
+            'todayPaise' => 0,
+            'monthPaise' => 0,
+            'fleetPercent' => null,
+        ];
+        if (! $operator) {
+            return $summary;
+        }
+        if ($operator->isDistrictHead()) {
+            $summary['audience'] = 'district';
+            $summary['title'] = 'District Head 4%';
+            $summary['note'] = 'This is your net share after the fleet cut you assigned. Super Admin still receives 6% of the fare.';
+            [$summary['todayPaise'], $summary['monthPaise']] = $this->accountEarnings('DISTRICT_HEAD', $this->platformOwnerId($operator), ['district_head_commission', 'commission']);
+
+            return $summary;
+        }
+        if ($operator->isFleetOwner()) {
+            $summary['audience'] = 'fleet';
+            $summary['title'] = 'Fleet cut';
+            $summary['note'] = 'Your cut is a percent of fare assigned by the District Head, taken from their 4% share.';
+            $summary['fleetPercent'] = $this->fleetCutPercent((int) ($operator->fleet_owner_id ?? 0));
+            $fleetUserId = $operator->fleet_owner_id
+                ? (int) $this->db()->table('fleet_owners')->where('id', $operator->fleet_owner_id)->value('user_id')
+                : 0;
+            [$summary['todayPaise'], $summary['monthPaise']] = $this->accountEarnings('FLEET_OWNER', $fleetUserId, ['fleet_commission', 'commission']);
+
+            return $summary;
+        }
+        [$summary['todayPaise'], $summary['monthPaise']] = $this->accountEarnings('PLATFORM', null, ['platform_commission', 'commission']);
+
+        return $summary;
+    }
+
+    private function platformOwnerId(User $operator): int
+    {
+        if ($operator->nest_user_id) {
+            return (int) $operator->nest_user_id;
+        }
+        if ($operator->email) {
+            return (int) ($this->db()->table('users')->where('email', $operator->email)->value('id') ?? 0);
+        }
+
+        return 0;
+    }
+
+    /**
+     * @param  list<string>  $kinds
+     * @return array{0: int, 1: int}
+     */
+    private function accountEarnings(string $account, ?int $ownerUserId, array $kinds): array
+    {
+        if (! Schema::connection('platform')->hasTable('wallet_ledger')) {
+            return [0, 0];
+        }
+        $q = $this->db()->table('wallet_ledger')->where('direction', 'CREDIT');
+        if ($this->hasColumn('wallet_ledger', 'account')) {
+            $q->where('account', $account);
+        }
+        if ($ownerUserId) {
+            $q->where('owner_user_id', $ownerUserId);
+        }
+        if ($this->hasColumn('wallet_ledger', 'kind')) {
+            $q->whereIn('kind', $kinds);
+        }
+        $today = (int) (clone $q)->where('created_at', '>=', now()->startOfDay())->sum('amount_paise');
+        $month = (int) (clone $q)->where('created_at', '>=', now()->startOfMonth())->sum('amount_paise');
+
+        return [$today, $month];
+    }
+
+    private function fleetCutPercent(int $fleetOwnerId): float
+    {
+        if ($fleetOwnerId < 1) {
+            return 0.0;
+        }
+        if ($this->hasColumn('fleet_owners', 'commission_percent')) {
+            $own = $this->db()->table('fleet_owners')->where('id', $fleetOwnerId)->value('commission_percent');
+            if ($own !== null && $own !== '') {
+                return (float) $own;
+            }
+        }
+        $stored = $this->setting('fleet_cut_percent_'.$fleetOwnerId);
+        if (is_numeric($stored)) {
+            return (float) $stored;
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * @param  array<string, int|float>  $split
+     */
+    private function persistCommissionSplit(object $row, array $split): void
+    {
+        $patch = [];
+        foreach ([
+            'commission_paise' => 'commissionPaise',
+            'platform_commission_paise' => 'platformPaise',
+            'district_head_commission_paise' => 'districtHeadPaise',
+            'fleet_commission_paise' => 'fleetPaise',
+        ] as $column => $key) {
+            if ($this->hasColumn('bookings', $column)) {
+                $patch[$column] = (int) ($split[$key] ?? 0);
+            }
+        }
+        if ($patch === []) {
+            return;
+        }
+        $this->db()->table('bookings')->where('id', $row->id)->update($patch);
+    }
+
     private function platformWalletUserId(): ?int
     {
         $configured = $this->setting('platform_wallet_user_id');
@@ -696,10 +801,22 @@ class WalletLedgerService
             ->where('direction', 'CREDIT')
             ->first();
 
+        $booking = $this->db()->table('bookings')->where('id', $bookingId)->first();
+        $read = function (string $column) use ($booking): int {
+            if (! $booking || ! $this->hasColumn('bookings', $column)) {
+                return 0;
+            }
+
+            return (int) ($booking->{$column} ?? 0);
+        };
+
         return [
             'commissionPaise' => (int) ($driver->commission_paise ?? 0),
             'netPaise' => (int) ($driver->amount_paise ?? 0),
             'eligibleHintPaise' => (int) ($driver->gross_paise ?? 0),
+            'platformCommissionPaise' => $read('platform_commission_paise'),
+            'districtHeadCommissionPaise' => $read('district_head_commission_paise'),
+            'fleetCommissionPaise' => $read('fleet_commission_paise'),
         ];
     }
 

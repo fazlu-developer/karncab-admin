@@ -111,7 +111,40 @@ class WalletCommissionTest extends TestCase
             ->where('account', 'PLATFORM')
             ->first();
         $this->assertNotNull($platform);
-        $this->assertSame(100_000, (int) $platform->amount_paise);
+        $this->assertSame(60_000, (int) $platform->amount_paise);
+    }
+
+    public function test_completed_fare_splits_six_percent_platform_and_fleet_cut_from_district_four(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        DB::connection('platform')->table('users')->insert([
+            'id' => 801,
+            'role' => 'DISTRICT_HEAD',
+            'status' => 'ACTIVE',
+            'name' => 'Saharsa Head',
+            'email' => 'dh-saharsa@karnacab.local',
+            'password_hash' => 'x',
+            'district_id' => 10,
+            'state_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::connection('platform')->table('fleet_owners')->where('id', 1)->update(['commission_percent' => 1]);
+        $bookingId = $this->insertCompletedBooking(100_000);
+
+        $this->actingAs($admin)
+            ->postJson("/api/v1/bookings/{$bookingId}/settle")
+            ->assertOk()
+            ->assertJsonPath('settlement.commissionPaise', 10_000)
+            ->assertJsonPath('settlement.netPaise', 90_000)
+            ->assertJsonPath('settlement.platformCommissionPaise', 6_000)
+            ->assertJsonPath('settlement.districtHeadCommissionPaise', 3_000)
+            ->assertJsonPath('settlement.fleetCommissionPaise', 1_000);
+
+        $this->assertSame(6_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'PLATFORM')->value('amount_paise'));
+        $this->assertSame(3_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'DISTRICT_HEAD')->value('amount_paise'));
+        $this->assertSame(1_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'FLEET_OWNER')->value('amount_paise'));
+        $this->assertSame(90_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'DRIVER')->where('kind', 'trip')->value('amount_paise'));
     }
 
     public function test_changing_on_toll_changes_eligible_commission(): void

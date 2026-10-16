@@ -321,7 +321,7 @@ final class AclCatalog
         $ensure = [
             OperatorRole::MANAGER => ['users.view', 'state_head.view', 'tracking.view'],
             OperatorRole::STATE_HEAD => ['users.view', 'state_head.view'],
-            OperatorRole::DISTRICT_HEAD => ['users.view', 'vehicles.view', 'bookings.view'],
+            OperatorRole::DISTRICT_HEAD => ['users.view', 'vehicles.view', 'bookings.view', 'fleet.manage', 'drivers.create', 'commission.view'],
         ];
         foreach ($ensure as $role => $abilities) {
             if (! DB::table('acl_role_permissions')->where('role', $role)->exists()) {

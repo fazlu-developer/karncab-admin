@@ -15,6 +15,7 @@ final class FleetNav
             ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet', 'ability' => 'drivers.view', 'route' => 'fleet.drivers'],
             ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Fleet', 'ability' => 'reports.view', 'route' => 'fleet.reports'],
             ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Fleet', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
+            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Fleet', 'ability' => 'wallet.view', 'route' => 'wallets.commission'],
             ['key' => 'map', 'label' => 'Live map', 'icon' => 'radar', 'group' => 'Fleet', 'ability' => 'tracking.view', 'route' => 'live.map'],
         ];
     }
@@ -31,7 +32,8 @@ final class FleetNav
             'vehicles' => request()->routeIs('fleet.vehicles*') || request()->routeIs('fleet.vehicle*'),
             'drivers' => request()->routeIs('fleet.drivers*') || request()->routeIs('fleet.driver*'),
             'reports' => request()->routeIs('fleet.reports') || request()->routeIs('fleet.trips*') || request()->routeIs('reports.*'),
-            'wallets' => request()->routeIs('wallets.*'),
+            'wallets' => request()->routeIs('wallets.*') && ! request()->routeIs('wallets.commission*'),
+            'commission' => request()->routeIs('wallets.commission*'),
             'map' => request()->routeIs('live.map'),
             default => false,
         };

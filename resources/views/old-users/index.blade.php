@@ -24,6 +24,9 @@
     @if (session('status'))
         <p class="ok">{{ session('status') }}</p>
     @endif
+    @if (!empty($purgedTest))
+        <p class="ok">Removed {{ $purgedTest }} test / dummy numbers from old users.</p>
+    @endif
 
     <div class="kpis">
         <a class="kpi" href="{{ route('old-users.index') }}"><div class="label">All old users</div><b>{{ $counts['all'] }}</b></a>

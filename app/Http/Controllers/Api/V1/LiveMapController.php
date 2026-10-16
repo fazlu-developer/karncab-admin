@@ -19,7 +19,11 @@ class LiveMapController extends Controller
             abort(422, 'Unknown map status filter.');
         }
 
-        return response()->json($this->map->snapshot($request->user(), $status));
+        return response()->json($this->map->snapshot($request->user(), $status, [
+            'q' => trim((string) $request->query('q', '')),
+            'family' => strtoupper(trim((string) $request->query('family', ''))),
+            'vehicleId' => (int) $request->query('vehicle', 0),
+        ]));
     }
 
     public function ingest(Request $request): JsonResponse

@@ -16,10 +16,22 @@ class LiveMapController extends Controller
         abort_unless(LiveFleetMapAccess::canUseMap($request->user()), 403);
         abort_unless($request->user()?->can('vehicles.view') || $request->user()?->can('tracking.view'), 403);
 
+        $status = $request->query('status');
+        $q = trim((string) $request->query('q', ''));
+        $family = strtoupper(trim((string) $request->query('family', '')));
+        $vehicleId = (int) $request->query('vehicle', 0);
+
         return view('live.map', [
-            'snapshot' => $this->map->snapshot($request->user(), $request->query('status')),
+            'snapshot' => $this->map->snapshot($request->user(), $status, [
+                'q' => $q,
+                'family' => $family,
+                'vehicleId' => $vehicleId,
+            ]),
             'googleKey' => config('karnacab.google_maps_key'),
-            'status' => $request->query('status'),
+            'status' => $status,
+            'q' => $q,
+            'family' => $family,
+            'vehicleId' => $vehicleId,
         ]);
     }
 }

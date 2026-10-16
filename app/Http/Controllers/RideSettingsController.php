@@ -19,7 +19,7 @@ class RideSettingsController extends Controller
         $radius = $db->table('system_settings')->where('key', 'driver_search_radius_km')->value('value')
             ?? $db->table('system_settings')->where('key', 'driver_offer_radius_km')->value('value')
             ?? '20';
-        $timeout = $db->table('system_settings')->where('key', 'ride_request_timeout_seconds')->value('value') ?? '30';
+        $timeout = $db->table('system_settings')->where('key', 'ride_request_timeout_seconds')->value('value') ?? '600';
 
         $bonusOn = $db->table('system_settings')->where('key', 'driver_welcome_bonus_enabled')->value('value');
         $bonusRupees = $db->table('system_settings')->where('key', 'driver_welcome_bonus_rupees')->value('value');

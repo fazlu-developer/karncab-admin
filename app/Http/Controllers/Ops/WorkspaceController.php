@@ -122,7 +122,7 @@ class WorkspaceController extends Controller
             'vehicle_keys.*' => ['string', 'max:40'],
             'sort_order' => ['nullable', 'integer'],
             'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
-            'active' => ['nullable', 'boolean'],
+            'active' => ['nullable'],
             'image' => ['nullable', 'image', 'max:4096'],
             'remove_image' => ['nullable'],
         ]);
@@ -143,7 +143,7 @@ class WorkspaceController extends Controller
             'vehicle_categories' => $this->encodeVehicleKeys($request->input('vehicle_keys', [])),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'seats' => (int) ($data['seats'] ?? 4),
-            'active' => $request->boolean('active'),
+            'active' => $this->onAppFlag($request->input('active')),
             'updated_at' => now(),
         ]);
         if ($imageUrl !== null) {
@@ -622,7 +622,13 @@ class WorkspaceController extends Controller
         $payload = PlatformSettings::filter('bookings', [
             'public_ref' => 'KC'.strtoupper(Str::random(8)),
             'customer_id' => $data['customer_id'],
-            'district_id' => $data['district_id'] ?? null,
+            'district_id' => $data['district_id']
+                ?: \App\Platform\DistrictLocator::resolve(
+                    isset($data['pickup_lat']) ? (float) $data['pickup_lat'] : null,
+                    isset($data['pickup_lng']) ? (float) $data['pickup_lng'] : null,
+                    (string) $data['pickup_text'],
+                    $request->user()?->state_id ? (int) $request->user()->state_id : null,
+                ),
             'product' => strtoupper($data['product']),
             'category' => strtoupper($data['category']),
             'status' => 'SEARCHING',
@@ -680,7 +686,7 @@ class WorkspaceController extends Controller
 
         return view('ops.settings', [
             'radiusKm' => (float) (PlatformSettings::get('driver_search_radius_km') ?? PlatformSettings::get('driver_offer_radius_km', '20')),
-            'timeoutSeconds' => (int) (PlatformSettings::get('ride_request_timeout_seconds', '30')),
+            'timeoutSeconds' => (int) (PlatformSettings::get('ride_request_timeout_seconds', '600')),
             'walletMinRupees' => ((int) (PlatformSettings::get('driver_wallet_min_paise', '0'))) / 100,
             'walletMinPercent' => (float) (PlatformSettings::get('driver_wallet_min_fare_percent', '0')),
             'walletCoverCommission' => PlatformSettings::get('driver_wallet_must_cover_commission', '1') !== '0',
@@ -787,6 +793,21 @@ class WorkspaceController extends Controller
     /**
      * @param  list<mixed>  $keys
      */
+    private function onAppFlag(mixed $value): int
+    {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if (filter_var($item, FILTER_VALIDATE_BOOLEAN)) {
+                    return 1;
+                }
+            }
+
+            return 0;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    }
+
     private function encodeVehicleKeys(array $keys): string
     {
         $clean = [];
@@ -835,12 +856,12 @@ class WorkspaceController extends Controller
             ['title' => 'City Ride', 'slug' => 'city-ride', 'group' => 'RIDE', 'key' => 'LOCAL_CAB', 'sort' => 10, 'subtitle' => 'Local trips in the city'],
             ['title' => 'One Way', 'slug' => 'one-way', 'group' => 'RIDE', 'key' => 'ONE_WAY', 'sort' => 20, 'subtitle' => 'Outstation one way'],
             ['title' => 'Round Way', 'slug' => 'round-way', 'group' => 'RIDE', 'key' => 'ROUND_WAY', 'sort' => 30, 'subtitle' => 'Go and return'],
-            ['title' => 'Cab Rental', 'slug' => 'cab-rental', 'group' => 'RIDE', 'key' => 'RENTAL', 'sort' => 40, 'subtitle' => 'Hourly packages'],
-            ['title' => 'Schedule Ride', 'slug' => 'schedule-ride', 'group' => 'RIDE', 'key' => 'SCHEDULE', 'sort' => 50, 'subtitle' => 'Book for later'],
-            ['title' => 'Airport Transfer', 'slug' => 'airport-transfer', 'group' => 'RIDE', 'key' => 'AIRPORT', 'sort' => 60, 'subtitle' => 'To and from the airport'],
-            ['title' => 'Railway Transfer', 'slug' => 'railway-transfer', 'group' => 'RIDE', 'key' => 'RAILWAY', 'sort' => 70, 'subtitle' => 'To and from the station'],
-            ['title' => 'Multi Stop Ride', 'slug' => 'multi-stop-ride', 'group' => 'RIDE', 'key' => 'MULTI_STOP', 'sort' => 80, 'subtitle' => 'Several stops, one fare'],
-            ['title' => 'Parcel Delivery', 'slug' => 'parcel-delivery', 'group' => 'PARCEL', 'key' => 'PARCEL', 'sort' => 90, 'subtitle' => 'Send packages'],
+            ['title' => 'Parcel Delivery', 'slug' => 'parcel-delivery', 'group' => 'PARCEL', 'key' => 'PARCEL', 'sort' => 40, 'subtitle' => 'Send packages'],
+            ['title' => 'Airport Transfer', 'slug' => 'airport-transfer', 'group' => 'RIDE', 'key' => 'AIRPORT', 'sort' => 50, 'subtitle' => 'To and from the airport'],
+            ['title' => 'Railway Transfer', 'slug' => 'railway-transfer', 'group' => 'RIDE', 'key' => 'RAILWAY', 'sort' => 60, 'subtitle' => 'To and from the station'],
+            ['title' => 'Cab Rental', 'slug' => 'cab-rental', 'group' => 'RIDE', 'key' => 'RENTAL', 'sort' => 70, 'subtitle' => 'Hourly packages'],
+            ['title' => 'Schedule Ride', 'slug' => 'schedule-ride', 'group' => 'RIDE', 'key' => 'SCHEDULE', 'sort' => 80, 'subtitle' => 'Book for later'],
+            ['title' => 'Multi Stop Ride', 'slug' => 'multi-stop-ride', 'group' => 'RIDE', 'key' => 'MULTI_STOP', 'sort' => 90, 'subtitle' => 'Several stops, one fare'],
             ['title' => 'Travel & Tours', 'slug' => 'travel-tours', 'group' => 'RIDE', 'key' => 'TRAVEL', 'sort' => 100, 'subtitle' => 'Holiday packages'],
             ['title' => 'Bulk Booking', 'slug' => 'bulk-booking', 'group' => 'RIDE', 'key' => 'BULK', 'sort' => 110, 'subtitle' => 'Many cabs at once'],
             ['title' => 'Corporate Travel', 'slug' => 'corporate-travel', 'group' => 'RIDE', 'key' => 'CORPORATE', 'sort' => 120, 'subtitle' => 'Company accounts'],
@@ -901,6 +922,12 @@ class WorkspaceController extends Controller
             $patch = ['updated_at' => $now];
             if ($schema->hasColumn('catalog_services', 'category_key')) {
                 $patch['category_key'] = $item['key'];
+            }
+            if ($schema->hasColumn('catalog_services', 'sort_order')) {
+                $patch['sort_order'] = $item['sort'];
+            }
+            if ($schema->hasColumn('catalog_services', 'service_group')) {
+                $patch['service_group'] = $item['group'];
             }
             if ($schema->hasColumn('catalog_services', 'slug') && trim((string) ($exists->slug ?? '')) === '') {
                 $patch['slug'] = $item['slug'];

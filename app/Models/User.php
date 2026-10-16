@@ -60,6 +60,16 @@ class User extends Authenticatable
         return $this->role === OperatorRole::STATE_HEAD;
     }
 
+    public function isDistrictHead(): bool
+    {
+        return $this->role === OperatorRole::DISTRICT_HEAD;
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === OperatorRole::SUPER_ADMIN;
+    }
+
     public function permissions(): HasMany
     {
         return $this->hasMany(UserPermission::class);
@@ -90,6 +100,9 @@ class User extends Authenticatable
         if ($this->isStateHead()) {
             return 'state.dashboard';
         }
+        if ($this->isDistrictHead()) {
+            return 'district.dashboard';
+        }
         if ($this->isFleetOwner()) {
             return 'fleet.dashboard';
         }
@@ -105,13 +118,18 @@ class User extends Authenticatable
 
     public function hasPlatformAbility(string $ability): bool
     {
-        if ($this->isPrivilegedOperator()) {
+        if ($this->isSuperAdmin()) {
             return true;
         }
         $granted = PlatformPermission::forRole((string) $this->role);
         $granted = array_values(array_unique(array_merge($granted, $this->assignedAbilities())));
         if (in_array($ability, $granted, true)) {
             return true;
+        }
+        foreach (PlatformPermission::expand($ability) as $canonical) {
+            if (in_array($canonical, $granted, true)) {
+                return true;
+            }
         }
         foreach ($granted as $item) {
             if (in_array($ability, PlatformPermission::expand($item), true)) {

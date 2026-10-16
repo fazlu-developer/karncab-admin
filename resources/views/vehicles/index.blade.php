@@ -7,29 +7,49 @@
     @php
         $family = $filters['family'] ?? '';
         $category = $filters['category'] ?? '';
+        $districtId = (int) ($districtId ?? $filters['district_id'] ?? 0);
+        $listQuery = array_filter([
+            'q' => $filters['q'] ?? null,
+            'district_id' => $districtId ?: null,
+        ]);
     @endphp
     <div class="hero">
         <div>
-            <h1>Vehicles</h1>
-            <p class="muted">All registered vehicles by type: Bike, Auto and Car. Territory scope still applies.</p>
+            <h1>{{ $districtLabel ? $districtLabel.' vehicles' : 'Vehicles' }}</h1>
+            <p class="muted">
+                @if ($districtLabel)
+                    All registered vehicles in {{ $districtLabel }}. Click the eye icon for full details.
+                @else
+                    All registered vehicles by type: Bike, Auto and Car. Territory scope still applies.
+                @endif
+            </p>
+        </div>
+        <div class="row-actions">
+            @if ($districtId)
+                <a class="btn ghost" href="{{ route('vehicles.districts') }}"><i data-lucide="arrow-left"></i> Districts</a>
+            @endif
+            <a class="btn ghost" href="{{ route('vehicles.districts') }}"><i data-lucide="map"></i> By district</a>
         </div>
     </div>
 
     <section class="card">
         <div class="row-actions" style="flex-wrap:wrap;gap:8px">
-            <a class="btn {{ $family === '' && $category === '' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['q' => $filters['q'] ?? null]) }}">All ({{ $totalCount ?? array_sum($counts) }})</a>
-            <a class="btn {{ $family === 'BIKE' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['family' => 'BIKE'] + $filters) }}">Bike ({{ $familyCounts['BIKE'] ?? 0 }})</a>
-            <a class="btn {{ $family === 'AUTO' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['family' => 'AUTO'] + $filters) }}">Auto ({{ $familyCounts['AUTO'] ?? 0 }})</a>
-            <a class="btn {{ $family === 'CAR' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['family' => 'CAR'] + $filters) }}">Car ({{ $familyCounts['CAR'] ?? 0 }})</a>
+            <a class="btn {{ $family === '' && $category === '' ? '' : 'ghost' }}" href="{{ route('vehicles.index', $listQuery) }}">All ({{ $totalCount ?? array_sum($counts) }})</a>
+            <a class="btn {{ $family === 'BIKE' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['family' => 'BIKE'] + $listQuery) }}">Bike ({{ $familyCounts['BIKE'] ?? 0 }})</a>
+            <a class="btn {{ $family === 'AUTO' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['family' => 'AUTO'] + $listQuery) }}">Auto ({{ $familyCounts['AUTO'] ?? 0 }})</a>
+            <a class="btn {{ $family === 'CAR' ? '' : 'ghost' }}" href="{{ route('vehicles.index', ['family' => 'CAR'] + $listQuery) }}">Car ({{ $familyCounts['CAR'] ?? 0 }})</a>
         </div>
         <div class="row-actions" style="flex-wrap:wrap;gap:8px;margin-top:10px">
             @foreach ($catalog as $key => $meta)
-                <a class="pill {{ $category === $key ? 'ok' : 'muted' }}" href="{{ route('vehicles.index', ['category' => $key, 'q' => $filters['q'] ?? null]) }}">{{ $meta['label'] }} ({{ $counts[$key] ?? 0 }})</a>
+                <a class="pill {{ $category === $key ? 'ok' : 'muted' }}" href="{{ route('vehicles.index', ['category' => $key] + $listQuery) }}">{{ $meta['label'] }} ({{ $counts[$key] ?? 0 }})</a>
             @endforeach
         </div>
         <form class="filters" method="GET" style="margin-top:16px">
             <input type="hidden" name="family" value="{{ $family }}">
             <input type="hidden" name="category" value="{{ $category }}">
+            @if ($districtId)
+                <input type="hidden" name="district_id" value="{{ $districtId }}">
+            @endif
             <div><label>Search</label><input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Number, brand, model"></div>
             <button class="btn" type="submit">Filter</button>
         </form>
@@ -125,7 +145,8 @@
                         </td>
                         <td>{{ $districtNames[$row->district_id] ?? '—' }}{{ !empty($stateNames[$row->state_id]) ? ' · '.$stateNames[$row->state_id] : '' }}</td>
                         <td>{{ trim(($row->brand ?? '').' '.($row->model ?? '')) ?: '—' }}</td>
-                        <td>
+                        <td class="row-actions">
+                            <a class="icon-btn" href="{{ route('vehicles.show', $row) }}" title="View vehicle"><i data-lucide="eye"></i></a>
                             @if (in_array(strtolower((string) $row->status), ['pending_review', 'pending'], true))
                                 @can('vehicles.edit')
                                     <form method="POST" action="{{ route('vehicles.approve', $row) }}" style="display:inline">
@@ -133,8 +154,6 @@
                                         <button class="btn" type="submit">Approve</button>
                                     </form>
                                 @endcan
-                            @elseif ($row->driver)
-                                <a class="icon-btn" href="{{ route('drivers.show', $row->driver) }}" title="Driver"><i data-lucide="eye"></i></a>
                             @endif
                         </td>
                     </tr>

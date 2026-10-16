@@ -45,11 +45,11 @@ final class FareQuoteEngine
         $night = filter_var($input['night'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $nightPaise = $night ? (int) round(($preNight * (int) $rule->night_percent) / 100) : 0;
         $taxable = $preNight + $nightPaise;
-        $toll = $rule->apply_toll ? (int) ($input['tollPaise'] ?? 0) : 0;
-        $parking = $rule->apply_parking ? (int) ($input['parkingPaise'] ?? 0) : 0;
+        $toll = 0;
+        $parking = 0;
         $gstBase = $rule->apply_gst_to_base ? $taxable : 0;
         $gstPaise = (int) round(($gstBase * (int) $rule->gst_percent) / 100);
-        $beforeDiscount = $taxable + $toll + $parking + $gstPaise;
+        $beforeDiscount = $taxable + $gstPaise;
         $discountPaise = $this->discountPaise($rule, $beforeDiscount);
         $totalPaise = max(0, $beforeDiscount - $discountPaise);
 
@@ -126,6 +126,7 @@ final class FareQuoteEngine
             'commissionPaise' => $settled['commissionPaise'],
             'commission' => $settled,
             'note' => 'Quote from admin fare_rules. Driver is not assigned.',
+            'extrasNote' => 'Toll tax and parking are extra. You pay them separately; they are not included in this fare.',
         ];
     }
 

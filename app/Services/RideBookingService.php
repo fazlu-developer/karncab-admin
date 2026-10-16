@@ -57,7 +57,12 @@ class RideBookingService
         $row = [
             'public_ref' => $this->newRef(),
             'customer_id' => $customerId,
-            'district_id' => $input['districtId'] ?? null,
+            'district_id' => $input['districtId'] ?? \App\Platform\DistrictLocator::resolve(
+                isset($input['pickupLat']) ? (float) $input['pickupLat'] : null,
+                isset($input['pickupLng']) ? (float) $input['pickupLng'] : null,
+                (string) ($input['pickupText'] ?? ''),
+                $operator->state_id ? (int) $operator->state_id : null,
+            ),
             'product' => $quote['product'],
             'category' => $quote['category'],
             'status' => $status,

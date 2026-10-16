@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->alias([
             'customer.api' => \App\Http\Middleware\AuthenticateCustomerApi::class,
+            'ability' => \App\Http\Middleware\EnforceRouteAbility::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'api/v1/payments/webhooks/*',

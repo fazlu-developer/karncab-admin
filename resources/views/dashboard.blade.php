@@ -86,6 +86,7 @@
             <h3 style="margin:0">Live bookings</h3>
             <span class="muted">Searching and on-trip rides</span>
         </div>
+        <div class="table-wrap live-bookings-wrap">
         <table class="data">
             <thead>
                 <tr><th>Ref</th><th>Service</th><th>Status</th><th>Customer</th><th>Driver</th><th>Route</th></tr>
@@ -98,13 +99,14 @@
                     <td><span class="pill ok">{{ str_replace('_', ' ', $ride->status) }}</span></td>
                     <td>{{ $ride->customer ?: '—' }}<div class="muted">{{ $ride->customer_phone }}</div></td>
                     <td>{{ $ride->driver_name ?: 'Waiting' }}</td>
-                    <td class="muted">{{ $ride->pickup_text }} → {{ $ride->drop_text }}</td>
+                    <td class="cell-wrap muted">{{ $ride->pickup_text }} → {{ $ride->drop_text }}</td>
                 </tr>
             @empty
                 <tr><td colspan="6" class="muted">No live bookings right now.</td></tr>
             @endforelse
             </tbody>
         </table>
+        </div>
     </section>
     <section class="card" style="margin-bottom:18px">
         <div class="toolbar">

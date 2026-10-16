@@ -7,10 +7,15 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="percent"></i> Commission engine</h1>
-            <p class="muted">{{ $policy['note'] }} Eligible booking amount uses only the buckets enabled below. Example: if the rule is 10% and eligible is ₹10,000, commission is ₹1,000 and net is ₹9,000.</p>
+            <p class="muted">Completed fare commission is {{ $share['totalPercent'] }}%. {{ $share['note'] }}</p>
         </div>
         <a class="btn ghost" href="{{ route('wallets.index') }}"><i data-lucide="wallet"></i> Ledger</a>
     </div>
+
+    <section class="card">
+        <h2>{{ $share['title'] }}</h2>
+        <p>Today ₹{{ number_format(($share['todayPaise'] ?? 0) / 100, 2) }} · This month ₹{{ number_format(($share['monthPaise'] ?? 0) / 100, 2) }}@if($share['fleetPercent'] !== null) · Assigned cut {{ $share['fleetPercent'] }}% of fare @endif</p>
+    </section>
 
     <section class="card">
         <h2>Active rule <span class="muted">({{ $policy['name'] }})</span></h2>

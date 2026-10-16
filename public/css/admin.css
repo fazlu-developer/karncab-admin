@@ -146,6 +146,8 @@ label + input, label + select, label + textarea {
 table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.data th { text-align: left; color: var(--muted); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.data td { padding: 12px 8px; border-bottom: 1px solid #eef2ef; vertical-align: middle; white-space: nowrap; overflow: visible; }
+table.data td.cell-wrap, table.data td.cell-wrap .muted { white-space: normal; overflow-wrap: anywhere; word-break: break-word; max-width: 280px; line-height: 1.4; }
+.live-bookings-wrap { overflow: auto; }
 table.data tr:hover td { background: #f7faf8; }
 .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; }
 .pill.ok { background: #d1fadf; color: var(--ok); }

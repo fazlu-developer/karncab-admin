@@ -46,7 +46,12 @@ class PlatformOpsService
             ->where('direction', 'CREDIT')
             ->whereIn('kind', ['fleet_commission', 'commission'])
             ->sum('amount_paise');
-        $platformKeepPaise = max(0, $commissionPaise - $fleetSharePaise);
+        $platformLedger = (int) $this->q('wallet_ledger')
+            ->where('account', 'PLATFORM')
+            ->where('direction', 'CREDIT')
+            ->whereIn('kind', ['platform_commission', 'commission'])
+            ->sum('amount_paise');
+        $platformKeepPaise = $platformLedger > 0 ? $platformLedger : max(0, $commissionPaise - $fleetSharePaise);
         $liveCustomersQuery = (clone $users)->where('role', 'CUSTOMER');
         if ($schema->hasColumn('users', 'last_seen_at')) {
             $liveCustomersQuery->where('last_seen_at', '>=', now()->subMinutes(5));

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Platform\PlatformUser;
+use App\Platform\ExclusiveDistrictSeat;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
 use App\Services\DistrictHeadKycStore;
@@ -59,7 +60,7 @@ class UsersController extends Controller
     {
         abort_unless($request->user()?->can('users.create'), 403);
         $data = $this->validated($request, true);
-        $data['phone'] = $data['phone'] ?: null;
+        $data['phone'] = ($data['phone'] ?? null) ?: null;
         $data['password_hash'] = Hash::make($data['password']);
         unset($data['password']);
         $actor = $request->user();
@@ -67,6 +68,7 @@ class UsersController extends Controller
             $data['state_id'] = $actor->state_id;
             $data['district_id'] = $actor->district_id;
         }
+        $this->assertDistrictHeadSeat($data, null);
         $user = PlatformUser::query()->create($data);
         if (($data['role'] ?? '') === OperatorRole::DISTRICT_HEAD) {
             DistrictHeadKycStore::saveFromRequest($request, (int) $user->id, $request->user()?->id);
@@ -100,11 +102,12 @@ class UsersController extends Controller
         abort_unless($request->user()?->can('users.edit'), 403);
         $this->assertVisible($request, $platformUser);
         $data = $this->validated($request, false, $platformUser->id);
-        $data['phone'] = $data['phone'] ?: null;
+        $data['phone'] = ($data['phone'] ?? null) ?: null;
         if (! empty($data['password'])) {
             $data['password_hash'] = Hash::make($data['password']);
         }
         unset($data['password']);
+        $this->assertDistrictHeadSeat($data, $platformUser->id);
         $platformUser->update($data);
         if (($data['role'] ?? $platformUser->role) === OperatorRole::DISTRICT_HEAD) {
             DistrictHeadKycStore::saveFromRequest($request, (int) $platformUser->id, $request->user()?->id);
@@ -146,5 +149,20 @@ class UsersController extends Controller
             'state_id' => ['nullable', 'integer'],
             'district_id' => ['nullable', 'integer'],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertDistrictHeadSeat(array $data, ?int $exceptId): void
+    {
+        if (($data['role'] ?? '') !== OperatorRole::DISTRICT_HEAD) {
+            return;
+        }
+        $districtId = (int) ($data['district_id'] ?? 0);
+        abort_unless($districtId > 0, 422, 'A District Head must be assigned one district.');
+        if (($data['status'] ?? '') === 'ACTIVE') {
+            ExclusiveDistrictSeat::assertAvailable($districtId, $exceptId);
+        }
     }
 }

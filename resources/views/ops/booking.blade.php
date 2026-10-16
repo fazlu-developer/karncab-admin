@@ -60,7 +60,7 @@
                         @if (!is_array($value))
                             <tr>
                                 <th style="width:220px;text-align:left">{{ ucwords(preg_replace('/([a-z])([A-Z])/', '$1 $2', str_replace('_', ' ', $key))) }}</th>
-                                <td>{{ is_bool($value) ? ($value ? 'Yes' : 'No') : ($value === null || $value === '' ? '—' : $value) }}</td>
+                                <td class="cell-wrap">{{ is_bool($value) ? ($value ? 'Yes' : 'No') : ($value === null || $value === '' ? '—' : $value) }}</td>
                             </tr>
                         @endif
                     @endforeach

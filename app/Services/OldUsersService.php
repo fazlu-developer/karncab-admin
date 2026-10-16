@@ -149,6 +149,30 @@ class OldUsersService
         return ['rows' => $paginator, 'counts' => $this->counts($phoneList)];
     }
 
+    public function purgeTestRows(): int
+    {
+        $this->ensureTable();
+        if (! Schema::connection('platform')->hasTable('old_users')) {
+            return 0;
+        }
+        $dummyPhones = $this->dummyPhones();
+
+        return (int) DB::connection('platform')->table('old_users')
+            ->where(function ($inner) use ($dummyPhones) {
+                $inner->where('name', 'like', '%test%')
+                    ->orWhere('email', 'like', '%test%')
+                    ->orWhere('phone', 'like', '%test%')
+                    ->orWhere('name', 'like', '%dummy%')
+                    ->orWhere('email', 'like', '%dummy%');
+                foreach ($dummyPhones as $phone) {
+                    $inner->orWhere('phone', $phone)
+                        ->orWhere('phone', '91'.$phone)
+                        ->orWhere('phone', '+91'.$phone);
+                }
+            })
+            ->delete();
+    }
+
     public function ensureTable(): void
     {
         $schema = Schema::connection('platform');
@@ -355,15 +379,22 @@ class OldUsersService
         }
         $roleId = (int) ($row->role_id ?? $row->role ?? 0);
         $phone = $this->digits((string) ($row->mobile_no ?? $row->phone ?? $row->mobile ?? ''));
+        $name = trim((string) ($row->name ?? ''));
+        $email = $this->nullable((string) ($row->email ?? ''));
+        if ($this->isTestUser($name, $phone, (string) ($email ?? ''))) {
+            DB::connection('platform')->table('old_users')->where('source_id', $sourceId)->delete();
+
+            return;
+        }
         DB::connection('platform')->table('old_users')->updateOrInsert(
             ['source_id' => $sourceId],
             [
                 'source_db' => $source,
                 'role_id' => $roleId,
                 'old_role' => $this->roleLabel($roleId),
-                'name' => trim((string) ($row->name ?? '')) ?: 'Unknown',
+                'name' => $name !== '' ? $name : 'Unknown',
                 'phone' => $phone !== '' ? $phone : null,
-                'email' => $this->nullable((string) ($row->email ?? '')),
+                'email' => $email,
                 'gender' => $this->nullable((string) ($row->gender ?? '')),
                 'city' => $this->nullable((string) ($row->city ?? '')),
                 'district' => $this->nullable((string) ($row->district ?? '')),
@@ -407,6 +438,30 @@ class OldUsersService
             1 => 'ADMIN',
             default => 'OTHER',
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function dummyPhones(): array
+    {
+        return [
+            '0000000000', '1111111111', '2222222222', '3333333333', '4444444444',
+            '5555555555', '6666666666', '7777777777', '8888888888', '9999999999',
+            '1234567890', '0123456789', '9876543210', '1231231231', '1000000000',
+            '9000000000', '7000000000', '8000000000',
+        ];
+    }
+
+    private function isTestUser(string $name, string $phone, string $email): bool
+    {
+        $blob = strtolower($name.' '.$phone.' '.$email);
+        if (str_contains($blob, 'test') || str_contains($blob, 'dummy')) {
+            return true;
+        }
+        $digits = $this->digits($phone);
+
+        return $digits !== '' && in_array($digits, $this->dummyPhones(), true);
     }
 
     private function digits(string $value): string

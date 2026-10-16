@@ -78,6 +78,10 @@ trait CreatesPlatformSchema
             $table->string('pickup_text')->default('');
             $table->string('drop_text')->default('');
             $table->bigInteger('quote_paise')->nullable();
+            $table->bigInteger('commission_paise')->nullable();
+            $table->bigInteger('platform_commission_paise')->nullable();
+            $table->bigInteger('district_head_commission_paise')->nullable();
+            $table->bigInteger('fleet_commission_paise')->nullable();
             $table->json('quote_snapshot')->nullable();
             $table->unsignedBigInteger('coupon_id')->nullable();
             $table->integer('coupon_discount_paise')->default(0);
@@ -152,6 +156,7 @@ trait CreatesPlatformSchema
                 $table->id();
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->string('trade_name')->nullable();
+                $table->decimal('commission_percent', 5, 2)->nullable();
                 $table->string('gstin')->nullable();
                 $table->unsignedInteger('state_id')->nullable();
                 $table->unsignedInteger('district_id')->nullable();

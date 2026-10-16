@@ -55,7 +55,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/me', [CustomerWorkspaceController::class, 'dashboard'])->name('customer.dashboard');
     Route::patch('/me/profile', [CustomerWorkspaceController::class, 'updateProfile'])->name('customer.profile');
     Route::patch('/me/emergency', [CustomerWorkspaceController::class, 'updateEmergency'])->name('customer.emergency');
@@ -80,6 +80,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/state/franchises', [StateWorkspaceController::class, 'storeFranchise'])->name('state.franchises.store');
     Route::post('/state/notifications', [StateWorkspaceController::class, 'notify'])->name('state.notify');
     Route::get('/state/{section}', [StateWorkspaceController::class, 'section'])->name('state.section');
+    Route::get('/district', [\App\Http\Controllers\District\DistrictWorkspaceController::class, 'dashboard'])->name('district.dashboard');
+    Route::get('/district/settings', [\App\Http\Controllers\District\DistrictWorkspaceController::class, 'settings'])->name('district.settings');
+    Route::post('/district/settings/fleet-cut', [\App\Http\Controllers\District\DistrictWorkspaceController::class, 'saveFleetCut'])->name('district.fleet-cut');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
     Route::get('/api/v1/platform/session', [PlatformSessionController::class, 'show'])->name('platform.session');
 
@@ -137,7 +140,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/drivers/{driver}/vehicle-documents/{document}', [DriversController::class, 'vehicleDocumentFile'])->name('drivers.vehicle-documents.file')->whereNumber('document');
 
     Route::get('/vehicles', [VehiclesController::class, 'index'])->name('vehicles.index');
+    Route::get('/vehicles/districts', [VehiclesController::class, 'districts'])->name('vehicles.districts');
     Route::post('/vehicles', [VehiclesController::class, 'store'])->name('vehicles.store');
+    Route::get('/vehicles/{vehicle}', [VehiclesController::class, 'show'])->name('vehicles.show')->whereNumber('vehicle');
     Route::post('/vehicles/{vehicle}/approve', [VehiclesController::class, 'approve'])->name('vehicles.approve');
 
     Route::get('/coupons', [CouponsController::class, 'index'])->name('coupons.index');
