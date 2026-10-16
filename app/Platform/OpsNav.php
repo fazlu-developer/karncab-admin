@@ -131,7 +131,10 @@ final class OpsNav
             return request()->routeIs('fleet-owners.*') || request()->route('module') === 'fleet';
         }
         if (($item['key'] ?? '') === 'users') {
-            return request()->routeIs('users.*');
+            return request()->routeIs('users.*') && ! request()->routeIs('old-users.*');
+        }
+        if (($item['key'] ?? '') === 'old-users') {
+            return request()->routeIs('old-users.*');
         }
         if (($item['key'] ?? '') === 'drivers') {
             return request()->routeIs('drivers.*');
