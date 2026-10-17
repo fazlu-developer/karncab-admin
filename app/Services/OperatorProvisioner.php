@@ -6,6 +6,7 @@ use App\Models\Platform\PlatformUser;
 use App\Models\User;
 use App\Platform\OperatorRole;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 final class OperatorProvisioner
@@ -26,7 +27,73 @@ final class OperatorProvisioner
      *
      * @param  list<string>  $abilities
      */
-    public function sync(PlatformUser $platform, ?string $password, ?User $actor, array $abilities = []): ?User
+    /**
+     * Put every platform State Head on the assignment page, including accounts created before console logins existed.
+     */
+    public function mirrorStateHeads(): void
+    {
+        $heads = PlatformUser::query()->where('role', OperatorRole::STATE_HEAD)->orderBy('name')->get();
+        foreach ($heads as $platform) {
+            $ops = $this->find($platform);
+            if ($ops && $ops->role === OperatorRole::SUPER_ADMIN) {
+                continue;
+            }
+            if (! $ops) {
+                try {
+                    $this->sync($platform, null, null, [], false);
+                } catch (HttpException) {
+                    // Leave the row unassigned when the state is already taken.
+                }
+
+                continue;
+            }
+            if ($ops->role !== OperatorRole::STATE_HEAD) {
+                $ops->forceFill([
+                    'role' => OperatorRole::STATE_HEAD,
+                    'name' => $platform->name,
+                    'status' => $platform->status ?: $ops->status,
+                    'nest_user_id' => $platform->id,
+                ])->save();
+            } elseif (! $ops->nest_user_id) {
+                $ops->forceFill(['nest_user_id' => $platform->id])->save();
+            }
+            $platformState = (int) ($platform->state_id ?? 0);
+            if ($ops->status === 'ACTIVE' && $platformState > 0 && ! $ops->state_id) {
+                try {
+                    app(StateHeadSeat::class)->assign($ops->fresh(), $platformState, $ops, false);
+                } catch (HttpException) {
+                    // Shown without a state so an admin can transfer the seat.
+                }
+            }
+        }
+    }
+
+    public function rememberPlatformState(User $operator, int $stateId): void
+    {
+        $query = PlatformUser::query()->where('role', OperatorRole::STATE_HEAD);
+        $query->where(function ($inner) use ($operator) {
+            $matched = false;
+            if ($operator->nest_user_id) {
+                $inner->where('id', $operator->nest_user_id);
+                $matched = true;
+            }
+            if ($operator->email) {
+                $matched ? $inner->orWhere('email', $operator->email) : $inner->where('email', $operator->email);
+            }
+        });
+        $query->update([
+            'state_id' => $stateId,
+            'district_id' => null,
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Create or update the admin login that matches this platform user.
+     *
+     * @param  list<string>  $abilities
+     */
+    public function sync(PlatformUser $platform, ?string $password, ?User $actor, array $abilities = [], bool $strictSeat = true): ?User
     {
         $role = strtoupper((string) $platform->role);
         $existing = $this->find($platform);
@@ -75,7 +142,14 @@ final class OperatorProvisioner
         }
 
         if ($role === OperatorRole::STATE_HEAD && $operator->status === 'ACTIVE' && $stateId) {
-            app(StateHeadSeat::class)->assign($operator, $stateId, $actor ?? $operator, false);
+            try {
+                app(StateHeadSeat::class)->assign($operator, $stateId, $actor ?? $operator, false);
+            } catch (HttpException $exception) {
+                if ($strictSeat) {
+                    throw $exception;
+                }
+                $operator->update(['state_id' => null]);
+            }
         }
 
         return $operator;

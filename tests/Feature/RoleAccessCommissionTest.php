@@ -200,4 +200,38 @@ class RoleAccessCommissionTest extends TestCase
         ])->assertRedirect();
         $this->assertAuthenticatedAs($operator);
     }
+
+    public function test_state_assignment_page_lists_platform_state_heads_and_can_move_them(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+        $platformId = DB::connection('platform')->table('users')->insertGetId([
+            'role' => 'STATE_HEAD',
+            'status' => 'ACTIVE',
+            'name' => 'Kaif',
+            'email' => 'kaif-platform@karnacab.local',
+            'password_hash' => 'x',
+            'state_id' => 2,
+            'district_id' => 30,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->get('/state-assignments')
+            ->assertOk()
+            ->assertSee('Kaif')
+            ->assertSee('kaif-platform@karnacab.local');
+
+        $operator = User::query()->where('email', 'kaif-platform@karnacab.local')->first();
+        $this->assertNotNull($operator);
+        $this->assertSame(2, (int) $operator->state_id);
+
+        $this->actingAs($admin)->put('/state-assignments/'.$operator->id, [
+            'state_id' => 1,
+            'transfer' => 0,
+        ])->assertRedirect();
+
+        $this->assertSame(1, (int) $operator->fresh()->state_id);
+        $this->assertSame(1, (int) DB::connection('platform')->table('users')->where('id', $platformId)->value('state_id'));
+        $this->assertNull(DB::connection('platform')->table('users')->where('id', $platformId)->value('district_id'));
+    }
 }

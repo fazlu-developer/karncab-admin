@@ -16,6 +16,8 @@ class StateAssignmentController extends Controller
     {
         abort_unless($request->user()?->isPrivilegedOperator() || $request->user()?->can('state_head.view'), 403);
 
+        app(\App\Services\OperatorProvisioner::class)->mirrorStateHeads();
+
         $states = DB::connection('platform')->table('states')->orderBy('name')->get();
         $occupied = [];
         foreach ($states as $state) {
@@ -54,6 +56,8 @@ class StateAssignmentController extends Controller
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
             return back()->withErrors(['state_id' => $exception->getMessage()]);
         }
+
+        app(\App\Services\OperatorProvisioner::class)->rememberPlatformState($user->fresh(), (int) $data['state_id']);
 
         return back()->with('status', $user->name.' is assigned to the selected state.');
     }

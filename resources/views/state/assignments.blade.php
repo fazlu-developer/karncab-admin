@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1>Assign State Heads</h1>
-            <p class="muted">Each State Head can operate only the selected state.</p>
+            <p class="muted">State Heads created under Users are listed here. Choose a state and Assign to move them. One active State Head per state.</p>
         </div>
     </div>
     <section class="card">
