@@ -20,10 +20,17 @@ class AuthenticatedSessionController extends Controller
     {
         $credentials = $request->safe()->only(['email', 'password']);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
-            return back()->withErrors([
-                'email' => 'These credentials do not match our records.',
-            ])->onlyInput('email');
+        $remember = $request->boolean('remember');
+        if (! Auth::attempt($credentials, $remember)) {
+            $provisioned = app(\App\Services\OperatorProvisioner::class)->acceptPlatformPassword(
+                (string) $credentials['email'],
+                (string) $credentials['password'],
+            );
+            if (! $provisioned || ! Auth::attempt($credentials, $remember)) {
+                return back()->withErrors([
+                    'email' => 'These credentials do not match our records.',
+                ])->onlyInput('email');
+            }
         }
 
         $request->session()->regenerate();

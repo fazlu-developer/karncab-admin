@@ -52,6 +52,21 @@ final class StateHeadKycStore
         $head = DB::connection('platform')->table('users')->where('id', $userId)->where('role', 'STATE_HEAD')->first();
         abort_if($head === null, 422, 'Select a State Head account.');
         $saved = 0;
+        $map = [
+            'kyc_pan' => 'PAN',
+            'kyc_aadhaar' => 'AADHAAR',
+            'kyc_appointment' => 'APPOINTMENT',
+            'kyc_address' => 'ADDRESS',
+            'kyc_gst' => 'GST',
+            'kyc_photo' => 'PHOTO',
+        ];
+        foreach ($map as $field => $type) {
+            $file = $request->file($field);
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                self::insert($head, $type, $file, $uploadedBy);
+                $saved++;
+            }
+        }
         $single = $request->file('file');
         if ($single instanceof UploadedFile && $single->isValid()) {
             $type = strtoupper((string) $request->input('doc_type', 'PAN'));

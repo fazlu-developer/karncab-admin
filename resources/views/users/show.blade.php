@@ -31,6 +31,25 @@
                 · KYC {{ $user->driver->kyc_status }}
             </p>
         @endif
+        @if (in_array($user->role, \App\Services\OperatorProvisioner::CONSOLE_ROLES, true))
+            <p>
+                Admin login: <strong>{{ $user->email }}</strong>
+                @if ($operator)
+                    · state {{ $operator->state_id ?: 'not assigned' }}
+                    · district {{ $operator->district_id ?: '—' }}
+                @else
+                    · no console login yet. Edit this user and set a password.
+                @endif
+            </p>
+        @endif
+        @if ($kyc !== [])
+            <h3>KYC</h3>
+            <ul>
+                @foreach ($kyc as $doc)
+                    <li>{{ $doc->doc_type }} · {{ $doc->status }} · {{ $doc->original_name ?? $doc->path }}</li>
+                @endforeach
+            </ul>
+        @endif
         <p class="muted">Created {{ $user->created_at }}</p>
     </section>
 @endsection

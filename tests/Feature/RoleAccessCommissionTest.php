@@ -166,4 +166,38 @@ class RoleAccessCommissionTest extends TestCase
             'district_id' => 11,
         ])->assertStatus(409);
     }
+
+    public function test_creating_a_state_head_opens_an_admin_login_and_assigns_the_state(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+
+        $this->actingAs($admin)->post('/users', [
+            'name' => 'Kaif',
+            'email' => 'kaif@gmail.com',
+            'phone' => '1234567890',
+            'role' => 'STATE_HEAD',
+            'status' => 'ACTIVE',
+            'password' => 'ChangeMe@123',
+            'state_id' => 2,
+            'district_id' => 30,
+            'kyc_pan' => \Illuminate\Http\UploadedFile::fake()->create('pan.pdf', 20, 'application/pdf'),
+        ])->assertRedirect();
+
+        $operator = User::query()->where('email', 'kaif@gmail.com')->first();
+        $this->assertNotNull($operator);
+        $this->assertSame(OperatorRole::STATE_HEAD, $operator->role);
+        $this->assertSame(2, (int) $operator->state_id);
+        $this->assertNull($operator->district_id);
+
+        $this->actingAs($admin)->get('/state-assignments')->assertOk()->assertSee('Kaif')->assertSee('kaif@gmail.com');
+        $this->assertTrue(\Illuminate\Support\Facades\Schema::connection('platform')->hasTable('state_head_kyc'));
+        $this->assertSame(1, DB::connection('platform')->table('state_head_kyc')->where('doc_type', 'PAN')->count());
+
+        \Illuminate\Support\Facades\Auth::logout();
+        $this->post('/login', [
+            'email' => 'kaif@gmail.com',
+            'password' => 'ChangeMe@123',
+        ])->assertRedirect();
+        $this->assertAuthenticatedAs($operator);
+    }
 }

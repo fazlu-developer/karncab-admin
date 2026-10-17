@@ -48,13 +48,25 @@
             <div class="field">
                 <label>{{ $user->exists ? 'New password (optional)' : 'Password' }}</label>
                 <input name="password" type="password" {{ $user->exists ? '' : 'required' }}>
+                <p class="muted">For State Head, District Head, Manager and Admin this is the admin login password.</p>
                 @error('password') <div class="error">{{ $message }}</div> @enderror
             </div>
             @include('partials.geo-fields', [
                 'stateValue' => (string) old('state_id', $user->state_id),
                 'districtValue' => (string) old('district_id', $user->district_id),
             ])
-            <p class="muted">If role is District Head, attach KYC here. Admin can also upload later from District Head KYC.</p>
+            <p class="muted">State Head needs one state. District Head needs one district. The selected place is assigned when you save.</p>
+            <h3>Manager and Admin permissions</h3>
+            <p class="muted">Tick extra modules for Manager or Admin. State Head and District Head already receive their own module list.</p>
+            <div class="grid-2">
+                @foreach ($permissionCatalog as $ability)
+                    <label style="display:block;margin:6px 0">
+                        <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
+                        {{ $ability }}
+                    </label>
+                @endforeach
+            </div>
+            <p class="muted">State Head and District Head KYC uploaded here appears on their KYC page.</p>
             <div class="field"><label>PAN</label><input type="file" name="kyc_pan" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
             <div class="field"><label>Aadhaar</label><input type="file" name="kyc_aadhaar" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
             <div class="field"><label>Appointment letter</label><input type="file" name="kyc_appointment" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>

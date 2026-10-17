@@ -3,13 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Platform\PlatformUser;
+use App\Models\User;
 use App\Platform\ExclusiveDistrictSeat;
 use App\Platform\OperatorRole;
+use App\Platform\PlatformPermission;
 use App\Platform\TerritoryScope;
 use App\Services\DistrictHeadKycStore;
+use App\Services\OperatorProvisioner;
+use App\Services\StateHeadKycStore;
+use App\Services\StateHeadSeat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -53,6 +60,8 @@ class UsersController extends Controller
         return view('users.form', [
             'user' => new PlatformUser(['status' => 'ACTIVE', 'role' => 'CUSTOMER']),
             'roles' => OperatorRole::all(),
+            'permissionCatalog' => $this->permissionCatalog(),
+            'granted' => [],
         ]);
     }
 
@@ -61,20 +70,20 @@ class UsersController extends Controller
         abort_unless($request->user()?->can('users.create'), 403);
         $data = $this->validated($request, true);
         $data['phone'] = ($data['phone'] ?? null) ?: null;
-        $data['password_hash'] = Hash::make($data['password']);
+        $password = (string) $data['password'];
+        $data['password_hash'] = Hash::make($password);
         unset($data['password']);
         $actor = $request->user();
         if ($actor && ! $actor->isPrivilegedOperator()) {
             $data['state_id'] = $actor->state_id;
             $data['district_id'] = $actor->district_id;
         }
-        $this->assertDistrictHeadSeat($data, null);
+        $this->assertTerritory($data, null);
         $user = PlatformUser::query()->create($data);
-        if (($data['role'] ?? '') === OperatorRole::DISTRICT_HEAD) {
-            DistrictHeadKycStore::saveFromRequest($request, (int) $user->id, $request->user()?->id);
-        }
+        $this->saveRoleKyc($request, $user);
+        app(OperatorProvisioner::class)->sync($user, $password, $actor, (array) $request->input('abilities', []));
 
-        return redirect()->route('users.show', $user)->with('status', 'User created.');
+        return redirect()->route('users.show', $user)->with('status', $this->createdStatus($user));
     }
 
     public function show(Request $request, PlatformUser $platformUser): View
@@ -82,8 +91,13 @@ class UsersController extends Controller
         abort_unless($request->user()?->can('users.view'), 403);
         $this->assertVisible($request, $platformUser);
         $platformUser->load('driver');
+        $operator = User::query()->where('nest_user_id', $platformUser->id)->orWhere('email', $platformUser->email)->first();
 
-        return view('users.show', ['user' => $platformUser]);
+        return view('users.show', [
+            'user' => $platformUser,
+            'operator' => $operator,
+            'kyc' => $this->kycFor($platformUser),
+        ]);
     }
 
     public function edit(Request $request, PlatformUser $platformUser): View
@@ -91,9 +105,13 @@ class UsersController extends Controller
         abort_unless($request->user()?->can('users.edit'), 403);
         $this->assertVisible($request, $platformUser);
 
+        $operator = User::query()->where('nest_user_id', $platformUser->id)->orWhere('email', $platformUser->email)->first();
+
         return view('users.form', [
             'user' => $platformUser,
             'roles' => OperatorRole::all(),
+            'permissionCatalog' => $this->permissionCatalog(),
+            'granted' => $operator?->assignedAbilities() ?? [],
         ]);
     }
 
@@ -103,17 +121,22 @@ class UsersController extends Controller
         $this->assertVisible($request, $platformUser);
         $data = $this->validated($request, false, $platformUser->id);
         $data['phone'] = ($data['phone'] ?? null) ?: null;
-        if (! empty($data['password'])) {
-            $data['password_hash'] = Hash::make($data['password']);
+        $password = $data['password'] ?? null;
+        if (! empty($password)) {
+            $data['password_hash'] = Hash::make($password);
         }
         unset($data['password']);
-        $this->assertDistrictHeadSeat($data, $platformUser->id);
+        $this->assertTerritory($data, $platformUser->id);
         $platformUser->update($data);
-        if (($data['role'] ?? $platformUser->role) === OperatorRole::DISTRICT_HEAD) {
-            DistrictHeadKycStore::saveFromRequest($request, (int) $platformUser->id, $request->user()?->id);
-        }
+        $this->saveRoleKyc($request, $platformUser->fresh());
+        app(OperatorProvisioner::class)->sync(
+            $platformUser->fresh(),
+            is_string($password) && $password !== '' ? $password : null,
+            $request->user(),
+            (array) $request->input('abilities', []),
+        );
 
-        return redirect()->route('users.show', $platformUser)->with('status', 'User updated.');
+        return redirect()->route('users.show', $platformUser)->with('status', 'User updated. Console login uses this email and password.');
     }
 
     public function destroy(Request $request, PlatformUser $platformUser): RedirectResponse
@@ -154,6 +177,22 @@ class UsersController extends Controller
     /**
      * @param  array<string, mixed>  $data
      */
+    private function assertTerritory(array $data, ?int $exceptId): void
+    {
+        $role = (string) ($data['role'] ?? '');
+        if ($role === OperatorRole::STATE_HEAD) {
+            $stateId = (int) ($data['state_id'] ?? 0);
+            abort_unless($stateId > 0, 422, 'A State Head must be assigned one state.');
+            if (($data['status'] ?? '') === 'ACTIVE') {
+                $opsId = $exceptId
+                    ? User::query()->where('nest_user_id', $exceptId)->value('id')
+                    : null;
+                app(StateHeadSeat::class)->assertAvailable($stateId, $opsId ? (int) $opsId : null);
+            }
+        }
+        $this->assertDistrictHeadSeat($data, $exceptId);
+    }
+
     private function assertDistrictHeadSeat(array $data, ?int $exceptId): void
     {
         if (($data['role'] ?? '') !== OperatorRole::DISTRICT_HEAD) {
@@ -164,5 +203,52 @@ class UsersController extends Controller
         if (($data['status'] ?? '') === 'ACTIVE') {
             ExclusiveDistrictSeat::assertAvailable($districtId, $exceptId);
         }
+    }
+
+    private function saveRoleKyc(Request $request, PlatformUser $user): void
+    {
+        if ($user->role === OperatorRole::DISTRICT_HEAD) {
+            DistrictHeadKycStore::saveFromRequest($request, (int) $user->id, $request->user()?->id);
+        }
+        if ($user->role === OperatorRole::STATE_HEAD) {
+            StateHeadKycStore::saveFromRequest($request, (int) $user->id, $request->user()?->id);
+        }
+    }
+
+    private function createdStatus(PlatformUser $user): string
+    {
+        if (! in_array($user->role, OperatorProvisioner::CONSOLE_ROLES, true)) {
+            return 'User created.';
+        }
+
+        return 'User created. They can sign in to the admin with this email and password.';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function permissionCatalog(): array
+    {
+        return array_values(array_filter(
+            PlatformPermission::catalog(),
+            fn (string $ability) => $ability !== 'platform.admin',
+        ));
+    }
+
+    /**
+     * @return list<object>
+     */
+    private function kycFor(PlatformUser $user): array
+    {
+        $table = match ($user->role) {
+            OperatorRole::STATE_HEAD => 'state_head_kyc',
+            OperatorRole::DISTRICT_HEAD => 'district_head_kyc',
+            default => null,
+        };
+        if ($table === null || ! Schema::connection('platform')->hasTable($table)) {
+            return [];
+        }
+
+        return DB::connection('platform')->table($table)->where('user_id', $user->id)->orderByDesc('id')->get()->all();
     }
 }
