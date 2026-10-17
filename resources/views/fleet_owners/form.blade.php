@@ -11,7 +11,30 @@
             <div class="field"><label>Email</label><input name="email" type="email" value="{{ old('email', $owner->email ?? '') }}" required></div>
             <div class="field"><label>Password</label><input name="password" type="password" {{ $owner ? '' : 'required' }} placeholder="{{ $owner ? 'Leave blank to keep the current password' : '' }}"></div>
             <div class="field"><label>Address</label><input name="address" value="{{ old('address', $owner->address ?? '') }}"></div>
-            <div class="field"><label>Company type</label><input name="company_type" value="{{ old('company_type', $owner->company_type ?? '') }}" placeholder="PRIVATE_LIMITED"></div>
+            @php
+                $companyTypes = [
+                    'PROPRIETORSHIP' => 'Proprietorship',
+                    'PARTNERSHIP' => 'Partnership',
+                    'LLP' => 'LLP',
+                    'PRIVATE_LIMITED' => 'Private Limited',
+                    'PUBLIC_LIMITED' => 'Public Limited',
+                    'OPC' => 'One Person Company',
+                    'INDIVIDUAL' => 'Individual',
+                ];
+                $selectedType = (string) old('company_type', $owner->company_type ?? '');
+            @endphp
+            <div class="field">
+                <label>Company type</label>
+                <select name="company_type">
+                    <option value="">Select company type</option>
+                    @foreach ($companyTypes as $value => $label)
+                        <option value="{{ $value }}" @selected($selectedType === $value)>{{ $label }}</option>
+                    @endforeach
+                    @if ($selectedType !== '' && ! isset($companyTypes[$selectedType]))
+                        <option value="{{ $selectedType }}" selected>{{ $selectedType }}</option>
+                    @endif
+                </select>
+            </div>
             <div class="field"><label>GSTIN</label><input name="gstin" value="{{ old('gstin', $owner->gstin ?? '') }}"></div>
             <div class="field"><label>PAN</label><input name="pan" value="{{ old('pan', $owner->pan ?? '') }}"></div>
             <div class="field">

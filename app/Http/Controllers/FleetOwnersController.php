@@ -5,10 +5,21 @@ namespace App\Http\Controllers;
 use App\Services\FleetOwnerDirectoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class FleetOwnersController extends Controller
 {
+    private const COMPANY_TYPES = [
+        'PROPRIETORSHIP',
+        'PARTNERSHIP',
+        'LLP',
+        'PRIVATE_LIMITED',
+        'PUBLIC_LIMITED',
+        'OPC',
+        'INDIVIDUAL',
+    ];
+
     public function __construct(private readonly FleetOwnerDirectoryService $fleets) {}
 
     public function index(Request $request): View
@@ -44,6 +55,9 @@ class FleetOwnersController extends Controller
             'franchise_id' => ['nullable', 'integer'],
             'status' => ['nullable', 'in:ACTIVE,PENDING,SUSPENDED'],
             'commission_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'gstin' => ['nullable', 'string', 'max:20'],
+            'pan' => ['nullable', 'string', 'max:20'],
+            'company_type' => ['nullable', 'string', Rule::in(self::COMPANY_TYPES)],
         ]);
         $this->fleets->create($request->user(), $data);
 
@@ -80,7 +94,7 @@ class FleetOwnersController extends Controller
             'address' => ['nullable', 'string', 'max:255'],
             'gstin' => ['nullable', 'string', 'max:20'],
             'pan' => ['nullable', 'string', 'max:20'],
-            'company_type' => ['nullable', 'string', 'max:40'],
+            'company_type' => ['nullable', 'string', Rule::in(self::COMPANY_TYPES)],
             'state_id' => ['required', 'integer'],
             'district_id' => ['required', 'integer'],
             'franchise_id' => ['nullable', 'integer'],

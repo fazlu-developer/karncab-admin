@@ -86,6 +86,24 @@ class UsersController extends Controller
         return redirect()->route('users.show', $user)->with('status', $this->createdStatus($user));
     }
 
+    public function storeStateHead(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('users.create'), 403);
+        $request->merge(['role' => OperatorRole::STATE_HEAD]);
+        $data = $this->validated($request, true);
+        $data['phone'] = ($data['phone'] ?? null) ?: null;
+        $password = (string) $data['password'];
+        $data['password_hash'] = Hash::make($password);
+        unset($data['password']);
+        $data['district_id'] = null;
+        $this->assertTerritory($data, null);
+        $user = PlatformUser::query()->create($data);
+        $this->saveRoleKyc($request, $user);
+        app(OperatorProvisioner::class)->sync($user, $password, $request->user(), []);
+
+        return redirect()->route('ops.module', 'state-heads')->with('status', 'State Head created. They can sign in with this email and password.');
+    }
+
     public function show(Request $request, PlatformUser $platformUser): View
     {
         abort_unless($request->user()?->can('users.view'), 403);

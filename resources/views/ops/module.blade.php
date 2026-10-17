@@ -57,6 +57,44 @@
         </form>
     @endif
 
+    @if (($def['key'] ?? '') === 'state-heads' && auth()->user()->can('users.create'))
+        <section class="card" style="max-width:720px">
+            <h2><i data-lucide="user-plus"></i> Add State Head</h2>
+            <p class="muted">One ACTIVE State Head per state. They sign in to the admin with this email and password. KYC files show on their KYC page.</p>
+            <form method="POST" action="{{ route('organization.state-heads.store') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="field"><label>Name</label><input name="name" value="{{ old('name') }}" required></div>
+                <div class="field"><label>Email</label><input name="email" type="email" value="{{ old('email') }}" required>@error('email') <div class="error">{{ $message }}</div> @enderror</div>
+                <div class="field"><label>Phone</label><input name="phone" value="{{ old('phone') }}">@error('phone') <div class="error">{{ $message }}</div> @enderror</div>
+                <div class="field"><label>Password</label><input name="password" type="password" required>@error('password') <div class="error">{{ $message }}</div> @enderror</div>
+                <div class="field">
+                    <label>Status</label>
+                    <select name="status">
+                        @foreach (['ACTIVE','PENDING','SUSPENDED'] as $status)
+                            <option value="{{ $status }}" @selected(old('status', 'ACTIVE') === $status)>{{ $status }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @php $geo = \App\Platform\GeoCatalog::payload(auth()->user()); @endphp
+                <div class="field">
+                    <label>State</label>
+                    <select name="state_id" required>
+                        <option value="">Select state</option>
+                        @foreach ($geo['states'] as $state)
+                            <option value="{{ $state['id'] }}" @selected((string) old('state_id') === (string) $state['id'])>{{ $state['name'] }}</option>
+                        @endforeach
+                    </select>
+                    @error('state_id') <div class="error">{{ $message }}</div> @enderror
+                </div>
+                <div class="field"><label>PAN</label><input type="file" name="kyc_pan" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+                <div class="field"><label>Aadhaar</label><input type="file" name="kyc_aadhaar" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+                <div class="field"><label>Appointment letter</label><input type="file" name="kyc_appointment" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+                <div class="field"><label>Address proof</label><input type="file" name="kyc_address" accept=".jpg,.jpeg,.png,.pdf,.webp"></div>
+                <button class="btn" type="submit"><i data-lucide="plus"></i> Add State Head</button>
+            </form>
+        </section>
+    @endif
+
     @if (($def['key'] ?? '') === 'notifications' && auth()->user()->can('platform.admin'))
         <section class="card">
             <h2><i data-lucide="megaphone"></i> Broadcast</h2>

@@ -96,6 +96,11 @@ class FleetOwnerDirectoryService
             if (Schema::connection('platform')->hasColumn('fleet_owners', 'commission_percent') && isset($data['commission_percent']) && $data['commission_percent'] !== '') {
                 $payload['commission_percent'] = (float) $data['commission_percent'];
             }
+            foreach (['gstin', 'pan', 'company_type'] as $column) {
+                if (! empty($data[$column]) && Schema::connection('platform')->hasColumn('fleet_owners', $column)) {
+                    $payload[$column] = $data[$column];
+                }
+            }
         }
 
         $fleetId = $this->db()->table('fleet_owners')->insertGetId($payload);
