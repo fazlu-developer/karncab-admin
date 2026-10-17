@@ -222,18 +222,24 @@ class OrganizationController extends Controller
         abort_unless($request->user()?->can('kyc.view'), 403);
         StateHeadKycStore::ensureTable();
         $heads = StateHeadKycStore::headsFor($request->user());
+        $selectedUserId = (int) $request->query('user_id', 0);
+        $columns = [
+            'k.id', 'k.user_id', 'k.doc_type', 'k.path', 'k.status', 'k.created_at',
+            'u.name as user_name', 'u.email as user_email', 's.name as state_name',
+        ];
+        if (Schema::connection('platform')->hasColumn('state_head_kyc', 'original_name')) {
+            $columns[] = 'k.original_name';
+        }
         $docs = DB::connection('platform')->table('state_head_kyc as k')
             ->leftJoin('users as u', 'u.id', '=', 'k.user_id')
             ->leftJoin('states as s', 's.id', '=', 'k.state_id')
+            ->when($selectedUserId > 0, fn ($query) => $query->where('k.user_id', $selectedUserId))
             ->orderByDesc('k.id')
-            ->select([
-                'k.id', 'k.user_id', 'k.doc_type', 'k.path', 'k.status', 'k.created_at',
-                'u.name as user_name', 'u.email as user_email', 's.name as state_name',
-            ])
+            ->select($columns)
             ->limit(120)
             ->get();
 
-        return view('organization.state-kyc', compact('docs', 'heads'));
+        return view('organization.state-kyc', compact('docs', 'heads', 'selectedUserId'));
     }
 
     public function storeStateKyc(Request $request): RedirectResponse
@@ -247,7 +253,9 @@ class OrganizationController extends Controller
         $saved = StateHeadKycStore::saveFromRequest($request, (int) $request->input('user_id'), $request->user()?->id);
         abort_if($saved === 0, 422, 'Choose a State Head and a document file.');
 
-        return back()->with('status', 'State Head KYC uploaded.');
+        return redirect()
+            ->route('organization.state-kyc', ['user_id' => (int) $request->input('user_id')])
+            ->with('status', 'State Head KYC uploaded.');
     }
 
     public function stateKycFile(Request $request, int $id): StreamedResponse

@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="landmark"></i> State Head KYC</h1>
-            <p class="muted">Upload PAN, Aadhaar, appointment letter and address proof against the State Head account.</p>
+            <p class="muted">Documents uploaded while creating a State Head appear here. Choose that account to open them.</p>
         </div>
     </div>
 
@@ -20,7 +20,7 @@
                 <select name="user_id" required>
                     <option value="">Select account</option>
                     @foreach ($heads as $head)
-                        <option value="{{ $head->id }}">{{ $head->name }} · {{ $head->email }}</option>
+                        <option value="{{ $head->id }}" @selected((int) ($selectedUserId ?? 0) === (int) $head->id)>{{ $head->name }} · {{ $head->email }}</option>
                     @endforeach
                 </select>
             </div>
@@ -50,6 +50,17 @@
 
     <section class="card">
         <h2>Submitted files</h2>
+        <form method="GET" action="{{ route('organization.state-kyc') }}" class="filters" style="align-items:end;margin-bottom:14px">
+            <div>
+                <label>Show documents for</label>
+                <select name="user_id" onchange="this.form.submit()">
+                    <option value="">All State Heads</option>
+                    @foreach ($heads as $head)
+                        <option value="{{ $head->id }}" @selected((int) ($selectedUserId ?? 0) === (int) $head->id)>{{ $head->name }} · {{ $head->email }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </form>
         <div class="table-wrap">
             <table class="data">
                 <thead>
@@ -63,7 +74,12 @@
                                 <div class="muted">{{ $row->user_email }}</div>
                             </td>
                             <td>{{ $row->state_name ?: '—' }}</td>
-                            <td>{{ $row->doc_type }}</td>
+                            <td>
+                                {{ $row->doc_type }}
+                                @if (! empty($row->original_name))
+                                    <div class="muted">{{ $row->original_name }}</div>
+                                @endif
+                            </td>
                             <td><span class="pill muted">{{ $row->status }}</span></td>
                             <td>{{ $row->created_at }}</td>
                             <td class="row-actions">
@@ -85,7 +101,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="muted">No State Head KYC files yet.</td></tr>
+                        <tr><td colspan="6" class="muted">{{ ($selectedUserId ?? 0) > 0 ? 'No documents uploaded for this State Head yet.' : 'No State Head KYC files yet.' }}</td></tr>
                     @endforelse
                 </tbody>
             </table>

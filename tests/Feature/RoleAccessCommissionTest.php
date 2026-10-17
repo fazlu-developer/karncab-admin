@@ -192,6 +192,13 @@ class RoleAccessCommissionTest extends TestCase
         $this->actingAs($admin)->get('/state-assignments')->assertOk()->assertSee('Kaif')->assertSee('kaif@gmail.com');
         $this->assertTrue(\Illuminate\Support\Facades\Schema::connection('platform')->hasTable('state_head_kyc'));
         $this->assertSame(1, DB::connection('platform')->table('state_head_kyc')->where('doc_type', 'PAN')->count());
+        $platformId = (int) DB::connection('platform')->table('users')->where('email', 'kaif@gmail.com')->value('id');
+        $this->actingAs($admin)->get('/organization/state-kyc?user_id='.$platformId)
+            ->assertOk()
+            ->assertSee('Kaif')
+            ->assertSee('PAN')
+            ->assertSee('pan.pdf')
+            ->assertSee('Delhi');
 
         \Illuminate\Support\Facades\Auth::logout();
         $this->post('/login', [
