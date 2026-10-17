@@ -22,15 +22,8 @@ final class StateHeadNav
             ['key' => 'parcels', 'label' => 'Parcels', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'state.section'],
             ['key' => 'map', 'label' => 'Live fleet map', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'complaints.manage', 'route' => 'state.section'],
-            ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'reports.view', 'route' => 'state.section'],
             ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
-            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Finance', 'ability' => 'reports.view', 'route' => 'reports.index'],
-            ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'notifications.view', 'route' => 'state.section'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
-            ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.roles'],
-            ['key' => 'settings', 'label' => 'Settings', 'icon' => 'settings', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.settings'],
-            ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.branding'],
         ];
     }
 

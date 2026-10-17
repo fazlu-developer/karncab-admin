@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Platform\DistrictLocator;
 use App\Platform\OperatorRole;
+use App\Platform\PrivilegedModules;
 use App\Platform\TerritoryScope;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -21,13 +22,17 @@ class StateHeadService
      */
     public function context(User $operator, ?int $requestedStateId = null): array
     {
-        abort_unless($operator->can('state.operate'), 403);
+        $section = (string) request()->route('section');
+        $managerModule = $operator->isManager()
+            && isset(PrivilegedModules::ABILITIES[$section])
+            && ! PrivilegedModules::denied($operator, $section);
+        abort_unless($operator->can('state.operate') || $managerModule, 403);
 
         if ($operator->isStateHead()) {
             abort_if(! $operator->state_id, 409, 'No state is assigned to this State Head.');
             $stateId = (int) $operator->state_id;
         } else {
-            abort_unless($operator->isPrivilegedOperator(), 403);
+            abort_unless($operator->isPrivilegedOperator() || $managerModule, 403);
             $stateId = (int) ($requestedStateId ?: $operator->state_id ?: $this->defaultStateId());
             abort_if($stateId < 1, 409, 'No states in the catalog yet.');
         }

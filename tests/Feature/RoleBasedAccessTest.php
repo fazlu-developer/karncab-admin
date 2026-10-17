@@ -122,9 +122,40 @@ class RoleBasedAccessTest extends TestCase
         $head = User::factory()->create(['role' => OperatorRole::STATE_HEAD]);
         $stateKeys = collect(\App\Platform\StateHeadNav::grouped($head))->flatten(1)->pluck('key');
         $this->assertTrue($stateKeys->contains('dashboard'));
-        $this->assertTrue($stateKeys->contains('commission'));
+        $this->assertFalse($stateKeys->contains('revenue'));
+        $this->assertFalse($stateKeys->contains('commission'));
+        $this->assertFalse($stateKeys->contains('reports'));
+        $this->assertFalse($stateKeys->contains('notifications'));
+        $this->assertFalse($stateKeys->contains('roles'));
+        $this->assertFalse($stateKeys->contains('settings'));
+        $this->assertFalse($stateKeys->contains('branding'));
         $this->assertFalse($stateKeys->contains('wallets'));
         $this->assertFalse($stateKeys->contains('complaints'));
+
+        $district = User::factory()->create(['role' => OperatorRole::DISTRICT_HEAD]);
+        $districtKeys = collect(\App\Platform\DistrictHeadNav::grouped($district))->flatten(1)->pluck('key');
+        foreach (['revenue', 'commission', 'reports', 'notifications', 'roles', 'settings', 'branding'] as $hidden) {
+            $this->assertFalse($districtKeys->contains($hidden));
+        }
+
+        $plainAdmin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        $adminKeys = collect(\App\Platform\OpsNav::visibleFor($plainAdmin))->pluck('key');
+        $this->assertFalse($adminKeys->contains('reports'));
+        $this->assertFalse($adminKeys->contains('roles'));
+        $plainAdmin->syncAbilities(['reports.view', 'roles.view']);
+        $grantedKeys = collect(\App\Platform\OpsNav::visibleFor($plainAdmin->fresh()))->pluck('key');
+        $this->assertTrue($grantedKeys->contains('reports'));
+        $this->assertTrue($grantedKeys->contains('roles'));
+
+        $super = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+        $superKeys = collect(\App\Platform\OpsNav::visibleFor($super))->pluck('key');
+        $this->assertTrue($superKeys->contains('revenue'));
+        $this->assertTrue($superKeys->contains('commission'));
+        $this->assertTrue($superKeys->contains('reports'));
+        $this->assertTrue($superKeys->contains('notifications'));
+        $this->assertTrue($superKeys->contains('roles'));
+        $this->assertTrue($superKeys->contains('settings'));
+        $this->assertTrue($superKeys->contains('branding'));
 
         $advertiser = User::factory()->create(['role' => OperatorRole::ADVERTISER]);
         $adGroups = \App\Platform\ConsoleNav::grouped($advertiser);

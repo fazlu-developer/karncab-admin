@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Platform\OperatorRole;
+use App\Platform\PrivilegedModules;
 use App\Platform\RouteAbility;
 use Closure;
 use Illuminate\Http\Request;
@@ -25,6 +26,15 @@ class EnforceRouteAbility
         }
         if ($user->role === OperatorRole::SUPER_ADMIN) {
             return $next($request);
+        }
+        $module = PrivilegedModules::keyForRequest($request);
+        if ($module !== null) {
+            if (PrivilegedModules::denied($user, $module)) {
+                abort(403);
+            }
+            if (in_array($user->role, [OperatorRole::ADMIN, OperatorRole::MANAGER], true)) {
+                return $next($request);
+            }
         }
         $abilities = RouteAbility::anyOf($request);
         if ($abilities === null) {

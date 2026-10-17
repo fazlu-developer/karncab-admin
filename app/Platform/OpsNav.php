@@ -42,7 +42,8 @@ final class OpsNav
             ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'landmark', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'platform.admin', 'route' => 'wallets.commission'],
+            ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'revenue.view', 'route' => 'state.section'],
+            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
             ['key' => 'settlements', 'label' => 'Commission settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'settlements.index'],
             ['key' => 'payout', 'label' => 'Withdraw requests', 'icon' => 'hand-coins', 'group' => 'Finance', 'ability' => 'payout.view', 'route' => 'withdrawals.index'],
             ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Finance', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
@@ -59,10 +60,10 @@ final class OpsNav
             ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.services'],
             ['key' => 'app-content', 'label' => 'App account pages', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.app-content'],
             ['key' => 'website-pages', 'label' => 'Website CMS', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.website-pages'],
-            ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.branding'],
+            ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'branding.view', 'route' => 'ops.branding'],
             ['key' => 'locations', 'label' => 'Locations', 'icon' => 'globe', 'group' => 'System', 'ability' => 'platform.admin'],
-            ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.roles'],
-            ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.settings'],
+            ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'roles.view', 'route' => 'ops.roles'],
+            ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'settings.view', 'route' => 'ops.settings'],
             ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.audit'],
         ];
     }
@@ -101,6 +102,9 @@ final class OpsNav
 
     public static function href(array $item): string
     {
+        if (($item['key'] ?? '') === 'revenue') {
+            return route('state.section', 'revenue');
+        }
         if (! empty($item['route'])) {
             return route($item['route']);
         }
@@ -156,6 +160,9 @@ final class OpsNav
         }
         if (($item['key'] ?? '') === 'wallets') {
             return request()->routeIs('wallets.*') && ! request()->routeIs('wallets.commission*');
+        }
+        if (($item['key'] ?? '') === 'revenue') {
+            return request()->route('section') === 'revenue';
         }
         if (($item['key'] ?? '') === 'commission') {
             return request()->routeIs('wallets.commission*');
@@ -259,6 +266,9 @@ final class OpsNav
     {
         $out = [];
         foreach (self::items() as $item) {
+            if (PrivilegedModules::denied($user, (string) $item['key'])) {
+                continue;
+            }
             if (NavAccess::allowed($user, $item['ability'] ?? null)) {
                 $out[] = $item;
             }

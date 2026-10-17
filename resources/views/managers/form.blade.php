@@ -25,10 +25,21 @@
                 'emptyState' => 'All states',
                 'emptyDistrict' => 'All districts',
             ])
+            <h3>Finance and system modules</h3>
+            <p class="muted">Tick a module to show it for this Manager. State Head and District Head never see these.</p>
+            <div class="grid-2">
+                @foreach (\App\Platform\PrivilegedModules::LABELS as $ability => $label)
+                    <label style="display:block;margin:6px 0">
+                        <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
             <h3>Permissions</h3>
             <p class="muted">A manager with fleet_owner.view cannot create fleet owners unless fleet_owner.create is also granted.</p>
             <div class="grid-2">
                 @foreach ($catalog as $ability)
+                    @continue(isset(\App\Platform\PrivilegedModules::LABELS[$ability]))
                     <label style="display:block;margin:6px 0">
                         <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
                         {{ $ability }}

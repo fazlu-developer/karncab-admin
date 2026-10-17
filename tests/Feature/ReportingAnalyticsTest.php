@@ -24,6 +24,7 @@ class ReportingAnalyticsTest extends TestCase
     public function test_admin_opens_reports_and_exports_csv_excel_pdf(): void
     {
         $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        $admin->syncAbilities(['reports.view', 'reports.export']);
         $this->actingAs($admin)->get('/ops/reports')->assertRedirect(route('reports.index'));
         $this->actingAs($admin)->get('/reports')
             ->assertOk()
@@ -60,7 +61,7 @@ class ReportingAnalyticsTest extends TestCase
             'state_id' => 1,
         ]);
 
-        $this->actingAs($head)->get('/reports')->assertOk()->assertDontSee('State performance')->assertDontSee('Platform commission');
+        $this->actingAs($head)->get('/reports')->assertForbidden();
         $completed = $this->actingAs($head)->getJson('/api/v1/reports/completed_rides?districtId=20')->assertOk()->json('rows');
         $refs = array_column($completed, 'publicRef');
         $this->assertContains('KCMINE', $refs);

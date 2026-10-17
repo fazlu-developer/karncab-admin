@@ -18,13 +18,8 @@ final class DistrictHeadNav
             ['key' => 'franchises', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Network', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
             ['key' => 'map', 'label' => 'Live tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
-            ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Finance', 'ability' => 'reports.view', 'route' => 'reports.index'],
             ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet.manage', 'route' => 'district.settings'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
-            ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.roles'],
-            ['key' => 'settings', 'label' => 'Settings', 'icon' => 'settings', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.settings'],
-            ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.branding'],
         ];
     }
 

@@ -74,6 +74,7 @@ class NotificationSystemTest extends TestCase
     public function test_admin_workspace_and_fleet_forbidden(): void
     {
         $admin = User::factory()->create(['role' => OperatorRole::ADMIN, 'nest_user_id' => 50]);
+        $admin->syncAbilities(['notifications.view', 'notifications.send']);
         $this->actingAs($admin)->getJson('/api/v1/notifications/catalog')
             ->assertOk()
             ->assertJsonFragment(['channels' => ['in_app', 'push', 'sms', 'email']])

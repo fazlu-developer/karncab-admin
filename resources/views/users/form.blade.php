@@ -56,10 +56,21 @@
                 'districtValue' => (string) old('district_id', $user->district_id),
             ])
             <p class="muted">State Head needs one state. District Head needs one district. The selected place is assigned when you save.</p>
+            <h3>Finance and system modules</h3>
+            <p class="muted">Super Admin always has these. Tick a module to show it for this Manager or Admin. State Head and District Head never see them.</p>
+            <div class="grid-2">
+                @foreach (\App\Platform\PrivilegedModules::LABELS as $ability => $label)
+                    <label style="display:block;margin:6px 0">
+                        <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
+                        {{ $label }}
+                    </label>
+                @endforeach
+            </div>
             <h3>Manager and Admin permissions</h3>
             <p class="muted">Tick extra modules for Manager or Admin. State Head and District Head already receive their own module list.</p>
             <div class="grid-2">
                 @foreach ($permissionCatalog as $ability)
+                    @continue(isset(\App\Platform\PrivilegedModules::LABELS[$ability]))
                     <label style="display:block;margin:6px 0">
                         <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
                         {{ $ability }}

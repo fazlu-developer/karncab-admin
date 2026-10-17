@@ -74,6 +74,10 @@ final class PlatformPermission
             'tracking.view',
             'kyc.view', 'kyc.approve',
             'commission.view',
+            'revenue.view',
+            'roles.view',
+            'settings.view',
+            'branding.view',
             'manager.view', 'manager.manage',
         ];
     }
