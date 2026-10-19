@@ -104,6 +104,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/fleet/reports', [FleetWorkspaceController::class, 'reports'])->name('fleet.reports');
 
     Route::post('/organization/state-heads', [UsersController::class, 'storeStateHead'])->name('organization.state-heads.store');
+    Route::post('/organization/district-heads', [UsersController::class, 'storeDistrictHead'])->name('organization.district-heads.store');
     Route::resource('users', UsersController::class)->parameters(['users' => 'platformUser']);
     Route::get('/old-users', [OldUsersController::class, 'index'])->name('old-users.index');
     Route::post('/old-users/import', [OldUsersController::class, 'import'])->name('old-users.import');

@@ -81,6 +81,16 @@ class ModuleController extends Controller
 
             return redirect()->route('coupons.index');
         }
+        if ($module === 'franchise' || $module === 'district-applications') {
+            abort_unless($request->user()?->can('franchise.view'), 403);
+
+            return redirect()->route('franchises.index');
+        }
+        if ($module === 'offers') {
+            abort_unless($request->user()?->can('platform.admin'), 403);
+
+            return redirect()->route('ops.services');
+        }
         if ($module === 'safety') {
             abort_unless($request->user()?->can('safety.view'), 403);
 

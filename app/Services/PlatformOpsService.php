@@ -121,7 +121,26 @@ class PlatformOpsService
             return ['users' => $this->listTerritoryOperators($operator, 'STATE_HEAD')];
         }
         if ($module === 'district-heads') {
-            return ['users' => $this->listTerritoryOperators($operator, 'DISTRICT_HEAD')];
+            $heads = $this->listTerritoryOperators($operator, 'DISTRICT_HEAD');
+            $legacy = $this->listTerritoryOperators($operator, 'FRANCHISE');
+            $seen = [];
+            $merged = [];
+            foreach (array_merge($heads, $legacy) as $row) {
+                $key = strtolower((string) ($row['email'] ?? $row['id'] ?? ''));
+                if ($key !== '' && isset($seen[$key])) {
+                    continue;
+                }
+                if ($key !== '') {
+                    $seen[$key] = true;
+                }
+                if (($row['role'] ?? '') === 'FRANCHISE') {
+                    $row['role'] = 'DISTRICT_HEAD';
+                    $row['note'] = 'Legacy franchise login — treated as District Head';
+                }
+                $merged[] = $row;
+            }
+
+            return ['users' => $merged];
         }
 
         $query = TerritoryScope::constrainQuery($query, $operator);
@@ -737,7 +756,7 @@ class PlatformOpsService
     {
         $roles = match ($data['audience']) {
             'driver' => ['DRIVER'],
-            'ops' => ['ADMIN', 'SUPER_ADMIN', 'DISTRICT_HEAD', 'STATE_HEAD', 'FRANCHISE'],
+            'ops' => ['ADMIN', 'SUPER_ADMIN', 'DISTRICT_HEAD', 'STATE_HEAD', 'MANAGER'],
             default => ['CUSTOMER', 'CORPORATE'],
         };
         $ids = $this->q('users')->whereIn('role', $roles)->where('status', 'ACTIVE')->pluck('id');

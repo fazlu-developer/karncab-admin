@@ -18,7 +18,6 @@ final class OperatorProvisioner
         OperatorRole::MANAGER,
         OperatorRole::STATE_HEAD,
         OperatorRole::DISTRICT_HEAD,
-        OperatorRole::FRANCHISE,
         OperatorRole::FLEET_OWNER,
     ];
 

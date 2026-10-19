@@ -6,24 +6,18 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1>District Head / exclusive franchise</h1>
-            <p class="muted">Apply, upload KYC, then <strong>Verify &amp; activate</strong>. Only ACTIVE occupies the district seat.</p>
+            <h1>District applications</h1>
+            <p class="muted">Apply a District Head for a district, upload KYC, then <strong>Verify &amp; activate</strong>. Only one ACTIVE District Head holds each district seat. The exclusive franchise role is retired.</p>
         </div>
+        <a class="btn ghost" href="{{ route('ops.module', 'district-heads') }}">District Heads</a>
     </div>
     @can('franchise.manage')
         <section class="card">
-            <h3 style="margin-top:0">New application</h3>
+            <h3 style="margin-top:0">New District Head application</h3>
             <form method="POST" action="{{ route('franchises.store') }}">
                 @csrf
-                <div class="field">
-                    <label>Kind</label>
-                    <select name="kind" required>
-                        @foreach ($kinds as $kind)
-                            <option value="{{ $kind }}">{{ $kind }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="field"><label>Trade name</label><input name="trade_name" required></div>
+                <input type="hidden" name="kind" value="DISTRICT_HEAD">
+                <div class="field"><label>Trade / office name</label><input name="trade_name" required></div>
                 @include('partials.geo-fields', [
                     'required' => true,
                     'emptyState' => 'Select state',

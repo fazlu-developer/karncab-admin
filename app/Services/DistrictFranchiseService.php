@@ -60,8 +60,8 @@ class DistrictFranchiseService
     public function apply(User $operator, array $data): array
     {
         abort_unless($operator->can('franchise.manage'), 403);
-        $kind = $data['kind'] ?? 'EXCLUSIVE_FRANCHISE';
-        abort_unless(in_array($kind, ExclusiveDistrictSeat::KINDS, true), 422, 'Invalid franchise kind.');
+        $kind = 'DISTRICT_HEAD';
+        abort_unless(in_array($kind, ExclusiveDistrictSeat::KINDS, true), 422, 'Invalid district application kind.');
         $district = $this->requireDistrict((int) $data['district_id'], $operator);
 
         try {
@@ -434,10 +434,8 @@ class DistrictFranchiseService
         if ($ownerUserId < 1) {
             return;
         }
-        $role = $kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE';
-        if ($role === 'DISTRICT_HEAD') {
-            ExclusiveDistrictSeat::assertAvailable($districtId, $ownerUserId);
-        }
+        $role = 'DISTRICT_HEAD';
+        ExclusiveDistrictSeat::assertAvailable($districtId, $ownerUserId);
         $this->db()->table('users')->where('id', $ownerUserId)->whereNotIn('role', ['ADMIN', 'SUPER_ADMIN'])->update($this->filterRow('users', [
             'role' => $role,
             'district_id' => $districtId,
@@ -486,7 +484,7 @@ class DistrictFranchiseService
         if ($ownerUserId < 1 || ! Schema::connection('platform')->hasTable('wallets')) {
             return;
         }
-        $ownerType = $kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE';
+        $ownerType = 'DISTRICT_HEAD';
         $q = $this->db()->table('wallets')->where('owner_user_id', $ownerUserId);
         if (Schema::connection('platform')->hasColumn('wallets', 'owner_type')) {
             $q->where('owner_type', $ownerType);
@@ -548,7 +546,7 @@ class DistrictFranchiseService
      */
     private function walletFor(int $ownerUserId, string $kind): ?array
     {
-        $ownerType = $kind === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE';
+        $ownerType = 'DISTRICT_HEAD';
         $row = $this->db()->table('wallets')->where('owner_type', $ownerType)->where('owner_user_id', $ownerUserId)->first();
         if (! $row) {
             return null;
@@ -585,7 +583,7 @@ class DistrictFranchiseService
             }
 
             return (int) $this->db()->table('users')->insertGetId($this->filterRow('users', [
-                'role' => ($data['kind'] ?? '') === 'DISTRICT_HEAD' ? 'DISTRICT_HEAD' : 'FRANCHISE',
+                'role' => 'DISTRICT_HEAD',
                 'status' => 'PENDING',
                 'name' => $data['name'],
                 'email' => $email,

@@ -145,40 +145,28 @@ final class PlatformPermission
             'wallet.view',
         ];
 
-        $franchise = [
-            'dashboard.view',
+        $districtHead = array_values(array_unique(array_merge($manager, [
+            'users.view',
             'district.view',
-            'drivers.view', 'drivers.create', 'drivers.edit',
-            'vehicles.view', 'vehicles.edit', 'vehicle.create', 'vehicle.update',
-            'bookings.view', 'bookings.manage',
-            'parcels.view', 'parcels.manage',
-            'customers.view',
+            'kyc.view',
+            'kyc.approve',
             'fleet.view',
+            'fleet.manage',
+            'fleet_owner.view',
+            'fleet_owner.create',
+            'drivers.create',
             'commission.view',
-            'reports.view', 'reports.export',
-            'agreement.view',
+            'commission.edit',
+            'wallet.view',
             'franchise.view',
-        ];
+            'franchise.manage',
+        ])));
 
         return match ($role) {
             OperatorRole::ADMIN, OperatorRole::SUPER_ADMIN => $all,
             OperatorRole::MANAGER => $manager,
             OperatorRole::STATE_HEAD => $stateHead,
-            OperatorRole::DISTRICT_HEAD => array_values(array_unique(array_merge($manager, [
-                'users.view',
-                'district.view',
-                'kyc.view',
-                'kyc.approve',
-                'fleet.view',
-                'fleet.manage',
-                'fleet_owner.view',
-                'fleet_owner.create',
-                'drivers.create',
-                'commission.view',
-                'commission.edit',
-                'wallet.view',
-            ]))),
-            OperatorRole::FRANCHISE => $franchise,
+            OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE => $districtHead,
             OperatorRole::FLEET_OWNER => [
                 'drivers.view', 'drivers.create', 'drivers.edit',
                 'vehicles.view', 'vehicles.edit',

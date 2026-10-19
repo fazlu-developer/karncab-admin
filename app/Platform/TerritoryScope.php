@@ -34,14 +34,14 @@ final class TerritoryScope
                 return OperatorRole::FLEET_OWNER;
             }
             if ($operator->district_id) {
-                return OperatorRole::FRANCHISE;
+                return OperatorRole::DISTRICT_HEAD;
             }
             if ($operator->state_id) {
                 return OperatorRole::STATE_HEAD;
             }
         }
 
-        return (string) $operator->role;
+        return OperatorRole::normalize((string) $operator->role);
     }
 
     public static function canAccessDistrict(?int $actorDistrictId, string $role, ?int $districtId): bool

@@ -37,7 +37,7 @@ class FranchisesController extends Controller
             return back()->withInput()->withErrors(['franchise' => 'Could not save the franchise application. Check owner email/phone and district, then try again.']);
         }
 
-        return redirect()->route('franchises.show', $row['id'])->with('status', 'Application saved as APPLIED. The exclusive district seat is claimed only when status becomes ACTIVE.');
+        return redirect()->route('franchises.show', $row['id'])->with('status', 'District Head application saved as APPLIED. The district seat is claimed only when status becomes ACTIVE.');
     }
 
     public function show(Request $request, int $franchise): View
@@ -68,7 +68,7 @@ class FranchisesController extends Controller
         return $this->guardConflict(function () use ($request, $franchise) {
             $this->franchises->verifyAndActivate($request->user(), $franchise);
 
-            return back()->with('status', 'District Head / franchise verified and set ACTIVE. They can sign in.');
+            return back()->with('status', 'District Head verified and set ACTIVE. They can sign in.');
         });
     }
 
@@ -185,7 +185,7 @@ class FranchisesController extends Controller
     private function applicationData(Request $request): array
     {
         $data = $request->validate([
-            'kind' => ['required', 'in:DISTRICT_HEAD,EXCLUSIVE_FRANCHISE'],
+            'kind' => ['nullable', 'in:DISTRICT_HEAD'],
             'trade_name' => ['required', 'string', 'max:160'],
             'district_id' => ['required', 'integer'],
             'owner_user_id' => ['nullable', 'integer'],
@@ -203,6 +203,7 @@ class FranchisesController extends Controller
             $data['fee_amount_paise'] = (int) round(((float) $data['fee_amount_rupees']) * 100);
         }
         unset($data['fee_amount_rupees']);
+        $data['kind'] = 'DISTRICT_HEAD';
 
         return $data;
     }

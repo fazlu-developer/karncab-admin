@@ -18,7 +18,8 @@ final class ExclusiveDistrictSeat
         'TERMINATED',
     ];
 
-    public const KINDS = ['DISTRICT_HEAD', 'EXCLUSIVE_FRANCHISE'];
+    /** District Head holds the exclusive district seat. Exclusive franchise role is retired. */
+    public const KINDS = ['DISTRICT_HEAD'];
 
     public const TRANSITIONS = [
         'APPLIED' => ['UNDER_REVIEW', 'APPROVED', 'ACTIVE', 'TERMINATED'],

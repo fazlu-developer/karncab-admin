@@ -7,26 +7,40 @@ final class OpsNav
     /**
      * Built-in console links (no dynamically created ACL modules).
      *
+     * Hierarchy: Super Admin / Admin / Manager run the system.
+     * State Head → District Head → Fleet Owner → Driver. Customer is separate.
+     *
      * @return list<array{key: string, label: string, icon: string, group: string, ability: ?string, route?: string}>
      */
     public static function coreItems(): array
     {
         return [
+            // Dashboard
             ['key' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'layout-dashboard', 'group' => 'Dashboard', 'ability' => 'dashboard.view', 'route' => 'dashboard'],
             ['key' => 'state-workspace', 'label' => 'State workspace', 'icon' => 'landmark', 'group' => 'Dashboard', 'ability' => 'state.operate', 'route' => 'state.dashboard'],
+
+            // Organization — territory + people who run it
             ['key' => 'states', 'label' => 'States', 'icon' => 'globe', 'group' => 'Organization', 'ability' => 'state.view', 'route' => 'organization.states'],
             ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
-            ['key' => 'state-assignments', 'label' => 'State Heads', 'icon' => 'map', 'group' => 'Organization', 'ability' => 'state_head.view', 'route' => 'state.assignments'],
-            ['key' => 'managers', 'label' => 'Managers', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'manager.view', 'route' => 'managers.index'],
-            ['key' => 'franchise', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Organization', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
-            ['key' => 'state-heads', 'label' => 'State Head users', 'icon' => 'landmark', 'group' => 'Organization', 'ability' => 'users.view'],
+            ['key' => 'state-heads', 'label' => 'State Heads', 'icon' => 'landmark', 'group' => 'Organization', 'ability' => 'users.view'],
+            ['key' => 'state-assignments', 'label' => 'State Head seats', 'icon' => 'map', 'group' => 'Organization', 'ability' => 'state_head.view', 'route' => 'state.assignments'],
             ['key' => 'district-heads', 'label' => 'District Heads', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'users.view'],
-            ['key' => 'fleet', 'label' => 'Fleet Owners / Operators', 'icon' => 'warehouse', 'group' => 'Fleet Management', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
-            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet Management', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
-            ['key' => 'district-vehicles', 'label' => 'District vehicles', 'icon' => 'map', 'group' => 'Fleet Management', 'ability' => 'vehicles.view', 'route' => 'vehicles.districts'],
-            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet Management', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
-            ['key' => 'users', 'label' => 'Users', 'icon' => 'users', 'group' => 'People', 'ability' => 'users.view', 'route' => 'users.index'],
-            ['key' => 'old-users', 'label' => 'Old users', 'icon' => 'history', 'group' => 'People', 'ability' => 'users.view', 'route' => 'old-users.index'],
+            ['key' => 'district-applications', 'label' => 'District applications', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
+            ['key' => 'managers', 'label' => 'Managers', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'manager.view', 'route' => 'managers.index'],
+            ['key' => 'users', 'label' => 'All users', 'icon' => 'users', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'users.index'],
+
+            // Fleet
+            ['key' => 'fleet', 'label' => 'Fleet Owners', 'icon' => 'warehouse', 'group' => 'Fleet', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
+            ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
+            ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
+            ['key' => 'district-vehicles', 'label' => 'District vehicles', 'icon' => 'map', 'group' => 'Fleet', 'ability' => 'vehicles.view', 'route' => 'vehicles.districts'],
+
+            // KYC
+            ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC', 'ability' => 'kyc.view'],
+            ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'landmark', 'group' => 'KYC', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
+            ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'KYC', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
+
+            // Operations
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'assign-drivers', 'label' => 'Assign Drivers', 'icon' => 'user-plus', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.assign-drivers'],
             ['key' => 'trips', 'label' => 'Trips', 'icon' => 'navigation', 'group' => 'Operations', 'ability' => 'bookings.view'],
@@ -34,26 +48,32 @@ final class OpsNav
             ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.manual-bookings'],
             ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'ops.parcels'],
             ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.travel'],
-            ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-plans'],
             ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
-            ['key' => 'corporate', 'label' => 'Corporate', 'icon' => 'building-2', 'group' => 'Partners', 'ability' => 'corporate.view'],
-            ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC & Documents', 'ability' => 'kyc.view'],
-            ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
-            ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'landmark', 'group' => 'KYC & Documents', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
+            ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-plans'],
+            ['key' => 'corporate', 'label' => 'Corporate accounts', 'icon' => 'building-2', 'group' => 'Operations', 'ability' => 'corporate.view'],
+            ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
+            ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.index'],
+            ['key' => 'faqs', 'label' => 'FAQ & support copy', 'icon' => 'circle-help', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.faqs'],
+            ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'bookings.view'],
+
+            // Offers
+            ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Offers', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
+            ['key' => 'offers', 'label' => 'Home offers', 'icon' => 'sparkles', 'group' => 'Offers', 'ability' => 'platform.admin', 'route' => 'ops.services'],
+            ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Offers', 'ability' => 'advertising.view', 'route' => 'ads.index'],
+            ['key' => 'leads', 'label' => 'Website enquiries', 'icon' => 'inbox', 'group' => 'Offers', 'ability' => 'customers.view', 'route' => 'leads.index'],
+
+            // Finance
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
             ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'revenue.view', 'route' => 'state.section'],
             ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
             ['key' => 'settlements', 'label' => 'Commission settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'settlements.index'],
             ['key' => 'payout', 'label' => 'Withdraw requests', 'icon' => 'hand-coins', 'group' => 'Finance', 'ability' => 'payout.view', 'route' => 'withdrawals.index'],
-            ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Finance', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
-            ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Growth', 'ability' => 'advertising.view', 'route' => 'ads.index'],
-            ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
-            ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.index'],
-            ['key' => 'faqs', 'label' => 'FAQ & support copy', 'icon' => 'circle-help', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.faqs'],
-            ['key' => 'leads', 'label' => 'Website enquiries', 'icon' => 'inbox', 'group' => 'Growth', 'ability' => 'customers.view', 'route' => 'leads.index'],
-            ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'bookings.view'],
+
+            // Reports
             ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Reports', 'ability' => 'reports.view', 'route' => 'reports.index'],
+
+            // System (Super Admin / Admin / Manager)
             ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'notifications.view', 'route' => 'notifications.index'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
             ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ride-settings.index'],
@@ -61,10 +81,10 @@ final class OpsNav
             ['key' => 'app-content', 'label' => 'App account pages', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.app-content'],
             ['key' => 'website-pages', 'label' => 'Website CMS', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.website-pages'],
             ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'branding.view', 'route' => 'ops.branding'],
-            ['key' => 'locations', 'label' => 'Locations', 'icon' => 'globe', 'group' => 'System', 'ability' => 'platform.admin'],
             ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'roles.view', 'route' => 'ops.roles'],
             ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'settings.view', 'route' => 'ops.settings'],
             ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.audit'],
+            ['key' => 'old-users', 'label' => 'Old users', 'icon' => 'history', 'group' => 'System', 'ability' => 'users.view', 'route' => 'old-users.index'],
         ];
     }
 
@@ -118,129 +138,145 @@ final class OpsNav
             return request()->routeIs('dashboard');
         }
         if (($item['route'] ?? '') === 'state.dashboard') {
-            return request()->routeIs('state.*') && ! request()->routeIs('state.assignments*');
+            return request()->routeIs('state.*') && ! request()->routeIs('state.assignments*') && ! request()->routeIs('state.section');
         }
         if (($item['route'] ?? '') === 'state.assignments') {
             return request()->routeIs('state.assignments*');
         }
-        if (($item['key'] ?? '') === 'managers') {
-            return request()->routeIs('managers.*');
+        if (($item['route'] ?? '') === 'state.section') {
+            return request()->routeIs('state.section') && request()->route('section') === 'revenue';
         }
-        if (($item['key'] ?? '') === 'states') {
+        if (($item['route'] ?? '') === 'organization.states') {
             return request()->routeIs('organization.states*');
         }
-        if (($item['key'] ?? '') === 'districts') {
+        if (($item['route'] ?? '') === 'organization.districts') {
             return request()->routeIs('organization.districts*');
         }
-        if (($item['key'] ?? '') === 'fleet') {
-            return request()->routeIs('fleet-owners.*') || request()->route('module') === 'fleet';
+        if (($item['route'] ?? '') === 'organization.state-kyc') {
+            return request()->routeIs('organization.state-kyc*');
         }
-        if (($item['key'] ?? '') === 'users') {
-            return request()->routeIs('users.*') && ! request()->routeIs('old-users.*');
+        if (($item['route'] ?? '') === 'organization.district-kyc') {
+            return request()->routeIs('organization.district-kyc*');
         }
-        if (($item['key'] ?? '') === 'old-users') {
-            return request()->routeIs('old-users.*');
+        if (($item['route'] ?? '') === 'managers.index') {
+            return request()->routeIs('managers.*');
         }
-        if (($item['key'] ?? '') === 'drivers') {
-            return request()->routeIs('drivers.*');
-        }
-        if (($item['key'] ?? '') === 'vehicles') {
-            return request()->routeIs('vehicles.*') && ! request()->routeIs('vehicles.districts');
-        }
-        if (($item['key'] ?? '') === 'district-vehicles') {
-            return request()->routeIs('vehicles.districts');
-        }
-
-        if (($item['key'] ?? '') === 'franchise') {
+        if (($item['route'] ?? '') === 'franchises.index') {
             return request()->routeIs('franchises.*');
         }
-
-        if (($item['key'] ?? '') === 'map') {
+        if (($item['route'] ?? '') === 'fleet-owners.index') {
+            return request()->routeIs('fleet-owners.*');
+        }
+        if (($item['route'] ?? '') === 'vehicles.index') {
+            return request()->routeIs('vehicles.index') || request()->routeIs('vehicles.show') || request()->routeIs('vehicles.create') || request()->routeIs('vehicles.edit') || request()->routeIs('vehicles.store') || request()->routeIs('vehicles.update') || request()->routeIs('vehicles.destroy');
+        }
+        if (($item['route'] ?? '') === 'vehicles.districts') {
+            return request()->routeIs('vehicles.districts*');
+        }
+        if (($item['route'] ?? '') === 'drivers.index') {
+            return request()->routeIs('drivers.*');
+        }
+        if (($item['route'] ?? '') === 'users.index') {
+            return request()->routeIs('users.*');
+        }
+        if (($item['route'] ?? '') === 'old-users.index') {
+            return request()->routeIs('old-users.*');
+        }
+        if (($item['route'] ?? '') === 'live.map') {
             return request()->routeIs('live.map');
         }
-        if (($item['key'] ?? '') === 'wallets') {
-            return request()->routeIs('wallets.*') && ! request()->routeIs('wallets.commission*');
+        if (($item['route'] ?? '') === 'ops.assign-drivers') {
+            return request()->routeIs('ops.assign-drivers*') || request()->route('module') === 'assign-drivers';
         }
-        if (($item['key'] ?? '') === 'revenue') {
-            return request()->route('section') === 'revenue';
-        }
-        if (($item['key'] ?? '') === 'commission') {
-            return request()->routeIs('wallets.commission*');
-        }
-        if (($item['key'] ?? '') === 'settlements') {
-            return request()->routeIs('settlements.*');
-        }
-        if (($item['key'] ?? '') === 'payout') {
-            return request()->routeIs('withdrawals.*');
-        }
-        if (($item['key'] ?? '') === 'payments') {
-            return request()->routeIs('payments.*');
-        }
-        if (($item['key'] ?? '') === 'advertising') {
-            return request()->routeIs('ads.*');
-        }
-        if (($item['key'] ?? '') === 'coupons') {
-            return request()->routeIs('coupons.*');
-        }
-        if (($item['key'] ?? '') === 'safety') {
-            return request()->routeIs('safety.*') && ! request()->routeIs('safety.share');
-        }
-        if (($item['key'] ?? '') === 'complaints') {
-            return request()->routeIs('support.index', 'support.show', 'support.assign', 'support.transition', 'support.reply', 'support.attach', 'support.file');
-        }
-        if (($item['key'] ?? '') === 'faqs') {
-            return request()->routeIs('support.faqs', 'support.faqs.store', 'support.faqs.update');
-        }
-        if (($item['key'] ?? '') === 'leads') {
-            return request()->routeIs('leads.*');
-        }
-        if (($item['key'] ?? '') === 'notifications') {
-            return request()->routeIs('notifications.*');
-        }
-        if (($item['key'] ?? '') === 'fare') {
-            return request()->routeIs('fare.*');
-        }
-        if (($item['key'] ?? '') === 'ride-settings') {
-            return request()->routeIs('ride-settings.*');
-        }
-        if (($item['key'] ?? '') === 'reports') {
-            return request()->routeIs('reports.*');
-        }
-        if (($item['key'] ?? '') === 'services') {
-            return request()->routeIs('ops.services*');
-        }
-        if (($item['key'] ?? '') === 'app-content') {
-            return request()->routeIs('ops.app-content*');
-        }
-        if (($item['key'] ?? '') === 'website-pages') {
-            return request()->routeIs('ops.website-pages*');
-        }
-        if (($item['key'] ?? '') === 'branding') {
-            return request()->routeIs('ops.branding*');
-        }
-        if (($item['key'] ?? '') === 'roles') {
-            return request()->routeIs('ops.roles*');
-        }
-        if (($item['key'] ?? '') === 'settings') {
-            return request()->routeIs('ops.settings*');
-        }
-        if (($item['key'] ?? '') === 'audit') {
-            return request()->routeIs('ops.audit*');
-        }
-        if (($item['key'] ?? '') === 'travel') {
-            return request()->routeIs('ops.travel*') || request()->route('module') === 'travel';
-        }
-        if (($item['key'] ?? '') === 'corporate-plans') {
-            return request()->routeIs('ops.corporate-plans*') || request()->route('module') === 'corporate-plans';
-        }
-        if (($item['key'] ?? '') === 'parcels') {
-            return request()->routeIs('ops.parcels*') || request()->route('module') === 'parcels';
-        }
-        if (($item['key'] ?? '') === 'bulk') {
+        if (($item['route'] ?? '') === 'ops.manual-bookings') {
             return request()->routeIs('ops.manual-bookings*') || request()->route('module') === 'bulk';
         }
-        if (($item['key'] ?? '') === 'assign-drivers') {
-            return request()->routeIs('ops.assign-drivers*') || request()->route('module') === 'assign-drivers';
+        if (($item['route'] ?? '') === 'ops.parcels') {
+            return request()->routeIs('ops.parcels*');
+        }
+        if (($item['route'] ?? '') === 'ops.travel') {
+            return request()->routeIs('ops.travel*');
+        }
+        if (($item['route'] ?? '') === 'ops.corporate-plans') {
+            return request()->routeIs('ops.corporate-plans*') || request()->route('module') === 'corporate-plans';
+        }
+        if (($item['route'] ?? '') === 'coupons.index') {
+            return request()->routeIs('coupons.*');
+        }
+        if (($item['route'] ?? '') === 'ads.index') {
+            return request()->routeIs('ads.*');
+        }
+        if (($item['route'] ?? '') === 'leads.index') {
+            return request()->routeIs('leads.*');
+        }
+        if (($item['route'] ?? '') === 'payments.index') {
+            return request()->routeIs('payments.*');
+        }
+        if (($item['route'] ?? '') === 'wallets.index') {
+            return request()->routeIs('wallets.*') && ! request()->routeIs('wallets.commission*');
+        }
+        if (($item['route'] ?? '') === 'wallets.commission') {
+            return request()->routeIs('wallets.commission*');
+        }
+        if (($item['route'] ?? '') === 'settlements.index') {
+            return request()->routeIs('settlements.*');
+        }
+        if (($item['route'] ?? '') === 'withdrawals.index') {
+            return request()->routeIs('withdrawals.*');
+        }
+        if (($item['route'] ?? '') === 'reports.index') {
+            return request()->routeIs('reports.*');
+        }
+        if (($item['route'] ?? '') === 'notifications.index') {
+            return request()->routeIs('notifications.*');
+        }
+        if (($item['route'] ?? '') === 'fare.index') {
+            return request()->routeIs('fare.*');
+        }
+        if (($item['route'] ?? '') === 'ride-settings.index') {
+            return request()->routeIs('ride-settings.*');
+        }
+        if (($item['route'] ?? '') === 'ops.services') {
+            return request()->routeIs('ops.services*');
+        }
+        if (($item['route'] ?? '') === 'ops.app-content') {
+            return request()->routeIs('ops.app-content*');
+        }
+        if (($item['route'] ?? '') === 'ops.website-pages') {
+            return request()->routeIs('ops.website-pages*');
+        }
+        if (($item['route'] ?? '') === 'ops.branding') {
+            return request()->routeIs('ops.branding*');
+        }
+        if (($item['route'] ?? '') === 'ops.roles') {
+            return request()->routeIs('ops.roles*');
+        }
+        if (($item['route'] ?? '') === 'ops.settings') {
+            return request()->routeIs('ops.settings*');
+        }
+        if (($item['route'] ?? '') === 'ops.audit') {
+            return request()->routeIs('ops.audit*');
+        }
+        if (($item['route'] ?? '') === 'safety.index') {
+            return request()->routeIs('safety.*');
+        }
+        if (($item['route'] ?? '') === 'support.index') {
+            return request()->routeIs('support.index') || request()->routeIs('support.store') || request()->routeIs('support.update');
+        }
+        if (($item['route'] ?? '') === 'support.faqs') {
+            return request()->routeIs('support.faqs*');
+        }
+        if (($item['key'] ?? '') === 'state-heads') {
+            return request()->routeIs('ops.module') && request()->route('module') === 'state-heads';
+        }
+        if (($item['key'] ?? '') === 'district-heads') {
+            return request()->routeIs('ops.module') && request()->route('module') === 'district-heads';
+        }
+        if (($item['key'] ?? '') === 'offers') {
+            return request()->routeIs('ops.services*');
+        }
+        if (($item['key'] ?? '') === 'franchise') {
+            return request()->routeIs('franchises.*');
         }
 
         return request()->route('module') === ($item['key'] ?? null);

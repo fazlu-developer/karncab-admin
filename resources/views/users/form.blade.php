@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1>{{ $user->exists ? 'Edit user' : 'Create user' }}</h1>
-            <p class="muted">Password is stored as a hash. Bank and device secrets are never shown.</p>
+            <p class="muted">Roles: Super Admin, Admin, Manager, State Head, District Head, Fleet Owner, Driver, Customer. Exclusive franchise is removed — use District Head for the district seat.</p>
         </div>
         <a class="btn ghost" href="{{ route('users.index') }}">Back to list</a>
     </div>

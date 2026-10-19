@@ -1,15 +1,23 @@
 @extends('layouts.app')
 @section('title', 'Fleet Owners')
-@section('heading', 'Fleet Owners / Operators')
+@section('heading', 'Fleet Owners')
 @section('content')
     <div class="hero">
         <div>
             <h1>Fleet Owners</h1>
-            <p class="muted">App sign-ups stay under review until you verify the company. Then the fleet owner can add drivers and vehicles.</p>
+            <p class="muted">Create or verify a fleet company, then they add drivers and vehicles in their district. App sign-ups stay under review until you approve KYC.</p>
         </div>
-        @can('fleet.manage')
-            <a class="btn" href="{{ route('fleet-owners.create') }}">Add Fleet Owner</a>
-        @endcan
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+            @can('fleet.manage')
+                <a class="btn" href="{{ route('fleet-owners.create') }}"><i data-lucide="plus"></i> Add Fleet Owner</a>
+            @endcan
+            @can('drivers.view')
+                <a class="btn ghost" href="{{ route('drivers.index') }}">Drivers</a>
+            @endcan
+            @can('vehicles.view')
+                <a class="btn ghost" href="{{ route('vehicles.index') }}">Vehicles</a>
+            @endcan
+        </div>
     </div>
     <section class="card">
         <table class="data">

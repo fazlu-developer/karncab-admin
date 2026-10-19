@@ -168,7 +168,7 @@ class StateHeadService
         $ctx = $this->context($operator, isset($query['stateId']) ? (int) $query['stateId'] : null);
         $roles = match ($data['audience'] ?? 'driver') {
             'customer' => ['CUSTOMER'],
-            'ops' => ['DISTRICT_HEAD', 'FRANCHISE', 'FLEET_OWNER'],
+            'ops' => ['DISTRICT_HEAD', 'FLEET_OWNER', 'MANAGER'],
             default => ['DRIVER'],
         };
         $ids = $this->users($ctx)->whereIn('role', $roles)->where('status', 'ACTIVE')->pluck('id');

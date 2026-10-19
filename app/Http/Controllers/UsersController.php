@@ -49,7 +49,7 @@ class UsersController extends Controller
         return view('users.index', [
             'users' => $query->paginate(12)->withQueryString(),
             'filters' => $request->only(['q', 'role', 'status']),
-            'roles' => OperatorRole::all(),
+            'roles' => OperatorRole::managed(),
         ]);
     }
 
@@ -59,7 +59,7 @@ class UsersController extends Controller
 
         return view('users.form', [
             'user' => new PlatformUser(['status' => 'ACTIVE', 'role' => 'CUSTOMER']),
-            'roles' => OperatorRole::all(),
+            'roles' => OperatorRole::managed(),
             'permissionCatalog' => $this->permissionCatalog(),
             'granted' => [],
         ]);
@@ -69,6 +69,7 @@ class UsersController extends Controller
     {
         abort_unless($request->user()?->can('users.create'), 403);
         $data = $this->validated($request, true);
+        $data['role'] = OperatorRole::normalize((string) $data['role']);
         $data['phone'] = ($data['phone'] ?? null) ?: null;
         $password = (string) $data['password'];
         $data['password_hash'] = Hash::make($password);
@@ -104,6 +105,31 @@ class UsersController extends Controller
         return redirect()->route('ops.module', 'state-heads')->with('status', 'State Head created. They can sign in with this email and password.');
     }
 
+    public function storeDistrictHead(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('users.create'), 403);
+        $request->merge(['role' => OperatorRole::DISTRICT_HEAD]);
+        $data = $this->validated($request, true);
+        $data['phone'] = ($data['phone'] ?? null) ?: null;
+        $password = (string) $data['password'];
+        $data['password_hash'] = Hash::make($password);
+        unset($data['password']);
+        $districtId = (int) ($data['district_id'] ?? 0);
+        abort_unless($districtId > 0, 422, 'A District Head must be assigned one district.');
+        if (Schema::connection('platform')->hasTable('districts')) {
+            $stateId = DB::connection('platform')->table('districts')->where('id', $districtId)->value('state_id');
+            if ($stateId) {
+                $data['state_id'] = (int) $stateId;
+            }
+        }
+        $this->assertTerritory($data, null);
+        $user = PlatformUser::query()->create($data);
+        $this->saveRoleKyc($request, $user);
+        app(OperatorProvisioner::class)->sync($user, $password, $request->user(), []);
+
+        return redirect()->route('ops.module', 'district-heads')->with('status', 'District Head created. They hold the exclusive district seat and can sign in with this email and password.');
+    }
+
     public function show(Request $request, PlatformUser $platformUser): View
     {
         abort_unless($request->user()?->can('users.view'), 403);
@@ -127,7 +153,7 @@ class UsersController extends Controller
 
         return view('users.form', [
             'user' => $platformUser,
-            'roles' => OperatorRole::all(),
+            'roles' => OperatorRole::managed(),
             'permissionCatalog' => $this->permissionCatalog(),
             'granted' => $operator?->assignedAbilities() ?? [],
         ]);
@@ -138,6 +164,7 @@ class UsersController extends Controller
         abort_unless($request->user()?->can('users.edit'), 403);
         $this->assertVisible($request, $platformUser);
         $data = $this->validated($request, false, $platformUser->id);
+        $data['role'] = OperatorRole::normalize((string) $data['role']);
         $data['phone'] = ($data['phone'] ?? null) ?: null;
         $password = $data['password'] ?? null;
         if (! empty($password)) {
@@ -184,7 +211,7 @@ class UsersController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:180', Rule::unique(PlatformUser::class, 'email')->ignore($id)],
             'phone' => ['nullable', 'string', 'max:20', Rule::unique(PlatformUser::class, 'phone')->ignore($id)],
-            'role' => ['required', Rule::in(OperatorRole::all())],
+            'role' => ['required', Rule::in(OperatorRole::managed())],
             'status' => ['required', Rule::in(['ACTIVE', 'PENDING', 'SUSPENDED'])],
             'password' => [$creating ? 'required' : 'nullable', 'string', 'min:8'],
             'state_id' => ['nullable', 'integer'],
