@@ -666,6 +666,15 @@ class WorkspaceController extends Controller
         ]);
     }
 
+    public function approveReviewBooking(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        app(\App\Services\PlatformOpsService::class)->approveReviewBooking($booking, $request->user());
+        OrganizationAudit::record($request->user(), 'booking.approve_review', 'booking', $booking, null, null, 'bookings');
+
+        return back()->with('status', 'Booking approved. Assign a driver to activate it.');
+    }
+
     public function assignDriverToBooking(Request $request, int $booking): RedirectResponse
     {
         abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);

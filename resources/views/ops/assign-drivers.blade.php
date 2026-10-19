@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="user-plus"></i> Assign drivers</h1>
-            <p class="muted">Airport, railway, rental, multi-stop, outstation, travel, bulk and corporate bookings wait here. City ride, one way, round trip, parcel and schedule go straight to nearby drivers. Assigning a driver opens the trip on the customer app and the driver app until the trip is completed.</p>
+            <p class="muted">Airport, railway, rental, multi-stop, outstation, travel, bulk and corporate bookings wait here. Tour, bulk and corporate stay under review until you approve them, then assign a driver to activate the trip. City ride, one way, round trip, parcel and schedule go straight to nearby drivers.</p>
         </div>
     </div>
     <form class="card" method="GET">
@@ -50,6 +50,13 @@
                         <td>₹ {{ number_format($row['quoteRupees']) }}</td>
                         <td>
                             @can('bookings.manage')
+                                @if (in_array($row['product'], ['TRAVEL', 'BULK', 'CORPORATE'], true) && strtoupper((string) $row['status']) === 'PENDING_REVIEW')
+                                    <form method="POST" action="{{ route('ops.assign-drivers.approve', $row['id']) }}">
+                                        @csrf
+                                        <button class="btn" type="submit">Approve</button>
+                                    </form>
+                                    <span class="muted">Review, contact the customer, then approve before assigning.</span>
+                                @else
                                 <form method="POST" action="{{ route('ops.assign-drivers.store', $row['id']) }}">
                                     @csrf
                                     <select name="driver_id" required>
@@ -65,6 +72,7 @@
                                     </select>
                                     <button class="btn" type="submit">Assign</button>
                                 </form>
+                                @endif
                             @else
                                 <span class="muted">Need bookings.manage</span>
                             @endcan

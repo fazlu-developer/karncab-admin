@@ -848,11 +848,53 @@ class PlatformOpsService
         ]);
     }
 
+    public function approveReviewBooking(int $bookingId, ?User $actor = null): void
+    {
+        $booking = $this->bookingsQuery($actor)->where('bookings.id', $bookingId)->first();
+        abort_if($booking === null, 404, 'Booking not found');
+        abort_unless(in_array(strtoupper((string) ($booking->product ?? '')), ['TRAVEL', 'BULK', 'CORPORATE'], true), 422, 'Only tour, bulk and corporate bookings need admin approval.');
+        abort_unless(strtoupper((string) $booking->status) === 'PENDING_REVIEW', 422, 'This booking is already approved.');
+        $this->q('bookings')->where('id', $bookingId)->update([
+            'status' => 'CONFIRMED',
+            'updated_at' => now(),
+        ]);
+        $tables = [
+            'TRAVEL' => 'travel_bookings',
+            'BULK' => 'bulk_bookings',
+            'CORPORATE' => 'corporate_travel_bookings',
+        ];
+        $table = $tables[strtoupper((string) $booking->product)] ?? null;
+        if ($table && Schema::connection('platform')->hasTable($table)) {
+            $patch = ['status' => 'approved', 'updated_at' => now()];
+            $query = $this->q($table);
+            if (Schema::connection('platform')->hasColumn($table, 'ride_booking_id')) {
+                $query->where('ride_booking_id', $bookingId)->update(array_filter(
+                    $patch,
+                    fn ($key) => Schema::connection('platform')->hasColumn($table, $key),
+                    ARRAY_FILTER_USE_KEY,
+                ));
+            }
+        }
+        $this->audit($actor, 'bookings', 'approve_review', 'booking', (string) $bookingId);
+        $customerId = (int) ($booking->customer_id ?? 0);
+        if ($customerId > 0) {
+            app(NotificationService::class)->dispatch($customerId, 'booking_approved', [
+                'title' => 'Booking approved',
+                'body' => 'Admin approved '.($booking->public_ref ?? 'your booking').'. A driver will be assigned next.',
+                'ref' => (string) ($booking->public_ref ?? $bookingId),
+            ], ['entity' => ['type' => 'booking', 'id' => (string) $bookingId]]);
+        }
+    }
+
     public function assignBookingDriver(int $bookingId, int $driverId, ?User $actor = null): void
     {
         $booking = $this->bookingsQuery($actor)->where('bookings.id', $bookingId)->first();
         abort_if($booking === null, 404, 'Booking not found');
         abort_if(! empty($booking->driver_id), 422, 'This booking already has a driver.');
+        $reviewProduct = in_array(strtoupper((string) ($booking->product ?? '')), ['TRAVEL', 'BULK', 'CORPORATE'], true);
+        if ($reviewProduct && strtoupper((string) $booking->status) === 'PENDING_REVIEW') {
+            abort(422, 'Approve this booking before assigning a driver.');
+        }
         abort_unless(in_array((string) $booking->status, ['CONFIRMED', 'PENDING', 'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING'], true), 422, 'This booking cannot be assigned.');
         $this->assertDriverVisible($driverId, $actor);
         $driver = $this->q('drivers')->where('id', $driverId)->first();

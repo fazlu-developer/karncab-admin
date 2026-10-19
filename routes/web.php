@@ -255,6 +255,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/ops/manual-bookings', [WorkspaceController::class, 'manualBookings'])->name('ops.manual-bookings');
     Route::post('/ops/manual-bookings', [WorkspaceController::class, 'storeManualBooking'])->name('ops.manual-bookings.store');
     Route::get('/ops/assign-drivers', [WorkspaceController::class, 'assignDrivers'])->name('ops.assign-drivers');
+    Route::post('/ops/assign-drivers/{booking}/approve', [WorkspaceController::class, 'approveReviewBooking'])->name('ops.assign-drivers.approve')->whereNumber('booking');
     Route::post('/ops/assign-drivers/{booking}', [WorkspaceController::class, 'assignDriverToBooking'])->name('ops.assign-drivers.store')->whereNumber('booking');
     Route::get('/ops/app-content', [AppContentController::class, 'index'])->name('ops.app-content');
     Route::put('/ops/app-content/{slug}', [AppContentController::class, 'update'])->name('ops.app-content.update');

@@ -31,6 +31,19 @@ class OrganizationHierarchyTest extends TestCase
         ]);
     }
 
+    public function test_state_head_cannot_open_service_management(): void
+    {
+        $head = User::factory()->create([
+            'role' => OperatorRole::STATE_HEAD,
+            'state_id' => 1,
+            'status' => 'ACTIVE',
+        ]);
+
+        $this->assertFalse($head->fresh()->can('platform.admin'));
+        $this->assertTrue($head->fresh()->can('district.view'));
+        $this->actingAs($head)->get('/ops/services')->assertForbidden();
+    }
+
     public function test_manager_only_receives_assigned_permissions(): void
     {
         $manager = User::factory()->create(['role' => OperatorRole::MANAGER]);

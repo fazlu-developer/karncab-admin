@@ -121,6 +121,9 @@ class User extends Authenticatable
         if ($this->isSuperAdmin()) {
             return true;
         }
+        if ($ability === 'platform.admin' && ($this->isStateHead() || $this->isDistrictHead())) {
+            return false;
+        }
         $granted = PlatformPermission::forRole((string) $this->role);
         $granted = array_values(array_unique(array_merge($granted, $this->assignedAbilities())));
         if (in_array($ability, $granted, true)) {
@@ -132,6 +135,9 @@ class User extends Authenticatable
             }
         }
         foreach ($granted as $item) {
+            if ($ability === 'platform.admin') {
+                break;
+            }
             if (in_array($ability, PlatformPermission::expand($item), true)) {
                 return true;
             }
