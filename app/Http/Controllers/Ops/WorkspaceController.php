@@ -90,7 +90,9 @@ class WorkspaceController extends Controller
         $this->branding->ensureCatalogTable();
         $this->vehicles->ensure();
         $this->ensureCanonicalServices();
-        $rows = DB::connection('platform')->table('catalog_services')->orderBy('sort_order')->orderBy('title')->get();
+        $this->ensureServiceMaintenance();
+        $db = DB::connection('platform');
+        $rows = $db->table('catalog_services')->orderBy('sort_order')->orderBy('title')->get();
 
         return view('ops.services', [
             'rows' => $rows,
@@ -98,6 +100,9 @@ class WorkspaceController extends Controller
             'vehicleTypes' => $this->vehicleTypeOptions(),
             'vehicleFamilies' => $this->vehicles->families(),
             'canonicalKeys' => array_column($this->canonicalServices(), 'key'),
+            'states' => $db->table('states')->orderBy('name')->get(['id', 'name']),
+            'districts' => $db->table('districts')->orderBy('name')->get(['id', 'state_id', 'name']),
+            'maintenance' => $this->maintenanceByService(),
         ]);
     }
 
@@ -152,6 +157,7 @@ class WorkspaceController extends Controller
             $payload['image_url'] = null;
         }
         DB::connection('platform')->table('catalog_services')->where('id', $service)->update($payload);
+        $this->saveServiceMaintenance($request, $service);
 
         return back()->with('status', 'Service updated.');
     }
@@ -162,6 +168,9 @@ class WorkspaceController extends Controller
         $existing = DB::connection('platform')->table('catalog_services')->where('id', $service)->first();
         StoredUpload::forget($existing?->image_url);
         DB::connection('platform')->table('catalog_services')->where('id', $service)->delete();
+        if (Schema::connection('platform')->hasTable('service_maintenances')) {
+            DB::connection('platform')->table('service_maintenances')->where('catalog_service_id', $service)->delete();
+        }
         OrganizationAudit::record($request->user(), 'service.delete', 'catalog_service', $service, (array) $existing, null, 'catalog');
 
         return back()->with('status', 'Service removed. Apps stop offering that vehicle category.');
@@ -859,6 +868,78 @@ class WorkspaceController extends Controller
     /**
      * @return list<array{title: string, slug: string, group: string, key: string, sort: int, subtitle: string}>
      */
+    private function ensureServiceMaintenance(): void
+    {
+        $schema = Schema::connection('platform');
+        if ($schema->hasTable('service_maintenances')) {
+            return;
+        }
+        $schema->create('service_maintenances', function ($table) {
+            $table->id();
+            $table->unsignedBigInteger('catalog_service_id');
+            $table->unsignedBigInteger('state_id')->nullable();
+            $table->unsignedBigInteger('district_id')->nullable();
+            $table->timestamps();
+            $table->index('catalog_service_id');
+        });
+    }
+
+    /**
+     * @return array<int, array{everywhere: bool, states: list<int>, districts: list<int>}>
+     */
+    private function maintenanceByService(): array
+    {
+        $this->ensureServiceMaintenance();
+        $grouped = [];
+        foreach (DB::connection('platform')->table('service_maintenances')->get() as $row) {
+            $id = (int) $row->catalog_service_id;
+            $grouped[$id] ??= ['everywhere' => false, 'states' => [], 'districts' => []];
+            if ($row->state_id === null && $row->district_id === null) {
+                $grouped[$id]['everywhere'] = true;
+            }
+            if ($row->state_id !== null && $row->district_id === null) {
+                $grouped[$id]['states'][] = (int) $row->state_id;
+            }
+            if ($row->district_id !== null) {
+                $grouped[$id]['districts'][] = (int) $row->district_id;
+            }
+        }
+
+        return $grouped;
+    }
+
+    private function saveServiceMaintenance(Request $request, int $service): void
+    {
+        $this->ensureServiceMaintenance();
+        $db = DB::connection('platform');
+        $db->table('service_maintenances')->where('catalog_service_id', $service)->delete();
+        if (! $request->boolean('maintenance')) {
+            return;
+        }
+        $stateIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('maintenance_states', [])))));
+        $districtIds = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('maintenance_districts', [])))));
+        if ($stateIds !== []) {
+            $stateIds = $db->table('states')->whereIn('id', $stateIds)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+        if ($districtIds !== []) {
+            $districtIds = $db->table('districts')->whereIn('id', $districtIds)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        }
+        $now = now();
+        $rows = [];
+        if ($stateIds === [] && $districtIds === []) {
+            $rows[] = ['catalog_service_id' => $service, 'state_id' => null, 'district_id' => null, 'created_at' => $now, 'updated_at' => $now];
+        }
+        foreach ($stateIds as $id) {
+            $rows[] = ['catalog_service_id' => $service, 'state_id' => $id, 'district_id' => null, 'created_at' => $now, 'updated_at' => $now];
+        }
+        foreach ($districtIds as $id) {
+            $rows[] = ['catalog_service_id' => $service, 'state_id' => null, 'district_id' => $id, 'created_at' => $now, 'updated_at' => $now];
+        }
+        if ($rows !== []) {
+            $db->table('service_maintenances')->insert($rows);
+        }
+    }
+
     private function canonicalServices(): array
     {
         return [

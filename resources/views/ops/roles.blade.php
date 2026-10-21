@@ -9,8 +9,8 @@
         </div>
     </div>
 
-    <section class="card">
-        <h2>Create module</h2>
+    <section class="card" id="modules">
+        <h2>Manage modules</h2>
         <form method="POST" action="{{ route('ops.roles.modules.store') }}" class="filters" style="align-items:end">
             @csrf
             <div><label>Key</label><input name="key" required placeholder="inventory" pattern="[a-z][a-z0-9_]+"></div>
@@ -28,11 +28,13 @@
 
     <section class="card">
         <h2>Modules</h2>
+        <p class="muted">State Head, District Head, Manager, Franchise and Exclusive are not separate modules. Assign those people from All users. Their menu is the same admin menu, limited to what their account can open.</p>
         <div class="table-wrap">
             <table class="data">
                 <thead><tr><th>Module</th><th>Permissions</th><th>Nav</th><th></th></tr></thead>
                 <tbody>
                 @foreach ($modules as $module)
+                    @continue(\App\Platform\OpsNav::retired((string) $module->key))
                     @php $abs = $abilitiesByModule[$module->id] ?? []; @endphp
                     <tr>
                         <td>
@@ -68,8 +70,8 @@
         </div>
     </section>
 
-    <section class="card">
-        <h2>Apply permissions by role</h2>
+    <section class="card" id="roles">
+        <h2>Roles</h2>
         <div class="service-nav">
             @foreach ($roles as $role)
                 <a href="{{ route('ops.roles', ['role' => $role]) }}" class="{{ $selectedRole === $role ? 'active' : '' }}">{{ $role }}</a>
@@ -82,6 +84,7 @@
             @csrf
             @method('PUT')
             @foreach ($modules as $module)
+                @continue(\App\Platform\OpsNav::retired((string) $module->key))
                 @php $abs = $abilitiesByModule[$module->id] ?? []; @endphp
                 @continue($abs === [])
                 <div class="acl-module">

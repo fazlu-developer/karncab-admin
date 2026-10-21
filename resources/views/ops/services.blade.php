@@ -28,10 +28,15 @@
 
     <section class="card">
         <h2>1. Customer services</h2>
-        <p class="muted">Customer home fetches this list live. <b>On app</b> = show the tile, untick = hide it. <b>Sort</b> is the home-page order (smaller number first). Pull to refresh in the customer app after you Save.</p>
+        <p class="muted">Customer home fetches this list live. <b>On app</b> = show the tile, untick = hide it. <b>Under maintenance</b> keeps the tile, and a tap in the chosen state or district shows “We are working”. The same service stays open everywhere you do not tick. Leave both lists empty to pause it in every area. <b>Sort</b> is the home-page order (smaller number first). Pull to refresh in the customer app after you Save.</p>
         <div class="catalog-grid">
             @foreach ($rows as $row)
-                @php $picked = $pickedFor($row); $src = $photo($row->image_url ?? ''); @endphp
+                @php
+                    $picked = $pickedFor($row);
+                    $src = $photo($row->image_url ?? '');
+                    $hold = $maintenance[$row->id] ?? ['everywhere' => false, 'states' => [], 'districts' => []];
+                    $paused = $hold['everywhere'] || $hold['states'] !== [] || $hold['districts'] !== [];
+                @endphp
                 <article class="catalog-card">
                     <div class="catalog-thumb">
                         @if ($src)
@@ -52,6 +57,23 @@
                             <label>Sort <input name="sort_order" type="number" value="{{ $row->sort_order }}"></label>
                             <input type="hidden" name="active" value="0">
                             <label class="inline"><input type="checkbox" name="active" value="1" @checked($row->active)> On app</label>
+                        </div>
+                        <input type="hidden" name="maintenance" value="0">
+                        <label class="inline"><input type="checkbox" name="maintenance" value="1" @checked($paused) onchange="this.form.querySelector('[data-maint]').hidden=!this.checked"> Under maintenance</label>
+                        <div data-maint @if(!$paused) hidden @endif>
+                            <p class="muted" style="margin:6px 0">Tick a whole state, or only the districts where this service should show “We are working”. Other states and districts stay open.</p>
+                            <p class="catalog-family">States</p>
+                            <div class="catalog-checks" style="max-height:140px;overflow:auto">
+                                @foreach ($states as $state)
+                                    <label class="inline"><input type="checkbox" name="maintenance_states[]" value="{{ $state->id }}" @checked(in_array((int) $state->id, $hold['states'], true))> {{ $state->name }}</label>
+                                @endforeach
+                            </div>
+                            <p class="catalog-family">Districts</p>
+                            <div class="catalog-checks" style="max-height:180px;overflow:auto">
+                                @foreach ($districts as $district)
+                                    <label class="inline"><input type="checkbox" name="maintenance_districts[]" value="{{ $district->id }}" @checked(in_array((int) $district->id, $hold['districts'], true))> {{ $district->name }}</label>
+                                @endforeach
+                            </div>
                         </div>
                         <label>Service photo (optional)<input type="file" name="image" accept="image/*"></label>
                         @if ($src)

@@ -16,13 +16,19 @@ class AccessControlController extends Controller
     {
         abort_unless($request->user()?->can('platform.admin'), 403);
         AclCatalog::catalog();
+        $retiredRoles = [
+            OperatorRole::STATE_HEAD,
+            OperatorRole::DISTRICT_HEAD,
+            OperatorRole::MANAGER,
+            OperatorRole::FRANCHISE,
+        ];
         $roles = array_values(array_filter(
-            OperatorRole::all(),
-            fn (string $role) => $role !== OperatorRole::PENDING,
+            OperatorRole::managed(),
+            fn (string $role) => ! in_array($role, $retiredRoles, true),
         ));
-        $selected = strtoupper((string) $request->query('role', OperatorRole::MANAGER));
+        $selected = strtoupper((string) $request->query('role', OperatorRole::ADMIN));
         if (! in_array($selected, $roles, true)) {
-            $selected = OperatorRole::MANAGER;
+            $selected = OperatorRole::ADMIN;
         }
         $modules = AclCatalog::modules();
         $abilities = [];

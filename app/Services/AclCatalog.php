@@ -129,7 +129,7 @@ final class AclCatalog
         }
         $out = [];
         foreach (self::modules() as $module) {
-            if (! $module->active || ! $module->show_in_nav || isset($known[$module->key])) {
+            if (! $module->active || ! $module->show_in_nav || isset($known[$module->key]) || OpsNav::retired((string) $module->key)) {
                 continue;
             }
             $out[] = [
