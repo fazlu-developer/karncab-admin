@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class UsersController extends Controller
 {
@@ -85,6 +86,14 @@ class UsersController extends Controller
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->can('users.create'), 403);
+
+        return $this->withSeatMessage(function () use ($request) {
+            return $this->storeUser($request);
+        });
+    }
+
+    private function storeUser(Request $request): RedirectResponse
+    {
         $data = $this->validated($request, true);
         $data['role'] = OperatorRole::normalize((string) $data['role']);
         $data['phone'] = ($data['phone'] ?? null) ?: null;
@@ -180,6 +189,14 @@ class UsersController extends Controller
     {
         abort_unless($request->user()?->can('users.edit'), 403);
         $this->assertVisible($request, $platformUser);
+
+        return $this->withSeatMessage(function () use ($request, $platformUser) {
+            return $this->updateUser($request, $platformUser);
+        });
+    }
+
+    private function updateUser(Request $request, PlatformUser $platformUser): RedirectResponse
+    {
         $data = $this->validated($request, false, $platformUser->id);
         $data['role'] = OperatorRole::normalize((string) $data['role']);
         $data['phone'] = ($data['phone'] ?? null) ?: null;
@@ -210,6 +227,22 @@ class UsersController extends Controller
         $platformUser->delete();
 
         return redirect()->route('users.index')->with('status', 'User deleted.');
+    }
+
+    private function withSeatMessage(callable $action): RedirectResponse
+    {
+        try {
+            return $action();
+        } catch (HttpException $exception) {
+            if (! in_array($exception->getStatusCode(), [409, 422], true)) {
+                throw $exception;
+            }
+
+            return back()->withInput()->withErrors([
+                'state_id' => $exception->getMessage(),
+                'district_id' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function assertVisible(Request $request, PlatformUser $platformUser): void

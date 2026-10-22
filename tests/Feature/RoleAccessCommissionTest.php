@@ -164,7 +164,7 @@ class RoleAccessCommissionTest extends TestCase
             'password' => 'ChangeMe@123',
             'state_id' => 1,
             'district_id' => 11,
-        ])->assertStatus(409);
+        ])->assertRedirect()->assertSessionHasErrors('district_id');
     }
 
     public function test_creating_a_state_head_opens_an_admin_login_and_assigns_the_state(): void

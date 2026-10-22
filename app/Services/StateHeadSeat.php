@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Platform\PlatformUser;
 use App\Models\User;
 use App\Platform\OperatorRole;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +22,34 @@ class StateHeadSeat
             $query->where('id', '!=', $exceptUserId);
         }
 
-        return $query->orderBy('id')->first();
+        $live = null;
+        foreach ($query->orderBy('id')->get() as $holder) {
+            if ($this->platformAccountExists($holder)) {
+                $live = $holder;
+                break;
+            }
+            $this->releaseStale($holder);
+        }
+
+        return $live;
+    }
+
+    private function platformAccountExists(User $holder): bool
+    {
+        $accounts = PlatformUser::query()->where('role', OperatorRole::STATE_HEAD);
+        if ($holder->nest_user_id && (clone $accounts)->whereKey($holder->nest_user_id)->exists()) {
+            return true;
+        }
+
+        return $holder->email !== null
+            && $holder->email !== ''
+            && (clone $accounts)->where('email', $holder->email)->exists();
+    }
+
+    private function releaseStale(User $holder): void
+    {
+        $this->closeOpenRows((int) $holder->id, 'Platform account no longer exists');
+        $holder->update(['state_id' => null, 'status' => 'SUSPENDED']);
     }
 
     public function assertAvailable(int $stateId, ?int $exceptUserId = null): void

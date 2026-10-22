@@ -12,6 +12,9 @@
         <a class="btn ghost" href="{{ route('users.index') }}">Back to list</a>
     </div>
     <section class="card" style="max-width:820px">
+        @if ($errors->any())
+            <p class="error">{{ $errors->first() }}</p>
+        @endif
         <form method="POST" action="{{ $user->exists ? route('users.update', $user) : route('users.store') }}" enctype="multipart/form-data">
             @csrf
             @if ($user->exists) @method('PUT') @endif
