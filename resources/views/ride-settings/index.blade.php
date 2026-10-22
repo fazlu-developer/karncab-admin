@@ -36,6 +36,32 @@
     </section>
 
     <section class="card">
+        <h2>Advance payment</h2>
+        <p class="muted">Turn this on to collect 10% from the customer when the booking is placed. Admin keeps that 10%. The driver receives the other 90% when the trip is completed. Turn it off and the customer pays the full fare after the ride.</p>
+        <form method="POST" action="{{ route('ride-settings.update') }}">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="advance_payment_form" value="1">
+            <input type="hidden" name="driver_search_radius_km" value="{{ $radiusKm }}">
+            <input type="hidden" name="ride_request_timeout_seconds" value="{{ $timeoutSeconds }}">
+            @foreach ([
+                'LOCAL_CAB' => 'City ride',
+                'ONE_WAY' => 'One way',
+                'ROUND_WAY' => 'Round way',
+                'SCHEDULE' => 'Schedule ride',
+                'AIRPORT' => 'Airport transfer',
+                'RAILWAY' => 'Railway transfer',
+            ] as $key => $label)
+                <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
+                    <input type="checkbox" name="advance_{{ $key }}" value="1" @checked($advancePayment[$key] ?? false)>
+                    {{ $label }} — receive 10% advance
+                </label>
+            @endforeach
+            <button class="btn" type="submit">Save advance payment</button>
+        </form>
+    </section>
+
+    <section class="card">
         <h2>Saharsa launch incentives</h2>
         <p class="muted">New driver joining bonus (₹100) is a separate wallet entry when KYC is approved. The referring driver gets ₹50 once, only after that driver’s KYC is verified and their first ride is completed. Cancelled, failed or fraudulent rides do not count. Customer amounts are promotional ride credit, not cash.</p>
         <form method="POST" action="{{ route('ride-settings.update') }}" class="filters" style="align-items:end">

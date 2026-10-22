@@ -44,6 +44,7 @@
             </div>
         </header>
         <div class="page">
+            @include('partials.schedule-alert')
             @if (session('status'))
                 <div class="flash">{{ session('status') }}</div>
             @endif

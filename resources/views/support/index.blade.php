@@ -30,6 +30,10 @@
                     @endforeach
                 </select>
             </div>
+            <div>
+                <label>Booking ID</label>
+                <input name="booking" value="{{ request('booking') }}" placeholder="KR261022AB12">
+            </div>
             <button class="btn" type="submit">Filter</button>
         </div>
     </form>
@@ -38,7 +42,7 @@
             <p>
                 <a href="{{ route('support.show', $row['id']) }}">{{ $row['ticketId'] }}</a>
                 · {{ $row['status'] }} · {{ $row['priority'] }} · {{ $row['category'] }}
-                · {{ $row['user']['name'] }} · {{ $row['subject'] }}
+                · Booking ID {{ data_get($row, 'booking.publicRef', '—') ?: '—' }}
             </p>
         @empty
             <p class="muted">No tickets in this territory.</p>

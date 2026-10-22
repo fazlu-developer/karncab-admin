@@ -779,7 +779,14 @@ class PlatformOpsService
             ->leftJoin('drivers', 'drivers.id', '=', 'bookings.driver_id')
             ->leftJoin('users as driver_users', 'driver_users.id', '=', 'drivers.user_id')
             ->leftJoin('vehicles', 'vehicles.id', '=', 'bookings.vehicle_id')
-            ->whereIn('bookings.product', $scheduledProducts)
+            ->where(function ($scope) use ($scheduledProducts) {
+                $scope->whereIn('bookings.product', $scheduledProducts)
+                    ->orWhere(function ($dated) {
+                        $dated->whereIn('bookings.product', ['ONE_WAY', 'ROUND_WAY', 'SCHEDULE'])
+                            ->whereNotNull('bookings.scheduled_at')
+                            ->where('bookings.scheduled_at', '>', now()->subHours(2));
+                    });
+            })
             ->whereNotIn('bookings.status', ['COMPLETED', 'CUSTOMER_CANCELLED', 'DRIVER_CANCELLED', 'EXPIRED', 'CANCELLED'])
             ->orderBy('bookings.scheduled_at')
             ->orderByDesc('bookings.id')
@@ -811,7 +818,7 @@ class PlatformOpsService
             'status' => $row->status,
             'pickupText' => $row->pickup_text,
             'dropText' => $row->drop_text,
-            'scheduledAt' => $row->scheduled_at,
+            'scheduledAt' => \App\Support\IndiaTime::format($row->scheduled_at),
             'quoteRupees' => ((int) $row->quote_paise) / 100,
             'customer' => $row->customer_name,
             'phone' => $row->customer_phone,
@@ -827,6 +834,25 @@ class PlatformOpsService
             'assigned' => $assigned,
             'drivers' => $this->assignableDrivers($operator),
         ];
+    }
+
+    /**
+     * Unassigned dated bookings for the signed-in territory.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function scheduleReminders(?User $operator): array
+    {
+        if ($operator === null) {
+            return [];
+        }
+        $role = (string) $operator->role;
+        if (! in_array($role, ['SUPER_ADMIN', 'ADMIN', 'STATE_HEAD', 'DISTRICT_HEAD'], true)) {
+            return [];
+        }
+        $rows = $this->scheduledAssignments($operator)['remaining'] ?? [];
+
+        return array_slice($rows, 0, 6);
     }
 
     /**

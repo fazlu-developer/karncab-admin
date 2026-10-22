@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="user-plus"></i> Assign drivers</h1>
-            <p class="muted">Airport, railway, rental, multi-stop, outstation, travel, bulk and corporate bookings wait here. Tour, bulk and corporate stay under review until you approve them, then assign a driver to activate the trip. City ride, one way, round trip, parcel and schedule go straight to nearby drivers.</p>
+            <p class="muted">Dated one way, round trip, rental, airport, railway and other scheduled bookings wait here until you assign a driver. A same-day round trip already includes 3 hours to reach and 3 hours of waiting in the fare.</p>
         </div>
     </div>
     <form class="card" method="GET">
@@ -28,7 +28,7 @@
             <table class="data">
                 <thead>
                     <tr>
-                        <th>Ref</th>
+                        <th>Booking ID</th>
                         <th>Service</th>
                         <th>When</th>
                         <th>Pickup</th>
@@ -92,7 +92,7 @@
             <table class="data">
                 <thead>
                     <tr>
-                        <th>Ref</th>
+                        <th>Booking ID</th>
                         <th>Service</th>
                         <th>When</th>
                         <th>Pickup</th>

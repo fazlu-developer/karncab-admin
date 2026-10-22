@@ -52,66 +52,14 @@
 
     <section class="card">
         <h2>Submitted files</h2>
-        <div class="table-wrap">
-            <table class="data">
-                <thead>
-                    <tr><th>District Head</th><th>District</th><th>Type</th><th>Status</th><th>When</th><th></th></tr>
-                </thead>
-                <tbody>
-                    @forelse ($docs as $row)
-                        <tr>
-                            <td>
-                                <strong>{{ $row->user_name ?: 'User #'.$row->user_id }}</strong>
-                                <div class="muted">{{ $row->user_email }}</div>
-                            </td>
-                            <td>{{ $row->district_name ?: '—' }}</td>
-                            <td>{{ $row->doc_type }}</td>
-                            <td><span class="pill muted">{{ $row->status }}</span></td>
-                            <td>{{ $row->created_at }}</td>
-                            <td class="row-actions" style="min-width:260px">
-                                @php
-                                    $fileUrl = route('organization.district-kyc.file', $row->id);
-                                    $ext = strtolower(pathinfo((string) ($row->path ?? ''), PATHINFO_EXTENSION));
-                                @endphp
-                                @if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true))
-                                    <a href="{{ $fileUrl }}" target="_blank" rel="noopener">
-                                        <img src="{{ $fileUrl }}" alt="{{ $row->doc_type }}" style="width:160px;height:110px;object-fit:cover;border-radius:8px;display:block;margin-bottom:8px">
-                                    </a>
-                                @elseif ($ext === 'pdf')
-                                    <iframe src="{{ $fileUrl }}" title="{{ $row->doc_type }}" style="width:220px;height:140px;border:0;border-radius:8px;display:block;margin-bottom:8px"></iframe>
-                                @endif
-                                <a class="btn ghost" href="{{ $fileUrl }}" target="_blank" rel="noopener">Open</a>
-                                <form method="POST" action="{{ route('organization.district-kyc.replace', $row->id) }}" enctype="multipart/form-data" style="margin-top:8px">
-                                    @csrf
-                                    <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf,.webp" required>
-                                    <button class="btn ghost" type="submit">Replace</button>
-                                </form>
-                                <form method="POST" action="{{ route('organization.district-kyc.destroy', $row->id) }}" onsubmit="return confirm('Delete this KYC file?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button class="btn danger" type="submit">Delete</button>
-                                </form>
-                                @can('kyc.approve')
-                                    <form method="POST" action="{{ route('organization.district-kyc.review', $row->id) }}">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="hidden" name="status" value="verified">
-                                        <button class="btn" type="submit">Approve</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('organization.district-kyc.review', $row->id) }}">
-                                        @csrf
-                                        @method('PUT')
-                                        <input type="hidden" name="status" value="rejected">
-                                        <button class="btn ghost" type="submit">Reject</button>
-                                    </form>
-                                @endcan
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="6" class="muted">No District Head KYC files yet.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        @include('organization.partials.kyc-files', [
+            'docs' => $docs,
+            'fileRoute' => 'organization.district-kyc.file',
+            'replaceRoute' => 'organization.district-kyc.replace',
+            'destroyRoute' => 'organization.district-kyc.destroy',
+            'reviewRoute' => 'organization.district-kyc.review',
+            'placeKey' => 'district_name',
+            'empty' => 'No District Head KYC files yet.',
+        ])
     </section>
 @endsection

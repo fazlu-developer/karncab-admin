@@ -60,9 +60,10 @@
                         <td>
                             @if ($row['walletRupees'] > 0)
                                 @canany(['payments.edit', 'platform.admin'])
-                                    <form method="POST" action="{{ route('settlements.payout', $row['id']) }}" onsubmit="return confirm('Mark ₹{{ number_format($row['walletRupees'], 0) }} as paid to this fleet owner?');">
+                                    <form method="POST" action="{{ route('settlements.payout', $row['id']) }}" onsubmit="return confirm('Mark ₹{{ number_format($row['walletRupees'], 0) }} as paid to this fleet owner bank account?');">
                                         @csrf
-                                        <button class="btn" type="submit">Settle payout</button>
+                                        <input name="bank_reference" placeholder="Bank UTR" required style="max-width:140px">
+                                        <button class="btn" type="submit">Settle bank payment</button>
                                     </form>
                                 @endcanany
                             @else
@@ -72,6 +73,95 @@
                     </tr>
                 @empty
                     <tr><td colspan="6" class="muted">No fleet commission credits yet. They appear after a fleet driver completes a trip.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Last week · {{ $weekLabel }}</h2>
+        <p class="muted">Completed bookings for the closed week. Fleet commission is what the fleet owner collects. District commission is what the district head collects. Enter the bank UTR when you send the money.</p>
+        <div class="table-wrap">
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Fleet</th>
+                        <th>District head</th>
+                        <th>Bookings</th>
+                        <th>Fare</th>
+                        <th>Fleet commission</th>
+                        <th>District commission</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @forelse ($fleetWeeks as $row)
+                    <tr>
+                        <td><strong>{{ $row['name'] }}</strong><div class="muted">{{ $row['district'] }} · {{ $row['phone'] }}</div></td>
+                        <td>{{ $row['districtHead'] }}</td>
+                        <td>{{ $row['bookings'] }}</td>
+                        <td>₹{{ number_format($row['grossRupees'], 0) }}</td>
+                        <td>₹{{ number_format($row['fleetRupees'], 0) }}</td>
+                        <td>₹{{ number_format($row['districtRupees'], 0) }}</td>
+                        <td>
+                            @if ($row['fleetRupees'] > 0)
+                                @canany(['payments.edit', 'platform.admin'])
+                                    <form method="POST" action="{{ route('settlements.payout', $row['id']) }}" onsubmit="return confirm('Record a bank transfer of ₹{{ number_format($row['fleetRupees'], 0) }} to this fleet owner?');">
+                                        @csrf
+                                        <input type="hidden" name="amount_rupees" value="{{ number_format($row['fleetRupees'], 2, '.', '') }}">
+                                        <input type="hidden" name="week_label" value="{{ $weekLabel }}">
+                                        <input name="bank_reference" placeholder="Bank UTR" required style="max-width:140px">
+                                        <button class="btn" type="submit">Pay fleet</button>
+                                    </form>
+                                @endcanany
+                            @else
+                                <span class="muted">Nothing to pay</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7" class="muted">No completed fleet bookings in {{ $weekLabel }}.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>District head settlement</h2>
+        <div class="table-wrap">
+            <table class="data">
+                <thead>
+                    <tr><th>District</th><th>District head</th><th>Bookings</th><th>Commission</th><th></th></tr>
+                </thead>
+                <tbody>
+                @forelse ($districtWeeks as $row)
+                    <tr>
+                        <td>{{ $row['district'] }}</td>
+                        <td>{{ $row['districtHead'] }}</td>
+                        <td>{{ $row['bookings'] }}</td>
+                        <td>₹{{ number_format($row['amountRupees'], 0) }}</td>
+                        <td>
+                            @if ($row['userId'] < 1)
+                                <span class="muted">Assign a district head</span>
+                            @elseif ($row['amountRupees'] > 0)
+                                @canany(['payments.edit', 'platform.admin'])
+                                    <form method="POST" action="{{ route('settlements.district-payout', $row['userId']) }}">
+                                        @csrf
+                                        <input type="hidden" name="amount_rupees" value="{{ number_format($row['amountRupees'], 2, '.', '') }}">
+                                        <input type="hidden" name="week_label" value="{{ $weekLabel }}">
+                                        <input name="bank_reference" placeholder="Bank UTR" required style="max-width:140px">
+                                        <button class="btn" type="submit">Pay district head</button>
+                                    </form>
+                                @endcanany
+                            @else
+                                <span class="muted">Nothing to pay</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="muted">No district commission for {{ $weekLabel }}.</td></tr>
                 @endforelse
                 </tbody>
             </table>

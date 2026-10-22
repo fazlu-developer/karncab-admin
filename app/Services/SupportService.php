@@ -48,6 +48,15 @@ class SupportService
         if (! empty($query['priority'])) {
             $q->where('support_tickets.priority', $query['priority']);
         }
+        $bookingRef = trim((string) ($query['booking'] ?? ''));
+        if ($bookingRef !== '') {
+            $q->where(function ($inner) use ($bookingRef) {
+                $inner->where('bookings.public_ref', $bookingRef);
+                if (ctype_digit($bookingRef)) {
+                    $inner->orWhere('support_tickets.booking_id', (int) $bookingRef);
+                }
+            });
+        }
 
         return $q->orderByDesc('support_tickets.id')->limit(100)->get()->map(fn ($row) => $this->present($row, $operator, false))->all();
     }

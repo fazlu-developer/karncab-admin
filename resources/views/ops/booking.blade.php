@@ -5,7 +5,7 @@
 
 @section('content')
     <p><a href="{{ route('ops.module', 'bookings') }}"><i data-lucide="arrow-left"></i> Back to bookings</a></p>
-    <h1>{{ $booking['publicRef'] ?? 'Booking' }}</h1>
+    <h1>Booking ID {{ $booking['publicRef'] ?? 'Booking' }}</h1>
     @if (!empty($error))
         <p class="error">{{ $error }}</p>
     @endif

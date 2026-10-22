@@ -202,6 +202,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::post('/wallets/settle', [WalletsController::class, 'settle'])->name('wallets.settle');
     Route::get('/settlements', [SettlementsController::class, 'index'])->name('settlements.index');
     Route::post('/settlements/{fleetOwner}/payout', [SettlementsController::class, 'payout'])->name('settlements.payout');
+    Route::post('/settlements/district/{user}/payout', [SettlementsController::class, 'payoutDistrict'])->name('settlements.district-payout');
     Route::get('/withdrawals', [WithdrawalsController::class, 'index'])->name('withdrawals.index');
     Route::post('/withdrawals/{withdrawal}', [WithdrawalsController::class, 'decide'])->name('withdrawals.decide');
     Route::post('/wallets/withdrawals/{withdrawal}', [WithdrawalsController::class, 'decide'])->name('wallets.withdrawals.decide');

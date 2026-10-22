@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Platform\FareCommissionSplit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -12,7 +13,7 @@ class CommissionSettlementService
     /**
      * @return array<string, mixed>
      */
-    public function overview(): array
+    public function overview(?User $operator = null): array
     {
         $db = DB::connection('platform');
         $schema = Schema::connection('platform');
@@ -27,7 +28,7 @@ class CommissionSettlementService
             $fleetCredited = (int) $db->table('wallet_ledger')
                 ->whereIn('account', ['FLEET_OWNER', 'FLEET'])
                 ->where('direction', 'CREDIT')
-                ->whereIn('kind', ['fleet_commission', 'commission'])
+                ->whereIn('kind', ['fleet_commission', 'fleet_week_settlement', 'commission'])
                 ->sum('amount_paise');
             $fleetPaid = (int) $db->table('wallet_ledger')
                 ->whereIn('account', ['FLEET_OWNER', 'FLEET'])
@@ -69,7 +70,7 @@ class CommissionSettlementService
                     $credited = (int) $db->table('wallet_ledger')
                         ->where('wallet_id', $wallet->id)
                         ->where('direction', 'CREDIT')
-                        ->whereIn('kind', ['fleet_commission', 'commission'])
+                        ->whereIn('kind', ['fleet_commission', 'fleet_week_settlement', 'commission'])
                         ->sum('amount_paise');
                     $paid = (int) $db->table('wallet_ledger')
                         ->where('wallet_id', $wallet->id)
@@ -114,6 +115,8 @@ class CommissionSettlementService
                 ]);
         }
 
+        $weeks = $this->weekly($operator);
+
         return [
             'commissionRupees' => $commissionPaise / 100,
             'fleetShareRupees' => $fleetCredited / 100,
@@ -121,31 +124,167 @@ class CommissionSettlementService
             'platformKeepRupees' => ($platformCredited > 0 ? $platformCredited : max(0, $commissionPaise - $fleetCredited)) / 100,
             'owners' => $owners,
             'recent' => $recent,
+            'weekLabel' => $weeks['label'],
+            'fleetWeeks' => $weeks['fleets'],
+            'districtWeeks' => $weeks['districts'],
         ];
     }
 
-    public function payout(User $operator, int $fleetOwnerId, ?string $note = null): array
+    /**
+     * @return array{label: string, fleets: list<array<string, mixed>>, districts: list<array<string, mixed>>}
+     */
+    public function weekly(?User $operator = null): array
+    {
+        $db = DB::connection('platform');
+        $schema = Schema::connection('platform');
+        $now = now()->timezone('Asia/Kolkata');
+        $start = $now->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->subWeek()->startOfDay();
+        $end = $start->copy()->endOfWeek(\Carbon\Carbon::SUNDAY)->endOfDay();
+        $label = $start->format('j M').' – '.$end->format('j M Y');
+        if (! $schema->hasTable('fleet_owners') || ! $schema->hasTable('bookings')) {
+            return ['label' => $label, 'fleets' => [], 'districts' => []];
+        }
+        $select = ['fleet_owners.id', 'fleet_owners.user_id', 'users.name as owner_name', 'users.phone as owner_phone'];
+        foreach (['trade_name', 'district_id', 'state_id', 'commission_percent'] as $column) {
+            if ($schema->hasColumn('fleet_owners', $column)) {
+                $select[] = 'fleet_owners.'.$column;
+            }
+        }
+        $fleets = $db->table('fleet_owners')
+            ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
+            ->when($operator?->isDistrictHead() && $operator->district_id && $schema->hasColumn('fleet_owners', 'district_id'), fn ($q) => $q->where('fleet_owners.district_id', $operator->district_id))
+            ->when($operator?->isStateHead() && $operator->state_id && $schema->hasColumn('fleet_owners', 'state_id'), fn ($q) => $q->where('fleet_owners.state_id', $operator->state_id))
+            ->orderBy($schema->hasColumn('fleet_owners', 'trade_name') ? 'fleet_owners.trade_name' : 'fleet_owners.id')
+            ->get($select);
+        $defaultPercent = 0.0;
+        if ($schema->hasTable('system_settings')) {
+            $global = $db->table('system_settings')->where('key', 'fleet_owner_commission_percent')->value('value');
+            if (is_numeric($global)) {
+                $defaultPercent = (float) $global;
+            }
+        }
+        $fleetRows = [];
+        $byDistrict = [];
+        foreach ($fleets as $fleet) {
+            $driverIds = $schema->hasTable('drivers')
+                ? $db->table('drivers')->where('fleet_owner_id', $fleet->id)->pluck('id')
+                : collect();
+            $vehicleIds = $schema->hasTable('vehicles')
+                ? $db->table('vehicles')->where('fleet_owner_id', $fleet->id)->pluck('id')
+                : collect();
+            $bookings = $db->table('bookings')->where('status', 'COMPLETED')
+                ->where('updated_at', '>=', $start)
+                ->where('updated_at', '<=', $end)
+                ->where(function ($q) use ($driverIds, $vehicleIds) {
+                    $matched = false;
+                    if ($vehicleIds->isNotEmpty()) {
+                        $q->orWhereIn('vehicle_id', $vehicleIds);
+                        $matched = true;
+                    }
+                    if ($driverIds->isNotEmpty()) {
+                        $q->orWhereIn('driver_id', $driverIds);
+                        $matched = true;
+                    }
+                    if (! $matched) {
+                        $q->whereRaw('0 = 1');
+                    }
+                });
+            $count = (clone $bookings)->count();
+            $gross = (int) (clone $bookings)->sum($schema->hasColumn('bookings', 'final_fare_paise') ? 'final_fare_paise' : 'quote_paise');
+            $percent = isset($fleet->commission_percent) && $fleet->commission_percent !== null && $fleet->commission_percent !== '' ? (float) $fleet->commission_percent : $defaultPercent;
+            $percent = min(FareCommissionSplit::DISTRICT_PERCENT, max(0, $percent));
+            $fleetPaise = $schema->hasColumn('bookings', 'fleet_commission_paise')
+                ? (int) (clone $bookings)->sum('fleet_commission_paise')
+                : 0;
+            if ($fleetPaise < 1 && $gross > 0) {
+                $fleetPaise = (int) round($gross * $percent / 100);
+            }
+            $districtPaise = $schema->hasColumn('bookings', 'district_head_commission_paise')
+                ? (int) (clone $bookings)->sum('district_head_commission_paise')
+                : 0;
+            if ($districtPaise < 1 && $gross > 0) {
+                $pool = (int) round($gross * FareCommissionSplit::DISTRICT_PERCENT / 100);
+                $districtPaise = max(0, $pool - $fleetPaise);
+            }
+            if ($count < 1) {
+                continue;
+            }
+            $head = null;
+            if ($fleet->district_id && $schema->hasTable('users')) {
+                $head = $db->table('users')->where('role', 'DISTRICT_HEAD')->where('district_id', $fleet->district_id)->orderBy('id')->first();
+            }
+            $districtName = $fleet->district_id && $schema->hasTable('districts')
+                ? $db->table('districts')->where('id', $fleet->district_id)->value('name')
+                : null;
+            $fleetRows[] = [
+                'id' => (int) $fleet->id,
+                'name' => $fleet->trade_name ?: ($fleet->owner_name ?: 'Fleet #'.$fleet->id),
+                'phone' => $fleet->owner_phone,
+                'district' => $districtName,
+                'districtHead' => $head->name ?? 'Not assigned',
+                'bookings' => $count,
+                'grossRupees' => $gross / 100,
+                'fleetRupees' => $fleetPaise / 100,
+                'districtRupees' => $districtPaise / 100,
+            ];
+            $key = (int) ($fleet->district_id ?? 0);
+            if (! isset($byDistrict[$key])) {
+                $byDistrict[$key] = [
+                    'district' => $districtName ?: 'Unassigned district',
+                    'districtHead' => $head->name ?? 'Not assigned',
+                    'userId' => (int) ($head->id ?? 0),
+                    'bookings' => 0,
+                    'amountRupees' => 0,
+                ];
+            }
+            $byDistrict[$key]['bookings'] += $count;
+            $byDistrict[$key]['amountRupees'] += $districtPaise / 100;
+        }
+
+        return ['label' => $label, 'fleets' => $fleetRows, 'districts' => array_values($byDistrict)];
+    }
+
+    public function payout(User $operator, int $fleetOwnerId, ?string $note = null, ?string $bankReference = null, ?float $amountRupees = null, ?string $weekLabel = null): array
     {
         abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
         $db = DB::connection('platform');
+        $schema = Schema::connection('platform');
         $fleet = $db->table('fleet_owners')->where('id', $fleetOwnerId)->first();
         abort_unless($fleet, 404, 'Fleet owner not found.');
         $userId = (int) $fleet->user_id;
         abort_unless($userId > 0, 422, 'This fleet has no login user.');
         $q = $db->table('wallets')->where('owner_user_id', $userId);
-        if (Schema::connection('platform')->hasColumn('wallets', 'owner_type')) {
+        if ($schema->hasColumn('wallets', 'owner_type')) {
             $q->whereIn('owner_type', ['FLEET_OWNER', 'FLEET']);
         }
         $wallet = $q->orderBy('id')->first();
+        if (! $wallet && $amountRupees !== null) {
+            $id = $db->table('wallets')->insertGetId(array_filter([
+                'owner_user_id' => $userId,
+                'owner_type' => 'FLEET_OWNER',
+                'balance_paise' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], fn ($key) => $schema->hasColumn('wallets', $key), ARRAY_FILTER_USE_KEY));
+            $wallet = $db->table('wallets')->where('id', $id)->first();
+        }
         abort_unless($wallet, 422, 'Fleet wallet is empty.');
-        $amount = (int) $wallet->balance_paise;
+        $before = (int) $wallet->balance_paise;
+        if ($amountRupees !== null && $amountRupees > 0) {
+            $amount = (int) round($amountRupees * 100);
+        } else {
+            $amount = $before;
+        }
         abort_unless($amount > 0, 422, 'Nothing left to settle for this fleet owner.');
-        $before = $amount;
-        $after = 0;
+        $after = max(0, $before - $amount);
         $db->table('wallets')->where('id', $wallet->id)->update([
-            'balance_paise' => 0,
+            'balance_paise' => $after,
             'updated_at' => now(),
         ]);
+        $paidNote = 'Weekly fleet commission paid to the owner bank account';
+        if ($weekLabel) {
+            $paidNote = 'Week '.$weekLabel.' fleet commission paid to the owner bank account';
+        }
         $db->table('wallet_ledger')->insert(array_filter([
             'public_ref' => 'ST'.strtoupper(Str::random(10)),
             'wallet_id' => $wallet->id,
@@ -159,9 +298,61 @@ class CommissionSettlementService
             'balance_after_paise' => $after,
             'kind' => 'settlement_payout',
             'status' => 'settled',
-            'note' => $note ?: 'Admin settled fleet 5% commission payout',
+            'note' => trim(($bankReference ? 'Bank transfer '.$bankReference.'. ' : '').($note ?: $paidNote)),
             'created_at' => now(),
-        ], fn ($key) => Schema::connection('platform')->hasColumn('wallet_ledger', $key), ARRAY_FILTER_USE_KEY));
+        ], fn ($key) => $schema->hasColumn('wallet_ledger', $key), ARRAY_FILTER_USE_KEY));
+
+        return ['ok' => true, 'amountRupees' => $amount / 100];
+    }
+
+    public function payoutDistrict(User $operator, int $userId, float $rupees, string $bankReference, string $weekLabel): array
+    {
+        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
+        abort_unless($userId > 0 && $rupees > 0, 422, 'Nothing to settle for this district head.');
+        $db = DB::connection('platform');
+        $schema = Schema::connection('platform');
+        $user = $db->table('users')->where('id', $userId)->where('role', 'DISTRICT_HEAD')->first();
+        abort_unless($user, 404, 'District head not found.');
+        $wallet = null;
+        if ($schema->hasTable('wallets')) {
+            $q = $db->table('wallets')->where('owner_user_id', $userId);
+            if ($schema->hasColumn('wallets', 'owner_type')) {
+                $q->where('owner_type', 'DISTRICT_HEAD');
+            }
+            $wallet = $q->orderBy('id')->first();
+            if (! $wallet) {
+                $id = $db->table('wallets')->insertGetId(array_filter([
+                    'owner_user_id' => $userId,
+                    'owner_type' => 'DISTRICT_HEAD',
+                    'balance_paise' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ], fn ($key) => $schema->hasColumn('wallets', $key), ARRAY_FILTER_USE_KEY));
+                $wallet = $db->table('wallets')->where('id', $id)->first();
+            }
+        }
+        abort_unless($wallet, 422, 'District wallet is not available.');
+        $amount = (int) round($rupees * 100);
+        $before = (int) $wallet->balance_paise;
+        $after = max(0, $before - $amount);
+        $db->table('wallets')->where('id', $wallet->id)->update([
+            'balance_paise' => $after,
+            'updated_at' => now(),
+        ]);
+        $db->table('wallet_ledger')->insert(array_filter([
+            'public_ref' => 'DH'.strtoupper(Str::random(10)),
+            'wallet_id' => $wallet->id,
+            'owner_user_id' => $userId,
+            'account' => 'DISTRICT_HEAD',
+            'direction' => 'DEBIT',
+            'amount_paise' => $amount,
+            'balance_before_paise' => $before,
+            'balance_after_paise' => $after,
+            'kind' => 'settlement_payout',
+            'status' => 'settled',
+            'note' => 'Bank transfer '.$bankReference.'. Week '.$weekLabel.' district commission paid',
+            'created_at' => now(),
+        ], fn ($key) => $schema->hasColumn('wallet_ledger', $key), ARRAY_FILTER_USE_KEY));
 
         return ['ok' => true, 'amountRupees' => $amount / 100];
     }

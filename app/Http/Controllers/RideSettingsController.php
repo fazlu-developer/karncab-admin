@@ -50,6 +50,7 @@ class RideSettingsController extends Controller
             'incentives' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? $db->table('incentives')->orderByDesc('id')->limit(80)->get()
                 : collect(),
+            'advancePayment' => $this->advancePayment($db),
             'driverReferrals' => $this->driverReferrals($db),
             'incentiveTotals' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? [
@@ -60,6 +61,34 @@ class RideSettingsController extends Controller
                 ]
                 : ['paidPaise' => 0, 'count' => 0, 'pending' => 0, 'reversed' => 0],
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Connection  $db
+     * @return array<string, bool>
+     */
+    private function advancePayment($db): array
+    {
+        $defaults = [
+            'LOCAL_CAB' => false,
+            'ONE_WAY' => true,
+            'ROUND_WAY' => true,
+            'SCHEDULE' => true,
+            'AIRPORT' => true,
+            'RAILWAY' => true,
+        ];
+        $raw = $db->table('system_settings')->where('key', 'advance_payment_products')->value('value');
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        if (! is_array($decoded)) {
+            return $defaults;
+        }
+        foreach ($defaults as $key => $fallback) {
+            if (array_key_exists($key, $decoded)) {
+                $defaults[$key] = in_array(strtolower((string) $decoded[$key]), ['1', 'true', 'yes', 'on'], true) || $decoded[$key] === true;
+            }
+        }
+
+        return $defaults;
     }
 
     /**
@@ -134,6 +163,13 @@ class RideSettingsController extends Controller
             if ($db->getSchemaBuilder()->hasTable('parcel_fare_rules') && $db->getSchemaBuilder()->hasColumn('parcel_fare_rules', 'gst_percent')) {
                 $db->table('parcel_fare_rules')->update(['gst_percent' => $gst]);
             }
+        }
+        if ($request->has('advance_payment_form')) {
+            $flags = [];
+            foreach (['LOCAL_CAB', 'ONE_WAY', 'ROUND_WAY', 'SCHEDULE', 'AIRPORT', 'RAILWAY'] as $product) {
+                $flags[$product] = $request->boolean('advance_'.$product);
+            }
+            $settings['advance_payment_products'] = json_encode($flags);
         }
         if ($request->has('fleet_owner_commission_percent')) {
             $settings['fleet_owner_commission_percent'] = (string) ($data['fleet_owner_commission_percent'] ?? 5);
