@@ -60,16 +60,31 @@ final class ExclusiveDistrictSeat
         if (! Schema::hasTable('users') || ! Schema::hasColumn('users', 'district_id')) {
             return;
         }
-        $email = $exceptPlatformUserId
-            ? DB::connection('platform')->table('users')->where('id', $exceptPlatformUserId)->value('email')
-            : null;
         $ops = User::query()
             ->where('role', OperatorRole::DISTRICT_HEAD)
             ->where('district_id', $districtId)
-            ->where('status', 'ACTIVE');
-        if (is_string($email) && $email !== '') {
-            $ops->where('email', '!=', $email);
+            ->where('status', 'ACTIVE')
+            ->get();
+        foreach ($ops as $row) {
+            if (self::platformAccountExists($row)) {
+                if ($exceptPlatformUserId && (int) $row->nest_user_id === $exceptPlatformUserId) {
+                    continue;
+                }
+                abort(409, 'This district already has an active District Head.');
+            }
+            $row->update(['district_id' => null, 'status' => 'SUSPENDED']);
         }
-        abort_if($ops->exists(), 409, 'This district already has an active District Head.');
+    }
+
+    private static function platformAccountExists(User $holder): bool
+    {
+        $accounts = DB::connection('platform')->table('users')->where('role', OperatorRole::DISTRICT_HEAD);
+        if ($holder->nest_user_id && (clone $accounts)->where('id', $holder->nest_user_id)->exists()) {
+            return true;
+        }
+
+        return $holder->email !== null
+            && $holder->email !== ''
+            && (clone $accounts)->where('email', $holder->email)->exists();
     }
 }

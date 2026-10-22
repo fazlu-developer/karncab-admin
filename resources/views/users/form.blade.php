@@ -38,7 +38,7 @@
                     <input type="hidden" name="role" value="SUPER_ADMIN">
                     <p>Super Admin accounts keep that role. It is not offered for other users.</p>
                 @else
-                    <select name="role">
+                    <select name="role" id="user-role">
                         @foreach ($roles as $role)
                             @continue($role === 'SUPER_ADMIN')
                             <option value="{{ $role }}" @selected(old('role', $user->role) === $role)>{{ str_replace('_', ' ', $role) }}</option>
@@ -64,7 +64,7 @@
                 'stateValue' => (string) old('state_id', $user->state_id),
                 'districtValue' => (string) old('district_id', $user->district_id),
             ])
-            <p class="muted">State Head needs one state. District Head needs one district. The selected place is assigned when you save.</p>
+            <p class="muted" id="territory-hint">State Head needs one state. District Head needs one district, and that district is what their login can see.</p>
             <h3>Finance and system modules</h3>
             <p class="muted">Super Admin always has these. Tick a module to show it for this Manager or Admin. State Head and District Head never see them.</p>
             <div class="grid-2">
@@ -94,4 +94,33 @@
             <button class="btn" type="submit"><i data-lucide="save"></i> Save</button>
         </form>
     </section>
+    <script>
+        (function () {
+            var role = document.getElementById('user-role');
+            var state = document.querySelector('[name="state_id"]');
+            var district = document.querySelector('[name="district_id"]');
+            var hint = document.getElementById('territory-hint');
+            if (!role || !state || !district) return;
+            function mark(select, required, text) {
+                select.required = required;
+                var field = select.closest('.field');
+                var label = field ? field.querySelector('label') : null;
+                if (label) label.textContent = required ? text + ' *' : text;
+            }
+            function sync() {
+                var districtHead = role.value === 'DISTRICT_HEAD';
+                var stateHead = role.value === 'STATE_HEAD';
+                mark(state, stateHead || districtHead, 'State');
+                mark(district, districtHead, 'District');
+                if (!hint) return;
+                hint.textContent = districtHead
+                    ? 'District is required. This login can see only that district.'
+                    : (stateHead
+                        ? 'State is required. This login can see only that state.'
+                        : 'State Head needs one state. District Head needs one district.');
+            }
+            role.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
 @endsection

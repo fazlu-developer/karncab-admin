@@ -224,6 +224,38 @@ label.inline input { width: 18px; height: 18px; min-height: 18px; margin: 0; }
 .catalog-actions { display: flex; gap: 8px; margin-top: 8px; }
 .catalog-add { margin-top: 16px; }
 .catalog-add summary { cursor: pointer; font-weight: 700; margin-bottom: 10px; }
+.filters > .kc-select { flex: 1 1 220px; min-width: 200px; }
+.kc-select { position: relative; width: 100%; }
+.kc-select-native {
+  position: absolute !important; width: 1px !important; height: 1px !important;
+  min-height: 0 !important; min-width: 0 !important; padding: 0 !important;
+  margin: 0 !important; opacity: 0; pointer-events: none; border: 0;
+}
+.kc-select-btn {
+  width: 100%; min-height: 44px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 36px 10px 14px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23667' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
+  font: inherit; color: inherit;
+}
+.kc-select-panel {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 220px;
+  background: #fff; border: 1px solid #c5c5c5; border-radius: 4px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12); max-height: 280px; display: flex; flex-direction: column;
+}
+.kc-select-panel[hidden] { display: none; }
+.kc-select-search {
+  margin: 8px; min-height: 36px !important; width: calc(100% - 16px) !important;
+  border: 1px solid #aaa !important; border-radius: 2px !important; padding: 6px 8px !important;
+}
+.kc-select-list { overflow: auto; max-height: 220px; padding-bottom: 6px; }
+.kc-select-group {
+  padding: 8px 12px 4px; font-weight: 800; font-size: 13px; color: #222;
+}
+.kc-select-option {
+  display: block; width: 100%; text-align: left; border: 0; background: #fff;
+  padding: 7px 14px; font: inherit; cursor: pointer; color: #222;
+}
+.kc-select-option:hover, .kc-select-option.is-selected { background: #3875d7; color: #fff; }
 @media (max-width: 960px) {
   .guest-body, .console, .grid-2 { grid-template-columns: 1fr; }
   .guest-brand, .side { display: none; }

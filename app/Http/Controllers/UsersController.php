@@ -272,7 +272,7 @@ class UsersController extends Controller
     /**
      * @param  array<string, mixed>  $data
      */
-    private function assertTerritory(array $data, ?int $exceptId): void
+    private function assertTerritory(array &$data, ?int $exceptId): void
     {
         $role = (string) ($data['role'] ?? '');
         if ($role === OperatorRole::STATE_HEAD) {
@@ -288,13 +288,17 @@ class UsersController extends Controller
         $this->assertDistrictHeadSeat($data, $exceptId);
     }
 
-    private function assertDistrictHeadSeat(array $data, ?int $exceptId): void
+    private function assertDistrictHeadSeat(array &$data, ?int $exceptId): void
     {
         if (($data['role'] ?? '') !== OperatorRole::DISTRICT_HEAD) {
             return;
         }
         $districtId = (int) ($data['district_id'] ?? 0);
-        abort_unless($districtId > 0, 422, 'A District Head must be assigned one district.');
+        abort_unless($districtId > 0, 422, 'Select a district. A District Head signs in for that district.');
+        $stateId = (int) DB::connection('platform')->table('districts')->where('id', $districtId)->value('state_id');
+        abort_unless($stateId > 0, 422, 'Select a district. A District Head signs in for that district.');
+        $data['district_id'] = $districtId;
+        $data['state_id'] = $stateId;
         if (($data['status'] ?? '') === 'ACTIVE') {
             ExclusiveDistrictSeat::assertAvailable($districtId, $exceptId);
         }

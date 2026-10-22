@@ -58,6 +58,7 @@
 <script>window.lucide && lucide.createIcons();</script>
 <script>window.KarnaRideGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
 <script src="{{ asset('js/geo-select.js') }}"></script>
+<script src="{{ asset('js/kc-select.js') }}"></script>
 @livewireScripts
 @stack('scripts')
 </body>

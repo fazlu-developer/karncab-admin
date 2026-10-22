@@ -348,6 +348,7 @@ final class OpsNav
         $seen = [];
         $assigned = method_exists($user, 'assignedAbilities') ? $user->assignedAbilities() : [];
         $stateHead = method_exists($user, 'isStateHead') && $user->isStateHead();
+        $districtHead = method_exists($user, 'isDistrictHead') && $user->isDistrictHead();
         $manager = method_exists($user, 'isManager') && $user->isManager();
         $super = method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
         foreach (self::items() as $item) {
@@ -359,6 +360,9 @@ final class OpsNav
                 continue;
             }
             if ($stateHead && in_array($key, ['states', 'districts'], true)) {
+                continue;
+            }
+            if ($districtHead && $key === 'districts') {
                 continue;
             }
             if (PrivilegedModules::denied($user, $key)) {

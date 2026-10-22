@@ -72,7 +72,7 @@ class OrganizationController extends Controller
 
     public function districts(Request $request): View
     {
-        abort_if($request->user()?->isStateHead(), 403);
+        abort_if($request->user()?->isStateHead() || $request->user()?->isDistrictHead(), 403);
         abort_unless($request->user()?->can('district.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
         $q = DB::connection('platform')->table('districts')
             ->join('states', 'states.id', '=', 'districts.state_id')
@@ -90,7 +90,7 @@ class OrganizationController extends Controller
 
     public function storeDistrict(Request $request): RedirectResponse
     {
-        abort_if($request->user()?->isStateHead(), 403);
+        abort_if($request->user()?->isStateHead() || $request->user()?->isDistrictHead(), 403);
         abort_unless($request->user()?->can('district.create') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'state_id' => ['required', 'integer'],
@@ -115,7 +115,7 @@ class OrganizationController extends Controller
 
     public function updateDistrict(Request $request, int $district): RedirectResponse
     {
-        abort_if($request->user()?->isStateHead(), 403);
+        abort_if($request->user()?->isStateHead() || $request->user()?->isDistrictHead(), 403);
         abort_unless($request->user()?->can('district.update') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'state_id' => ['required', 'integer'],
