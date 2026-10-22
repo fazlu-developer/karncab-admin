@@ -226,36 +226,103 @@ label.inline input { width: 18px; height: 18px; min-height: 18px; margin: 0; }
 .catalog-add summary { cursor: pointer; font-weight: 700; margin-bottom: 10px; }
 .filters > .kc-select { flex: 1 1 220px; min-width: 200px; }
 .kc-select { position: relative; width: 100%; }
-.kc-select-native {
-  position: absolute !important; width: 1px !important; height: 1px !important;
-  min-height: 0 !important; min-width: 0 !important; padding: 0 !important;
-  margin: 0 !important; opacity: 0; pointer-events: none; border: 0;
+select.kc-select-native {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: 1px !important;
+  max-height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(50%) !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  appearance: none !important;
 }
 .kc-select-btn {
-  width: 100%; min-height: 44px; text-align: left; cursor: pointer;
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px 36px 10px 14px;
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23667' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
-  font: inherit; color: inherit;
+  display: block !important;
+  width: 100% !important;
+  min-height: 44px;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  padding: 10px 36px 10px 14px !important;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23667' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center !important;
+  font: inherit;
+  color: inherit;
+  box-sizing: border-box;
 }
 .kc-select-panel {
-  position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0; min-width: 220px;
-  background: #fff; border: 1px solid #c5c5c5; border-radius: 4px;
-  box-shadow: 0 8px 20px rgba(0,0,0,.12); max-height: 280px; display: flex; flex-direction: column;
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #c5c5c5;
+  border-radius: 4px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12);
+  max-height: 320px;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  overflow: hidden;
 }
-.kc-select-panel[hidden] { display: none; }
+.kc-select-panel[hidden] { display: none !important; }
 .kc-select-search {
-  margin: 8px; min-height: 36px !important; width: calc(100% - 16px) !important;
-  border: 1px solid #aaa !important; border-radius: 2px !important; padding: 6px 8px !important;
+  display: block !important;
+  flex: 0 0 auto;
+  margin: 8px !important;
+  min-height: 36px !important;
+  width: calc(100% - 16px) !important;
+  max-width: none !important;
+  border: 1px solid #aaa !important;
+  border-radius: 2px !important;
+  padding: 6px 8px !important;
+  box-sizing: border-box !important;
 }
-.kc-select-list { overflow: auto; max-height: 220px; padding-bottom: 6px; }
+.kc-select-list {
+  display: block !important;
+  overflow: auto;
+  max-height: 240px;
+  padding: 0 0 6px;
+}
 .kc-select-group {
-  padding: 8px 12px 4px; font-weight: 800; font-size: 13px; color: #222;
+  display: block;
+  padding: 8px 12px 4px;
+  font-weight: 800;
+  font-size: 13px;
+  color: #222;
 }
 .kc-select-option {
-  display: block; width: 100%; text-align: left; border: 0; background: #fff;
-  padding: 7px 14px; font: inherit; cursor: pointer; color: #222;
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+  text-align: left;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #fff;
+  margin: 0 !important;
+  padding: 8px 14px !important;
+  font: inherit;
+  cursor: pointer;
+  color: #222;
+  white-space: nowrap;
 }
-.kc-select-option:hover, .kc-select-option.is-selected { background: #3875d7; color: #fff; }
+.kc-select-option:hover,
+.kc-select-option.is-selected {
+  background: #3875d7;
+  color: #fff;
+}
 @media (max-width: 960px) {
   .guest-body, .console, .grid-2 { grid-template-columns: 1fr; }
   .guest-brand, .side { display: none; }

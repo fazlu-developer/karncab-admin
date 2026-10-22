@@ -7,7 +7,7 @@
     <link rel="icon" href="{{ $kcBrand['icoUrl'] ?? asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" href="{{ $kcBrand['faviconUrl'] ?? asset('favicon-32.png') }}">
     <link rel="apple-touch-icon" href="{{ $kcBrand['faviconUrl'] ?? asset('apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ filemtime(public_path('css/admin.css')) }}">
     @livewireStyles
 </head>
 <body>
@@ -58,7 +58,7 @@
 <script>window.lucide && lucide.createIcons();</script>
 <script>window.KarnaRideGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
 <script src="{{ asset('js/geo-select.js') }}"></script>
-<script src="{{ asset('js/kc-select.js') }}"></script>
+<script src="{{ asset('js/kc-select.js') }}?v={{ filemtime(public_path('js/kc-select.js')) }}"></script>
 @livewireScripts
 @stack('scripts')
 </body>

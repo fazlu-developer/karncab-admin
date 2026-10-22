@@ -35,9 +35,9 @@
     }
 
     function addOption(option) {
-      var row = document.createElement('button');
-      row.type = 'button';
+      var row = document.createElement('div');
       row.className = 'kc-select-option' + (option.selected ? ' is-selected' : '');
+      row.setAttribute('role', 'option');
       row.textContent = option.textContent.trim();
       row.addEventListener('click', function () {
         select.value = option.value;
