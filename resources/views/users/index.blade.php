@@ -16,17 +16,22 @@
     <section class="card">
         <form class="filters" method="GET">
             <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search name, email, phone">
-            <div style="min-width:240px">
-                <input type="search" id="role-search" placeholder="Search roles" autocomplete="off">
-                <div id="role-options" style="max-height:148px;overflow:auto;border:1px solid #d7d7d7;border-radius:8px;padding:8px;margin-top:6px;background:#fff">
+            <div class="role-filter">
+                @php
+                    $pickedRoles = $filters['roles'] ?? [];
+                    $roleLabel = $pickedRoles === [] ? 'All roles' : implode(', ', array_map(fn ($role) => str_replace('_', ' ', $role), $pickedRoles));
+                @endphp
+                <button type="button" class="role-filter-btn" id="role-filter-btn" aria-expanded="false">{{ $roleLabel }}</button>
+                <div class="role-filter-panel" id="role-options" hidden>
+                    <input type="search" id="role-search" placeholder="Search roles" autocomplete="off">
                     @foreach ($roles as $role)
-                        <label data-label="{{ strtolower(str_replace('_', ' ', $role)) }}" style="display:flex;gap:8px;align-items:center;padding:4px 0">
-                            <input type="checkbox" name="roles[]" value="{{ $role }}" @checked(in_array($role, $filters['roles'] ?? [], true))>
-                            {{ str_replace('_', ' ', $role) }}
+                        <label data-label="{{ strtolower(str_replace('_', ' ', $role)) }}">
+                            <input type="checkbox" name="roles[]" value="{{ $role }}" @checked(in_array($role, $pickedRoles, true))>
+                            <span>{{ str_replace('_', ' ', $role) }}</span>
                         </label>
                     @endforeach
+                    <p class="muted">Pick up to 2 roles.</p>
                 </div>
-                <p class="muted" style="margin:4px 0 0">Pick up to 2 roles.</p>
             </div>
             <select name="status">
                 <option value="">All status</option>
@@ -95,7 +100,29 @@
         (function () {
             var box = document.getElementById('role-options');
             var search = document.getElementById('role-search');
-            if (!box || !search) return;
+            var button = document.getElementById('role-filter-btn');
+            if (!box || !search || !button) return;
+            function label() {
+                var names = [];
+                box.querySelectorAll('input:checked').forEach(function (input) {
+                    var text = input.parentElement ? input.parentElement.querySelector('span') : null;
+                    names.push(text ? text.textContent : input.value);
+                });
+                button.textContent = names.length ? names.join(', ') : 'All roles';
+            }
+            button.addEventListener('click', function () {
+                var open = box.hasAttribute('hidden');
+                if (open) box.removeAttribute('hidden');
+                else box.setAttribute('hidden', '');
+                button.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open) search.focus();
+            });
+            document.addEventListener('click', function (event) {
+                if (!button.parentElement.contains(event.target)) {
+                    box.setAttribute('hidden', '');
+                    button.setAttribute('aria-expanded', 'false');
+                }
+            });
             search.addEventListener('input', function () {
                 var q = search.value.trim().toLowerCase();
                 box.querySelectorAll('label').forEach(function (label) {
@@ -107,6 +134,7 @@
                 var input = event.target;
                 if (!input || input.type !== 'checkbox') return;
                 if (box.querySelectorAll('input:checked').length > 2) input.checked = false;
+                label();
             });
         })();
     </script>

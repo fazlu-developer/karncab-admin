@@ -10,6 +10,9 @@
             <p class="muted">{{ $user->email }} · {{ $user->phone ?: 'No phone' }}</p>
         </div>
         <div class="row-actions">
+            @if ($user->driver)
+                <a class="btn" href="{{ route('drivers.show', $user->driver) }}#driver-kyc"><i data-lucide="file-badge"></i> Open driver KYC</a>
+            @endif
             <a class="btn ghost" href="{{ route('users.index') }}"><i data-lucide="list"></i> List</a>
             @can('users.edit')
                 <a class="btn" href="{{ route('users.edit', $user) }}"><i data-lucide="pencil"></i> Edit</a>
@@ -27,8 +30,11 @@
         @if ($user->driver)
             <p>
                 <i data-lucide="id-card"></i>
-                Driver profile <a href="{{ route('drivers.show', $user->driver) }}">#{{ $user->driver->id }}</a>
-                · KYC {{ $user->driver->kyc_status }}
+                Driver profile #{{ $user->driver->id }}
+                · KYC {{ str_replace('_', ' ', $user->driver->kyc_status) }}
+            </p>
+            <p>
+                <a class="btn" href="{{ route('drivers.show', $user->driver) }}#driver-kyc"><i data-lucide="file-badge"></i> Open driver KYC</a>
             </p>
         @endif
         @if (in_array($user->role, \App\Services\OperatorProvisioner::CONSOLE_ROLES, true))
