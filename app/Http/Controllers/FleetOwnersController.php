@@ -31,6 +31,15 @@ class FleetOwnersController extends Controller
         ]);
     }
 
+    public function kyc(Request $request): View
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        return view('fleet_owners.kyc', [
+            'owners' => $this->fleets->list($request->user()),
+        ]);
+    }
+
     public function create(Request $request): View
     {
         abort_unless($request->user()?->can('fleet.manage') || $request->user()?->can('fleet_owner.create'), 403);
@@ -151,6 +160,14 @@ class FleetOwnersController extends Controller
             return redirect()->away($base.'/storage/'.ltrim($key, '/'));
         }
         abort(404, 'Attachment file is missing.');
+    }
+
+    public function destroyDocument(Request $request, int $id, string $type): RedirectResponse
+    {
+        abort_unless($request->user()?->can('fleet.manage') || $request->user()?->isSuperAdmin(), 403);
+        $this->fleets->deleteDocument($request->user(), $id, $type);
+
+        return back()->with('status', 'Document deleted.');
     }
 
     public function verify(Request $request, int $id): RedirectResponse

@@ -150,6 +150,14 @@ class FleetOwnerDirectoryService
         if ($approve && $schema->hasColumn('fleet_owners', 'verified_at')) {
             $patch['verified_at'] = now();
         }
+        if (! $approve) {
+            foreach (['kyc_rejected_reason', 'rejected_reason'] as $column) {
+                if ($schema->hasColumn('fleet_owners', $column)) {
+                    $patch[$column] = substr(trim((string) $reason), 0, 500);
+                    break;
+                }
+            }
+        }
         $this->db()->table('fleet_owners')->where('id', $id)->update($patch);
         if ($row->user_id) {
             $this->db()->table('users')->where('id', $row->user_id)->update([
@@ -246,6 +254,29 @@ class FleetOwnerDirectoryService
         }
         $this->db()->table('fleet_owners')->where('id', $id)->update($patch);
         OrganizationAudit::record($actor, 'fleet_owner.document', 'fleet_owner', $id, null, ['type' => $type]);
+    }
+
+    public function deleteDocument(User $actor, int $id, string $type): void
+    {
+        $row = $this->find($actor, $id);
+        $schema = Schema::connection('platform');
+        abort_unless($schema->hasColumn('fleet_owners', 'documents_json'), 500, 'Company documents are not available on this database.');
+        $type = strtoupper(trim($type));
+        $docs = json_decode((string) ($row->documents_json ?? '[]'), true);
+        $docs = is_array($docs) ? $docs : [];
+        $files = app(KycFileStore::class);
+        foreach ($docs as $doc) {
+            if (strtoupper((string) ($doc['type'] ?? '')) === $type) {
+                $files->forget($doc['storageKey'] ?? $doc['storage_key'] ?? null);
+            }
+        }
+        $docs = array_values(array_filter($docs, fn ($doc) => strtoupper((string) ($doc['type'] ?? '')) !== $type));
+        $patch = ['documents_json' => json_encode(array_values($docs))];
+        if ($schema->hasColumn('fleet_owners', 'updated_at')) {
+            $patch['updated_at'] = now();
+        }
+        $this->db()->table('fleet_owners')->where('id', $id)->update($patch);
+        OrganizationAudit::record($actor, 'fleet_owner.document_deleted', 'fleet_owner', $id, null, ['type' => $type]);
     }
 
     private function assertGeo(User $actor, int $stateId, int $districtId): void

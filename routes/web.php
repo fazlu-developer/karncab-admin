@@ -118,12 +118,17 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::post('/organization/district-kyc', [OrganizationController::class, 'storeDistrictKyc'])->name('organization.district-kyc.store');
     Route::get('/organization/district-kyc/{id}/file', [OrganizationController::class, 'districtKycFile'])->name('organization.district-kyc.file')->whereNumber('id');
     Route::put('/organization/district-kyc/{id}', [OrganizationController::class, 'reviewDistrictKyc'])->name('organization.district-kyc.review')->whereNumber('id');
+    Route::post('/organization/district-kyc/{id}/replace', [OrganizationController::class, 'replaceDistrictKyc'])->name('organization.district-kyc.replace')->whereNumber('id');
+    Route::delete('/organization/district-kyc/{id}', [OrganizationController::class, 'destroyDistrictKyc'])->name('organization.district-kyc.destroy')->whereNumber('id');
     Route::get('/organization/state-kyc', [OrganizationController::class, 'stateKyc'])->name('organization.state-kyc');
     Route::post('/organization/state-kyc', [OrganizationController::class, 'storeStateKyc'])->name('organization.state-kyc.store');
     Route::get('/organization/state-kyc/{id}/file', [OrganizationController::class, 'stateKycFile'])->name('organization.state-kyc.file')->whereNumber('id');
     Route::put('/organization/state-kyc/{id}', [OrganizationController::class, 'reviewStateKyc'])->name('organization.state-kyc.review')->whereNumber('id');
+    Route::post('/organization/state-kyc/{id}/replace', [OrganizationController::class, 'replaceStateKyc'])->name('organization.state-kyc.replace')->whereNumber('id');
+    Route::delete('/organization/state-kyc/{id}', [OrganizationController::class, 'destroyStateKyc'])->name('organization.state-kyc.destroy')->whereNumber('id');
     Route::resource('managers', ManagersController::class)->except(['show', 'destroy']);
     Route::get('/fleet-owners', [FleetOwnersController::class, 'index'])->name('fleet-owners.index');
+    Route::get('/fleet-owners/kyc', [FleetOwnersController::class, 'kyc'])->name('fleet-owners.kyc');
     Route::get('/fleet-owners/create', [FleetOwnersController::class, 'create'])->name('fleet-owners.create');
     Route::post('/fleet-owners', [FleetOwnersController::class, 'store'])->name('fleet-owners.store');
     Route::get('/fleet-owners/{id}', [FleetOwnersController::class, 'show'])->name('fleet-owners.show')->whereNumber('id');
@@ -131,6 +136,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::post('/fleet-owners/{id}', [FleetOwnersController::class, 'update'])->name('fleet-owners.update')->whereNumber('id');
     Route::post('/fleet-owners/{id}/documents', [FleetOwnersController::class, 'storeDocument'])->name('fleet-owners.documents.store')->whereNumber('id');
     Route::get('/fleet-owners/{id}/documents/{type}', [FleetOwnersController::class, 'documentFile'])->name('fleet-owners.documents.file')->whereNumber('id');
+    Route::delete('/fleet-owners/{id}/documents/{type}', [FleetOwnersController::class, 'destroyDocument'])->name('fleet-owners.documents.destroy')->whereNumber('id');
     Route::post('/fleet-owners/{id}/verify', [FleetOwnersController::class, 'verify'])->name('fleet-owners.verify')->whereNumber('id');
     Route::resource('drivers', DriversController::class);
     Route::post('/drivers/{driver}/onboarding', [DriversController::class, 'updateOnboarding'])->name('drivers.onboarding');

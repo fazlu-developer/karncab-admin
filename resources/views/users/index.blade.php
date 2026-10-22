@@ -16,12 +16,18 @@
     <section class="card">
         <form class="filters" method="GET">
             <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search name, email, phone">
-            <select name="role">
-                <option value="">All roles</option>
-                @foreach ($roles as $role)
-                    <option value="{{ $role }}" @selected(($filters['role'] ?? '') === $role)>{{ $role }}</option>
-                @endforeach
-            </select>
+            <div style="min-width:240px">
+                <input type="search" id="role-search" placeholder="Search roles" autocomplete="off">
+                <div id="role-options" style="max-height:148px;overflow:auto;border:1px solid #d7d7d7;border-radius:8px;padding:8px;margin-top:6px;background:#fff">
+                    @foreach ($roles as $role)
+                        <label data-label="{{ strtolower(str_replace('_', ' ', $role)) }}" style="display:flex;gap:8px;align-items:center;padding:4px 0">
+                            <input type="checkbox" name="roles[]" value="{{ $role }}" @checked(in_array($role, $filters['roles'] ?? [], true))>
+                            {{ str_replace('_', ' ', $role) }}
+                        </label>
+                    @endforeach
+                </div>
+                <p class="muted" style="margin:4px 0 0">Pick up to 2 roles.</p>
+            </div>
             <select name="status">
                 <option value="">All status</option>
                 @foreach (['ACTIVE','PENDING','SUSPENDED'] as $status)
@@ -85,4 +91,23 @@
         </div>
         <div class="pager">{{ $users->links('pagination.admin') }}</div>
     </section>
+    <script>
+        (function () {
+            var box = document.getElementById('role-options');
+            var search = document.getElementById('role-search');
+            if (!box || !search) return;
+            search.addEventListener('input', function () {
+                var q = search.value.trim().toLowerCase();
+                box.querySelectorAll('label').forEach(function (label) {
+                    var text = label.getAttribute('data-label') || '';
+                    label.style.display = text.indexOf(q) >= 0 ? 'flex' : 'none';
+                });
+            });
+            box.addEventListener('change', function (event) {
+                var input = event.target;
+                if (!input || input.type !== 'checkbox') return;
+                if (box.querySelectorAll('input:checked').length > 2) input.checked = false;
+            });
+        })();
+    </script>
 @endsection

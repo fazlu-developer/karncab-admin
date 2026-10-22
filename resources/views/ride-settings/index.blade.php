@@ -37,7 +37,7 @@
 
     <section class="card">
         <h2>Saharsa launch incentives</h2>
-        <p class="muted">New driver joining bonus goes to their wallet when KYC is approved. Referrer gets the referral amount when that driver completes signup/KYC (set rides required to 0). Customer amounts are promotional ride credit (not cash).</p>
+        <p class="muted">New driver joining bonus (₹100) is a separate wallet entry when KYC is approved. The referring driver gets ₹50 once, only after that driver’s KYC is verified and their first ride is completed. Cancelled, failed or fraudulent rides do not count. Customer amounts are promotional ride credit, not cash.</p>
         <form method="POST" action="{{ route('ride-settings.update') }}" class="filters" style="align-items:end">
             @csrf
             @method('PUT')
@@ -179,6 +179,37 @@
                 </tbody>
             </table>
         </div>
+    </section>
+
+    <section class="card">
+        <h2>Driver referrals</h2>
+        <p class="muted">Pending until KYC and the first completed ride. Eligible is ready to credit. Credited means the ₹ amount is in the referring driver’s wallet. Each referred driver is paid once.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Referral code</th>
+                    <th>Referring driver</th>
+                    <th>Referred driver</th>
+                    <th>Ride ID</th>
+                    <th>Bonus</th>
+                    <th>Credit status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($driverReferrals as $row)
+                    <tr>
+                        <td>{{ $row->referral_code ?: '—' }}</td>
+                        <td>{{ $row->referrer_name ?: '—' }}</td>
+                        <td>{{ $row->referred_name ?: '—' }}</td>
+                        <td>{{ $row->booking_id ?: '—' }}</td>
+                        <td>₹{{ number_format(((int) $row->amount_paise) / 100, 0) }}</td>
+                        <td>{{ in_array($row->status, ['paid', 'credited'], true) ? 'Credited' : ucfirst((string) $row->status) }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6" class="muted">No driver referrals yet.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
     </section>
 
     <section class="card">

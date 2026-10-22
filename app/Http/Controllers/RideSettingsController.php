@@ -35,7 +35,7 @@ class RideSettingsController extends Controller
             'driverWelcomeBonusRupees' => is_numeric($bonusRupees) ? (int) $bonusRupees : 100,
             'customerFirstRideFreeEnabled' => in_array(strtolower((string) $firstRide), ['1', 'true', 'yes'], true),
             'driverReferralBonusRupees' => $int('driver_referral_bonus_rupees', 50),
-            'driverReferralRequiredRides' => $int('driver_referral_required_rides', 0),
+            'driverReferralRequiredRides' => $int('driver_referral_required_rides', 1),
             'customerJoiningCreditRupees' => $int('customer_joining_credit_rupees', 50),
             'customerReferralCreditRupees' => $int('customer_referral_credit_rupees', 50),
             'customerPromoMaxRupees' => $int('customer_promo_max_rupees', 50),
@@ -50,6 +50,7 @@ class RideSettingsController extends Controller
             'incentives' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? $db->table('incentives')->orderByDesc('id')->limit(80)->get()
                 : collect(),
+            'driverReferrals' => $this->driverReferrals($db),
             'incentiveTotals' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? [
                     'paidPaise' => (int) $db->table('incentives')->where('status', 'paid')->sum('amount_paise'),
@@ -59,6 +60,33 @@ class RideSettingsController extends Controller
                 ]
                 : ['paidPaise' => 0, 'count' => 0, 'pending' => 0, 'reversed' => 0],
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Connection  $db
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function driverReferrals($db)
+    {
+        if (! $db->getSchemaBuilder()->hasTable('incentives')) {
+            return collect();
+        }
+        $code = $db->getSchemaBuilder()->hasColumn('users', 'referral_code') ? 'referrer.referral_code' : DB::raw('null as referral_code');
+
+        return $db->table('incentives as i')
+            ->leftJoin('users as referrer', 'referrer.id', '=', 'i.user_id')
+            ->leftJoin('users as referred', 'referred.id', '=', 'i.related_user_id')
+            ->where('i.kind', 'driver_referral')
+            ->orderByDesc('i.id')
+            ->limit(100)
+            ->get([
+                'i.amount_paise',
+                'i.status',
+                'i.booking_id',
+                'referrer.name as referrer_name',
+                $code,
+                'referred.name as referred_name',
+            ]);
     }
 
     public function update(Request $request): RedirectResponse

@@ -18,6 +18,7 @@ class OrganizationController extends Controller
 {
     public function states(Request $request): View
     {
+        abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('state.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
         $states = DB::connection('platform')->table('states')->orderBy('name')->get();
 
@@ -26,6 +27,7 @@ class OrganizationController extends Controller
 
     public function storeState(Request $request): RedirectResponse
     {
+        abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('state.create') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
@@ -47,6 +49,7 @@ class OrganizationController extends Controller
 
     public function updateState(Request $request, int $state): RedirectResponse
     {
+        abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('state.update') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
@@ -69,6 +72,7 @@ class OrganizationController extends Controller
 
     public function districts(Request $request): View
     {
+        abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('district.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
         $q = DB::connection('platform')->table('districts')
             ->join('states', 'states.id', '=', 'districts.state_id')
@@ -86,6 +90,7 @@ class OrganizationController extends Controller
 
     public function storeDistrict(Request $request): RedirectResponse
     {
+        abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('district.create') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'state_id' => ['required', 'integer'],
@@ -110,6 +115,7 @@ class OrganizationController extends Controller
 
     public function updateDistrict(Request $request, int $district): RedirectResponse
     {
+        abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('district.update') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate([
             'state_id' => ['required', 'integer'],
@@ -134,6 +140,7 @@ class OrganizationController extends Controller
 
     public function districtKyc(Request $request): View
     {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         abort_unless($request->user()?->can('kyc.view'), 403);
         DistrictHeadKycStore::ensureTable();
         $actor = $request->user();
@@ -162,7 +169,7 @@ class OrganizationController extends Controller
 
     public function storeDistrictKyc(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->can('kyc.view'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         $actor = $request->user();
         $userId = (int) $request->input('user_id');
         if ($actor?->role === 'DISTRICT_HEAD') {
@@ -182,7 +189,7 @@ class OrganizationController extends Controller
 
     public function districtKycFile(Request $request, int $id): StreamedResponse
     {
-        abort_unless($request->user()?->can('kyc.view'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         DistrictHeadKycStore::ensureTable();
         $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
@@ -198,7 +205,7 @@ class OrganizationController extends Controller
 
     public function reviewDistrictKyc(Request $request, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->can('kyc.approve') || $request->user()?->can('platform.admin'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
         $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
@@ -219,7 +226,7 @@ class OrganizationController extends Controller
 
     public function stateKyc(Request $request): View
     {
-        abort_unless($request->user()?->can('kyc.view'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         StateHeadKycStore::ensureTable();
         $heads = StateHeadKycStore::headsFor($request->user());
         $selectedUserId = (int) $request->query('user_id', 0);
@@ -244,7 +251,7 @@ class OrganizationController extends Controller
 
     public function storeStateKyc(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->can('kyc.view'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         $request->validate([
             'user_id' => ['required', 'integer'],
             'doc_type' => ['required', 'string', 'max:40'],
@@ -260,7 +267,7 @@ class OrganizationController extends Controller
 
     public function stateKycFile(Request $request, int $id): StreamedResponse
     {
-        abort_unless($request->user()?->can('kyc.view'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         StateHeadKycStore::ensureTable();
         $row = DB::connection('platform')->table('state_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
@@ -271,7 +278,7 @@ class OrganizationController extends Controller
 
     public function reviewStateKyc(Request $request, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->can('kyc.approve') || $request->user()?->can('platform.admin'), 403);
+        abort_unless($request->user()?->isSuperAdmin(), 403);
         $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
         DB::connection('platform')->table('state_head_kyc')->where('id', $id)->update([
             'status' => $status,
@@ -279,5 +286,62 @@ class OrganizationController extends Controller
         ]);
 
         return back()->with('status', 'State Head KYC marked '.$status.'.');
+    }
+
+    public function replaceStateKyc(Request $request, int $id): RedirectResponse
+    {
+        return $this->replaceKyc($request, 'state_head_kyc', $id);
+    }
+
+    public function destroyStateKyc(Request $request, int $id): RedirectResponse
+    {
+        return $this->destroyKyc($request, 'state_head_kyc', $id);
+    }
+
+    public function replaceDistrictKyc(Request $request, int $id): RedirectResponse
+    {
+        return $this->replaceKyc($request, 'district_head_kyc', $id);
+    }
+
+    public function destroyDistrictKyc(Request $request, int $id): RedirectResponse
+    {
+        return $this->destroyKyc($request, 'district_head_kyc', $id);
+    }
+
+    private function replaceKyc(Request $request, string $table, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+        $row = DB::connection('platform')->table($table)->where('id', $id)->first();
+        abort_if(! $row, 404);
+        $request->merge([
+            'user_id' => $row->user_id,
+            'doc_type' => $row->doc_type,
+        ]);
+        $request->validate([
+            'file' => ['required', 'file', 'max:8192', 'mimes:jpg,jpeg,png,pdf,webp'],
+        ]);
+        $saved = $table === 'state_head_kyc'
+            ? StateHeadKycStore::saveFromRequest($request, (int) $row->user_id, $request->user()?->id)
+            : DistrictHeadKycStore::saveFromRequest($request, (int) $row->user_id, $request->user()?->id);
+        abort_if($saved === 0, 422, 'Choose a replacement file.');
+        if (is_string($row->path) && $row->path !== '' && Storage::disk('public')->exists($row->path)) {
+            Storage::disk('public')->delete($row->path);
+        }
+        DB::connection('platform')->table($table)->where('id', $id)->delete();
+
+        return back()->with('status', 'KYC file replaced.');
+    }
+
+    private function destroyKyc(Request $request, string $table, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+        $row = DB::connection('platform')->table($table)->where('id', $id)->first();
+        abort_if(! $row, 404);
+        if (is_string($row->path) && $row->path !== '' && Storage::disk('public')->exists($row->path)) {
+            Storage::disk('public')->delete($row->path);
+        }
+        DB::connection('platform')->table($table)->where('id', $id)->delete();
+
+        return back()->with('status', 'KYC file deleted.');
     }
 }

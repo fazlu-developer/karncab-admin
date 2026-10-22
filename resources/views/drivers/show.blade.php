@@ -44,6 +44,7 @@
             <p class="muted">{{ $user->phone ?? '—' }} · {{ $user->email ?? '' }}</p>
         </div>
         <div class="row-actions">
+            <a class="btn" href="#driver-kyc"><i data-lucide="file-badge"></i> View KYC</a>
             <a class="btn ghost" href="{{ route('drivers.index') }}">List</a>
             @can('drivers.edit')
                 <a class="btn ghost" href="{{ route('drivers.edit', $driver) }}"><i data-lucide="pencil"></i> Edit account</a>
@@ -226,8 +227,8 @@
         </section>
     @endcan
 
-    <section class="card">
-        <h2>Attachments</h2>
+    <section class="card" id="driver-kyc">
+        <h2>KYC documents</h2>
         <p class="muted">Required: {{ implode(', ', $requiredDocs) }}. Approve each file, then approve the application so the driver app opens Home.</p>
         @if ($missingDocs->isNotEmpty())
             <p class="muted">Still missing: {{ $missingDocs->implode(', ') }}</p>

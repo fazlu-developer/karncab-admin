@@ -136,7 +136,7 @@ final class OperatorProvisioner
             $operator->save();
         }
 
-        if (in_array($role, [OperatorRole::ADMIN, OperatorRole::MANAGER], true)) {
+        if (in_array($role, [OperatorRole::ADMIN, OperatorRole::MANAGER, OperatorRole::STATE_HEAD], true)) {
             $operator->syncAbilities($abilities);
         }
 

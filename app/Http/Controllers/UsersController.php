@@ -39,8 +39,21 @@ class UsersController extends Controller
                     ->orWhere('users.phone', 'like', "%{$search}%");
             });
         }
-        if ($role = $request->get('role')) {
-            $query->where('users.role', $role);
+        $actor = $request->user();
+        $allowedRoles = $this->roleChoices($actor);
+        if ($actor?->isStateHead()) {
+            $query->whereIn('users.role', $allowedRoles);
+        }
+        $picked = array_values(array_intersect(
+            array_filter((array) $request->input('roles', [])),
+            $allowedRoles,
+        ));
+        $picked = array_slice($picked, 0, 2);
+        if ($picked === [] && $request->filled('role') && in_array((string) $request->get('role'), $allowedRoles, true)) {
+            $picked = [(string) $request->get('role')];
+        }
+        if ($picked !== []) {
+            $query->whereIn('users.role', $picked);
         }
         if ($status = $request->get('status')) {
             $query->where('users.status', $status);
@@ -48,8 +61,12 @@ class UsersController extends Controller
 
         return view('users.index', [
             'users' => $query->paginate(12)->withQueryString(),
-            'filters' => $request->only(['q', 'role', 'status']),
-            'roles' => OperatorRole::managed(),
+            'filters' => [
+                'q' => $request->get('q'),
+                'roles' => $picked,
+                'status' => $request->get('status'),
+            ],
+            'roles' => $allowedRoles,
         ]);
     }
 
@@ -59,7 +76,7 @@ class UsersController extends Controller
 
         return view('users.form', [
             'user' => new PlatformUser(['status' => 'ACTIVE', 'role' => 'CUSTOMER']),
-            'roles' => OperatorRole::managed(),
+            'roles' => $this->roleChoices($request->user()),
             'permissionCatalog' => $this->permissionCatalog(),
             'granted' => [],
         ]);
@@ -153,7 +170,7 @@ class UsersController extends Controller
 
         return view('users.form', [
             'user' => $platformUser,
-            'roles' => OperatorRole::managed(),
+            'roles' => $this->roleChoices($request->user(), (string) $platformUser->role),
             'permissionCatalog' => $this->permissionCatalog(),
             'granted' => $operator?->assignedAbilities() ?? [],
         ]);
@@ -211,7 +228,7 @@ class UsersController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:180', Rule::unique(PlatformUser::class, 'email')->ignore($id)],
             'phone' => ['nullable', 'string', 'max:20', Rule::unique(PlatformUser::class, 'phone')->ignore($id)],
-            'role' => ['required', Rule::in(OperatorRole::managed())],
+            'role' => ['required', Rule::in($this->roleChoices($request->user(), $id ? (string) PlatformUser::query()->whereKey($id)->value('role') : null))],
             'status' => ['required', Rule::in(['ACTIVE', 'PENDING', 'SUSPENDED'])],
             'password' => [$creating ? 'required' : 'nullable', 'string', 'min:8'],
             'state_id' => ['nullable', 'integer'],
@@ -267,6 +284,34 @@ class UsersController extends Controller
         }
 
         return 'User created. They can sign in to the admin with this email and password.';
+    }
+
+    /**
+     * Roles offered in the users list and form. Super Admin is not a choice.
+     * A State Head only works with district heads, fleet owners, drivers, and customers.
+     *
+     * @return list<string>
+     */
+    private function roleChoices(?User $actor, ?string $current = null): array
+    {
+        if ($actor?->isStateHead()) {
+            return [
+                OperatorRole::DISTRICT_HEAD,
+                OperatorRole::FLEET_OWNER,
+                OperatorRole::DRIVER,
+                OperatorRole::CUSTOMER,
+            ];
+        }
+
+        $roles = array_values(array_filter(
+            OperatorRole::managed(),
+            fn (string $role) => $role !== OperatorRole::SUPER_ADMIN,
+        ));
+        if ($current === OperatorRole::SUPER_ADMIN) {
+            $roles[] = OperatorRole::SUPER_ADMIN;
+        }
+
+        return $roles;
     }
 
     /**

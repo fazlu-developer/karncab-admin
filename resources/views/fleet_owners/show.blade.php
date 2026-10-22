@@ -39,12 +39,39 @@
     <section class="card">
         <h2>Company documents</h2>
         @forelse ($docs as $doc)
-            <p>
-                {{ $doc['type'] ?? 'Document' }} · {{ $doc['originalName'] ?? 'file' }} · {{ $doc['status'] ?? 'pending' }}
-                @if (! empty($doc['type']))
-                    <a href="{{ route('fleet-owners.documents.file', [$owner->id, $doc['type']]) }}" target="_blank" rel="noopener">View</a>
+            @php
+                $mime = strtolower((string) ($doc['mime'] ?? ''));
+                $name = strtolower((string) ($doc['originalName'] ?? ''));
+                $image = str_starts_with($mime, 'image/') || (bool) preg_match('/\.(jpg|jpeg|png|webp)$/', $name);
+                $pdf = str_contains($mime, 'pdf') || str_ends_with($name, '.pdf');
+                $fileUrl = ! empty($doc['type']) ? route('fleet-owners.documents.file', [$owner->id, $doc['type']]) : null;
+            @endphp
+            <article style="border-top:1px solid #eee;padding:12px 0">
+                <p>
+                    <strong>{{ str_replace('_', ' ', $doc['type'] ?? 'Document') }}</strong>
+                    · {{ $doc['originalName'] ?? 'file' }}
+                    · <span class="pill muted">{{ $doc['status'] ?? 'pending' }}</span>
+                </p>
+                @if ($fileUrl && $image)
+                    <a href="{{ $fileUrl }}" target="_blank" rel="noopener">
+                        <img src="{{ $fileUrl }}" alt="{{ $doc['type'] ?? 'Document' }}" style="width:220px;height:150px;object-fit:cover;border-radius:8px">
+                    </a>
+                @elseif ($fileUrl && $pdf)
+                    <iframe src="{{ $fileUrl }}" title="{{ $doc['type'] ?? 'Document' }}" style="width:100%;max-width:420px;height:220px;border:0;border-radius:8px"></iframe>
                 @endif
-            </p>
+                @if ($fileUrl)
+                    <p><a class="btn ghost" href="{{ $fileUrl }}" target="_blank" rel="noopener">Open preview</a></p>
+                @endif
+                @can('fleet.manage')
+                    @if (! empty($doc['type']))
+                        <form method="POST" action="{{ route('fleet-owners.documents.destroy', [$owner->id, $doc['type']]) }}" onsubmit="return confirm('Delete this document?')">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn danger" type="submit">Delete</button>
+                        </form>
+                    @endif
+                @endcan
+            </article>
         @empty
             <p class="muted">No company documents uploaded yet.</p>
         @endforelse
@@ -72,21 +99,28 @@
     </section>
 
     @can('fleet.manage')
-        @if (! in_array($kyc, ['approved', 'verified'], true) || strtoupper((string) $owner->status) !== 'ACTIVE')
-            <section class="card">
-                <h2>Admin verification</h2>
-                <form method="POST" action="{{ route('fleet-owners.verify', $owner->id) }}" style="display:inline">
-                    @csrf
-                    <input type="hidden" name="approve" value="1">
-                    <button class="btn" type="submit">Verify fleet owner</button>
-                </form>
-                <form method="POST" action="{{ route('fleet-owners.verify', $owner->id) }}" style="display:inline;margin-left:8px">
-                    @csrf
-                    <input type="hidden" name="approve" value="0">
-                    <input name="reason" placeholder="Reject reason" style="max-width:240px">
-                    <button class="btn ghost" type="submit">Reject</button>
-                </form>
-            </section>
-        @endif
+        <section class="card">
+            <h2>Approve or reject</h2>
+            @php
+                $rejectReason = $owner->kyc_rejected_reason ?? ($owner->rejected_reason ?? '');
+            @endphp
+            @if ($rejectReason)
+                <p class="error">{{ $rejectReason }}</p>
+            @endif
+            <form method="POST" action="{{ route('fleet-owners.verify', $owner->id) }}" style="margin-bottom:12px">
+                @csrf
+                <input type="hidden" name="approve" value="1">
+                <button class="btn" type="submit">Approve</button>
+            </form>
+            <form method="POST" action="{{ route('fleet-owners.verify', $owner->id) }}">
+                @csrf
+                <input type="hidden" name="approve" value="0">
+                <div class="field">
+                    <label>Reject reason</label>
+                    <input name="reason" value="{{ $rejectReason }}" placeholder="Why this KYC is rejected" required>
+                </div>
+                <button class="btn ghost" type="submit">Reject</button>
+            </form>
+        </section>
     @endcan
 @endsection

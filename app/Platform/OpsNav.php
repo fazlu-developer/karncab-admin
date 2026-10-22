@@ -22,6 +22,9 @@ final class OpsNav
             ['key' => 'states', 'label' => 'States', 'icon' => 'globe', 'group' => 'Organization', 'ability' => 'state.view', 'route' => 'organization.states'],
             ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
             ['key' => 'users', 'label' => 'All users', 'icon' => 'users', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'users.index'],
+            ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
+            ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
+            ['key' => 'fleet-kyc', 'label' => 'Fleet Owner KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'fleet-owners.kyc'],
 
             // Fleet
             ['key' => 'fleet', 'label' => 'Fleet Owners', 'icon' => 'warehouse', 'group' => 'Fleet', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
@@ -119,8 +122,8 @@ final class OpsNav
     public static function retired(string $key): bool
     {
         return in_array($key, [
-            'state-heads', 'state-head', 'state_head', 'state-assignments', 'state-kyc', 'state-workspace',
-            'district-heads', 'district-head', 'district_head', 'district-applications', 'district-kyc',
+            'state-heads', 'state-head', 'state_head', 'state-assignments', 'state-workspace',
+            'district-heads', 'district-head', 'district_head', 'district-applications',
             'managers', 'manager',
             'franchise', 'franchises', 'exclusive', 'exclusive-franchise', 'exclusive_franchise',
         ], true);
@@ -198,8 +201,11 @@ final class OpsNav
         if (($item['route'] ?? '') === 'organization.district-kyc') {
             return request()->routeIs('organization.district-kyc*');
         }
+        if (($item['route'] ?? '') === 'fleet-owners.kyc') {
+            return request()->routeIs('fleet-owners.kyc');
+        }
         if (($item['route'] ?? '') === 'fleet-owners.index') {
-            return request()->routeIs('fleet-owners.*');
+            return request()->routeIs('fleet-owners.*') && ! request()->routeIs('fleet-owners.kyc');
         }
         if (($item['route'] ?? '') === 'vehicles.index' || ($item['key'] ?? '') === 'vehicles') {
             return request()->routeIs('vehicles.index') || request()->routeIs('vehicles.show') || request()->routeIs('vehicles.create') || request()->routeIs('vehicles.edit') || request()->routeIs('vehicles.store') || request()->routeIs('vehicles.update') || request()->routeIs('vehicles.destroy')
@@ -340,20 +346,43 @@ final class OpsNav
     {
         $out = [];
         $seen = [];
+        $assigned = method_exists($user, 'assignedAbilities') ? $user->assignedAbilities() : [];
+        $stateHead = method_exists($user, 'isStateHead') && $user->isStateHead();
+        $manager = method_exists($user, 'isManager') && $user->isManager();
+        $super = method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
         foreach (self::items() as $item) {
-            if (self::retired($item['key'])) {
+            $key = (string) ($item['key'] ?? '');
+            if (isset($seen[$key]) || self::retired($key)) {
                 continue;
             }
-            if (PrivilegedModules::denied($user, (string) $item['key'])) {
+            if (in_array($key, ['state-kyc', 'district-kyc', 'fleet-kyc'], true) && ! $super) {
                 continue;
             }
-            $fleetHome = ($item['key'] ?? '') === 'dashboard'
+            if ($stateHead && in_array($key, ['states', 'districts'], true)) {
+                continue;
+            }
+            if (PrivilegedModules::denied($user, $key)) {
+                continue;
+            }
+            if ($stateHead && ! in_array($key, ['dashboard', 'users'], true)) {
+                $ability = (string) ($item['ability'] ?? '');
+                if ($ability === '' || ! in_array($ability, $assigned, true)) {
+                    continue;
+                }
+            }
+            if ($manager && $assigned !== [] && $key !== 'dashboard') {
+                $ability = (string) ($item['ability'] ?? '');
+                if ($ability !== '' && ! in_array($ability, $assigned, true)) {
+                    continue;
+                }
+            }
+            $fleetHome = $key === 'dashboard'
                 && method_exists($user, 'isFleetOwner')
                 && $user->isFleetOwner();
             if (! $fleetHome && ! NavAccess::allowed($user, $item['ability'] ?? null)) {
                 continue;
             }
-            $seen[$item['key']] = true;
+            $seen[$key] = true;
             $out[] = $item;
         }
         if (method_exists($user, 'isDistrictHead') && $user->isDistrictHead() && $user->can('fleet.manage') && ! isset($seen['fleet-cut'])) {

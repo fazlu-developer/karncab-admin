@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1>{{ $user->exists ? 'Edit user' : 'Create user' }}</h1>
-            <p class="muted">Roles: Super Admin, Admin, Manager, State Head, District Head, Fleet Owner, Driver, Customer. Exclusive franchise is removed — use District Head for the district seat.</p>
+            <p class="muted">Roles: Admin, Manager, State Head, District Head, Fleet Owner, Driver, Customer. Super Admin is not assigned from this form.</p>
         </div>
         <a class="btn ghost" href="{{ route('users.index') }}">Back to list</a>
     </div>
@@ -31,11 +31,17 @@
             </div>
             <div class="field">
                 <label>Role</label>
-                <select name="role">
-                    @foreach ($roles as $role)
-                        <option value="{{ $role }}" @selected(old('role', $user->role) === $role)>{{ $role }}</option>
-                    @endforeach
-                </select>
+                @if ($user->exists && $user->role === 'SUPER_ADMIN')
+                    <input type="hidden" name="role" value="SUPER_ADMIN">
+                    <p>Super Admin accounts keep that role. It is not offered for other users.</p>
+                @else
+                    <select name="role">
+                        @foreach ($roles as $role)
+                            @continue($role === 'SUPER_ADMIN')
+                            <option value="{{ $role }}" @selected(old('role', $user->role) === $role)>{{ str_replace('_', ' ', $role) }}</option>
+                        @endforeach
+                    </select>
+                @endif
             </div>
             <div class="field">
                 <label>Status</label>
@@ -67,7 +73,7 @@
                 @endforeach
             </div>
             <h3>Manager and Admin permissions</h3>
-            <p class="muted">Tick extra modules for Manager or Admin. State Head and District Head already receive their own module list.</p>
+            <p class="muted">Tick the modules this account should see. A State Head always has Dashboard and All users, never States or Districts, and every other module only after you tick it. A Manager sees Dashboard plus the modules you tick. If a Manager has no ticks yet, their existing manager menu stays.</p>
             <div class="grid-2">
                 @foreach ($permissionCatalog as $ability)
                     @continue(isset(\App\Platform\PrivilegedModules::LABELS[$ability]))
