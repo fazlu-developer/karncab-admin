@@ -9,6 +9,7 @@ final class NotificationPolicy
     public const EVENTS = [
         'otp' => ['title' => 'One-time password', 'body' => 'KarnaRide login code: {code}', 'channels' => ['sms', 'email']],
         'booking_confirmation' => ['title' => 'Booking confirmed', 'body' => 'Your KarnaRide booking {ref} is confirmed.', 'channels' => ['in_app', 'push', 'sms', 'email']],
+        'ride_reminder' => ['title' => 'Upcoming ride', 'body' => 'Your ride {ref} is in about 3 hours. Be ready at the pickup time.', 'channels' => ['in_app', 'push']],
         'driver_assigned' => ['title' => 'Driver assigned', 'body' => 'Your driver is on the way to pickup for {ref}.', 'channels' => ['in_app', 'push', 'sms']],
         'driver_arriving' => ['title' => 'Driver arriving', 'body' => 'Your driver is arriving at pickup.', 'channels' => ['in_app', 'push', 'sms']],
         'ride_started' => ['title' => 'Ride started', 'body' => 'Your ride has started. Share live trip from Safety if needed.', 'channels' => ['in_app', 'push']],
