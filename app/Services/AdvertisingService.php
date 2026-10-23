@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Platform\AdPolicy;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
+use App\Support\StoredUpload;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -126,8 +127,8 @@ class AdvertisingService
             'target_city' => isset($data['target_city']) ? (trim((string) $data['target_city']) ?: null) : null,
             'state_id' => $ids['state_id'],
             'district_id' => $ids['district_id'],
-            'starts_on' => Carbon::parse($data['starts_on']),
-            'ends_on' => Carbon::parse($data['ends_on']),
+            'starts_on' => Carbon::parse($data['starts_on'])->startOfDay(),
+            'ends_on' => Carbon::parse($data['ends_on'])->endOfDay(),
             'budget_paise' => $this->budgetPaise($data),
             'budget_used_paise' => 0,
             'status' => 'pending',
@@ -137,6 +138,7 @@ class AdvertisingService
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        $this->persistCreative($id, $data);
 
         return $this->one($operator, $id);
     }
@@ -180,10 +182,10 @@ class AdvertisingService
         $patch['state_id'] = $ids['state_id'];
         $patch['district_id'] = $ids['district_id'];
         if (isset($data['starts_on'])) {
-            $patch['starts_on'] = Carbon::parse($data['starts_on']);
+            $patch['starts_on'] = Carbon::parse($data['starts_on'])->startOfDay();
         }
         if (isset($data['ends_on'])) {
-            $patch['ends_on'] = Carbon::parse($data['ends_on']);
+            $patch['ends_on'] = Carbon::parse($data['ends_on'])->endOfDay();
         }
         if (isset($data['budget_rupees']) || isset($data['budget_paise'])) {
             $patch['budget_paise'] = $this->budgetPaise($data);
@@ -192,6 +194,7 @@ class AdvertisingService
             $patch['status'] = $data['status'];
         }
         $this->db()->table('ad_campaigns')->where('id', $id)->update($patch);
+        $this->persistCreative($id, $data);
 
         return $this->one($operator, $id);
     }
@@ -209,24 +212,16 @@ class AdvertisingService
         $mime = strtolower((string) $file->getMimeType());
         abort_unless(in_array($mime, AdPolicy::BANNER_MIMES, true), 400, 'Upload a JPEG, PNG, or WebP banner');
         abort_unless($file->getSize() >= 32 && $file->getSize() <= 2 * 1024 * 1024, 400, 'Banner must be between 32 bytes and 2 MB');
-        $ext = $mime === 'image/png' ? 'png' : ($mime === 'image/webp' ? 'webp' : 'jpg');
-        $dir = storage_path('app/ads');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0775, true);
-        }
-        foreach (['jpg', 'png', 'webp'] as $oldExt) {
-            $old = $dir.DIRECTORY_SEPARATOR.$id.'.'.$oldExt;
-            if ($oldExt !== $ext && is_file($old)) {
-                @unlink($old);
-            }
-        }
-        $key = 'ads/'.$id.'.'.$ext;
-        $file->move($dir, $id.'.'.$ext);
-        $this->db()->table('ad_campaigns')->where('id', $id)->update([
-            'banner_key' => $key,
+        $relative = StoredUpload::replace($file, 'ads', $row->banner_key ?? null, 'ad-'.$id);
+        $patch = [
+            'banner_key' => ltrim($relative, '/'),
             'banner_mime' => $mime === 'image/jpg' ? 'image/jpeg' : $mime,
             'updated_at' => now(),
-        ]);
+        ];
+        if ($this->hasColumn('image_url')) {
+            $patch['image_url'] = $this->publicMediaUrl($relative);
+        }
+        $this->db()->table('ad_campaigns')->where('id', $id)->update($patch);
 
         return $this->one($operator, $id);
     }
@@ -235,7 +230,11 @@ class AdvertisingService
     {
         $row = $this->load($operator, $id, true);
         abort_unless($row->banner_key, 404, 'Banner not found');
-        $path = storage_path('app/'.$row->banner_key);
+        $key = ltrim(str_replace('\\', '/', (string) $row->banner_key), '/');
+        $path = storage_path('app/'.$key);
+        if (! is_file($path)) {
+            $path = public_path($key);
+        }
         abort_unless(is_file($path), 404, 'Banner not found');
 
         return [
@@ -647,7 +646,9 @@ class AdvertisingService
             'categoryLabel' => AdPolicy::CATEGORIES[$row->category] ?? $row->category,
             'campaignType' => $row->campaign_type ?? 'banner',
             'campaignTypeLabel' => AdPolicy::TYPES[$row->campaign_type ?? 'banner'] ?? ($row->campaign_type ?? 'banner'),
-            'bannerUrl' => $row->image_url ?? ($row->banner_key ? '/ads/'.$row->id.'/banner' : null),
+            'bannerUrl' => $this->presentBannerUrl($row),
+            'imageUrl' => $this->presentBannerUrl($row),
+            'placement' => $row->placement ?? 'home',
             'targetCity' => $row->target_city,
             'targetState' => isset($row->state_id) && $row->state_id
                 ? ['id' => (int) $row->state_id, 'name' => $row->state_name ?? null]
@@ -675,6 +676,52 @@ class AdvertisingService
         }
 
         return $view;
+    }
+
+    private function persistCreative(int $id, array $data): void
+    {
+        $patch = ['updated_at' => now()];
+        if ($this->hasColumn('placement') && isset($data['placement']) && in_array($data['placement'], AdPolicy::ALLOWED_PLACEMENTS, true)) {
+            $patch['placement'] = $data['placement'];
+        }
+        if ($this->hasColumn('image_url') && array_key_exists('image_url', $data)) {
+            $url = trim((string) ($data['image_url'] ?? ''));
+            $patch['image_url'] = $url !== '' ? $url : null;
+        }
+        if (count($patch) > 1) {
+            $this->db()->table('ad_campaigns')->where('id', $id)->update($patch);
+        }
+    }
+
+    private function presentBannerUrl(object $row): ?string
+    {
+        $direct = trim((string) ($row->image_url ?? ''));
+        if ($direct !== '') {
+            if (str_starts_with($direct, 'http://') || str_starts_with($direct, 'https://')) {
+                return $direct;
+            }
+
+            return $this->publicMediaUrl($direct);
+        }
+        $key = trim((string) ($row->banner_key ?? ''));
+        if ($key !== '' && (str_starts_with($key, 'uploads/') || str_starts_with($key, '/uploads/'))) {
+            return $this->publicMediaUrl($key);
+        }
+
+        return $key !== '' ? '/ads/'.$row->id.'/banner' : null;
+    }
+
+    private function publicMediaUrl(string $path): string
+    {
+        $path = '/'.ltrim($path, '/');
+        $origin = rtrim((string) env('ADMIN_PUBLIC_URL', env('WEBSITE_URL', 'https://karnaride.in')), '/');
+
+        return $origin.$path;
+    }
+
+    private function hasColumn(string $column): bool
+    {
+        return Schema::connection('platform')->hasColumn('ad_campaigns', $column);
     }
 
     private function db()

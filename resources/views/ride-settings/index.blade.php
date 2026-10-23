@@ -51,6 +51,9 @@
                 'SCHEDULE' => 'Schedule ride',
                 'AIRPORT' => 'Airport transfer',
                 'RAILWAY' => 'Railway transfer',
+                'RENTAL' => 'Cab rental',
+                'MULTI_STOP' => 'Multi stop',
+                'PARCEL' => 'Parcel',
             ] as $key => $label)
                 <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
                     <input type="checkbox" name="advance_{{ $key }}" value="1" @checked($advancePayment[$key] ?? false)>

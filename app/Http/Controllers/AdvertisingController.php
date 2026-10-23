@@ -32,6 +32,9 @@ class AdvertisingController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $row = $this->ads->create($request->user(), $this->campaignPayload($request, true));
+        if ($request->hasFile('banner')) {
+            $this->ads->uploadBanner($request->user(), $row['id'], $request->file('banner'));
+        }
 
         return redirect()->route('ads.show', $row['id'])->with('status', 'Campaign submitted as pending. Admin approval is required before it can run.');
     }
@@ -39,6 +42,9 @@ class AdvertisingController extends Controller
     public function update(Request $request, int $ad): RedirectResponse
     {
         $this->ads->update($request->user(), $ad, $this->campaignPayload($request, false));
+        if ($request->hasFile('banner')) {
+            $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
+        }
 
         return back()->with('status', 'Campaign saved.');
     }
@@ -103,6 +109,8 @@ class AdvertisingController extends Controller
             'ends_on' => [$creating ? 'required' : 'nullable', 'date'],
             'budget_rupees' => [$creating ? 'required' : 'nullable', 'integer', 'min:1'],
             'cta_url' => ['nullable', 'string', 'max:500'],
+            'image_url' => ['nullable', 'url', 'max:500'],
+            'placement' => ['nullable', 'in:'.implode(',', AdPolicy::ALLOWED_PLACEMENTS)],
             'status' => ['prohibited'],
         ];
 

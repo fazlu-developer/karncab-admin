@@ -76,6 +76,9 @@ class RideSettingsController extends Controller
             'SCHEDULE' => true,
             'AIRPORT' => true,
             'RAILWAY' => true,
+            'RENTAL' => true,
+            'MULTI_STOP' => true,
+            'PARCEL' => true,
         ];
         $raw = $db->table('system_settings')->where('key', 'advance_payment_products')->value('value');
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
@@ -166,7 +169,7 @@ class RideSettingsController extends Controller
         }
         if ($request->has('advance_payment_form')) {
             $flags = [];
-            foreach (['LOCAL_CAB', 'ONE_WAY', 'ROUND_WAY', 'SCHEDULE', 'AIRPORT', 'RAILWAY'] as $product) {
+            foreach (['LOCAL_CAB', 'ONE_WAY', 'ROUND_WAY', 'SCHEDULE', 'AIRPORT', 'RAILWAY', 'RENTAL', 'MULTI_STOP', 'PARCEL'] as $product) {
                 $flags[$product] = $request->boolean('advance_'.$product);
             }
             $settings['advance_payment_products'] = json_encode($flags);

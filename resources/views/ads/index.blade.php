@@ -14,7 +14,7 @@
     @can('advertising.edit')
         <section class="card">
             <h2>Submit campaign</h2>
-            <form method="POST" action="{{ route('ads.store') }}">
+            <form method="POST" action="{{ route('ads.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
                     <div><label>Campaign name</label><input name="title" required></div>
@@ -35,6 +35,14 @@
                             @endforeach
                         </select>
                     </div>
+                    <div>
+                        <label>App placement</label>
+                        <select name="placement">
+                            @foreach ($catalog['placements']['allowed'] as $place)
+                                <option value="{{ $place }}" @selected($place === 'home')>{{ ucfirst($place) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     @include('partials.geo-fields', [
                         'stateLabel' => 'Target state',
                         'districtLabel' => 'Target district',
@@ -45,10 +53,15 @@
                     <div><label>Start date</label><input name="starts_on" type="date" required></div>
                     <div><label>End date</label><input name="ends_on" type="date" required></div>
                     <div><label>Budget (₹)</label><input name="budget_rupees" type="number" min="1" required></div>
-                    <div><label>CTA URL</label><input name="cta_url"></div>
+                    <div><label>CTA URL</label><input name="cta_url" placeholder="https://"></div>
+                    <div><label>Banner image URL</label><input name="image_url" type="url" placeholder="https://karnaride.in/uploads/ads/banner.jpg"></div>
+                    <div>
+                        <label>Upload banner</label>
+                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp">
+                    </div>
                 </div>
                 <div><label>Business information</label><textarea name="business_info" rows="2"></textarea></div>
-                <p class="muted">New campaigns stay pending until an admin approves them. Ads never publish from this form.</p>
+                <p class="muted">JPEG / PNG / WebP, 1600×740 recommended, max 2 MB. Use a public HTTPS image URL or upload a file. New campaigns stay pending until an admin approves them.</p>
                 <button class="btn" type="submit"><i data-lucide="send"></i> Submit for review</button>
             </form>
         </section>
@@ -58,8 +71,24 @@
         <h2>Campaigns</h2>
         <form class="filters" method="GET">
             <div><label>Search</label><input name="q" value="{{ $query['q'] ?? '' }}" placeholder="Campaign or business"></div>
-            <div><label>Status</label><input name="status" value="{{ $query['status'] ?? '' }}"></div>
-            <div><label>Category</label><input name="category" value="{{ $query['category'] ?? '' }}"></div>
+            <div>
+                <label>Status</label>
+                <select name="status">
+                    <option value="">All</option>
+                    @foreach ($catalog['statuses'] as $status)
+                        <option value="{{ $status }}" @selected(($query['status'] ?? '') === $status)>{{ $status }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label>Category</label>
+                <select name="category">
+                    <option value="">All</option>
+                    @foreach ($catalog['categories'] as $item)
+                        <option value="{{ $item['key'] }}" @selected(($query['category'] ?? '') === $item['key'])>{{ $item['title'] }}</option>
+                    @endforeach
+                </select>
+            </div>
             <button class="btn ghost" type="submit">Filter</button>
         </form>
         @if ($campaigns === [])

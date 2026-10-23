@@ -20,14 +20,19 @@
             <p class="muted">Rejected: {{ $campaign['rejectedReason'] }}</p>
         @endif
         @if ($campaign['bannerUrl'])
-            <p><a href="{{ url($campaign['bannerUrl']) }}">Banner</a></p>
+            <p>
+                <img src="{{ str_starts_with($campaign['bannerUrl'], 'http') ? $campaign['bannerUrl'] : url($campaign['bannerUrl']) }}" alt="Banner" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover">
+            </p>
+            <p class="muted">Image URL: {{ $campaign['imageUrl'] ?? $campaign['bannerUrl'] }}</p>
+        @else
+            <p class="muted">No banner yet. Upload a file or paste a public HTTPS image URL below.</p>
         @endif
     </section>
 
     @can('advertising.edit')
         <section class="card">
             <h2>{{ $canReview ? 'Edit & targeting' : 'Update campaign' }}</h2>
-            <form method="POST" action="{{ route('ads.update', $campaign['id']) }}">
+            <form method="POST" action="{{ route('ads.update', $campaign['id']) }}" enctype="multipart/form-data">
                 @csrf
                 @method('PATCH')
                 <div class="filters">
@@ -62,15 +67,23 @@
                     <div><label>End date</label><input name="ends_on" type="date" value="{{ $campaign['endDate'] }}"></div>
                     <div><label>Budget (₹)</label><input name="budget_rupees" type="number" min="1" value="{{ (int) $campaign['budgetRupees'] }}"></div>
                     <div><label>CTA URL</label><input name="cta_url" value="{{ $campaign['ctaUrl'] }}"></div>
+                    <div>
+                        <label>App placement</label>
+                        <select name="placement">
+                            @foreach ($catalog['placements']['allowed'] as $place)
+                                <option value="{{ $place }}" @selected(($campaign['placement'] ?? 'home') === $place)>{{ ucfirst($place) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div><label>Banner image URL</label><input name="image_url" type="url" value="{{ $campaign['imageUrl'] }}" placeholder="https://"></div>
+                    <div>
+                        <label>Replace banner file</label>
+                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp">
+                    </div>
                 </div>
                 <div><label>Business information</label><textarea name="business_info" rows="2">{{ $campaign['businessInfo'] }}</textarea></div>
+                <p class="muted">JPEG / PNG / WebP, 1600×740 recommended, max 2 MB. A public HTTPS URL is what the customer app loads.</p>
                 <button class="btn" type="submit">Save</button>
-            </form>
-            <form method="POST" action="{{ route('ads.banner', $campaign['id']) }}" enctype="multipart/form-data" style="margin-top:12px">
-                @csrf
-                <label>Banner</label>
-                <input type="file" name="banner" accept="image/jpeg,image/png,image/webp" required>
-                <button class="btn ghost" type="submit">Upload banner</button>
             </form>
         </section>
     @endcan
