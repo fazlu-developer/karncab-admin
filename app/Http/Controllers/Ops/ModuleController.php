@@ -201,6 +201,7 @@ class ModuleController extends Controller
             'def' => $def,
             'payload' => $payload,
             'rows' => $this->rows($payload),
+            'pager' => $payload['pager'] ?? null,
             'error' => $error,
             'query' => $request->query(),
         ]);
@@ -283,11 +284,21 @@ class ModuleController extends Controller
     private function flattenRow(array $row): array
     {
         $out = [];
+        $linkId = $row['id'] ?? $row['publicRef'] ?? null;
         foreach ($row as $key => $value) {
-            if (in_array($key, ['stateId', 'districtId'], true)) {
+            if (in_array($key, ['stateId', 'districtId', 'driverId', 'customerId', 'vehicleId', 'fleetId', 'franchiseId', 'userId'], true)) {
+                continue;
+            }
+            if ($key === 'id' && ! empty($row['publicRef'])) {
+                continue;
+            }
+            if (str_ends_with((string) $key, 'Id') && $key !== 'publicRef') {
                 continue;
             }
             $out[$this->label((string) $key)] = $this->cell($value);
+        }
+        if ($linkId !== null) {
+            $out['_linkId'] = $linkId;
         }
 
         return $out;

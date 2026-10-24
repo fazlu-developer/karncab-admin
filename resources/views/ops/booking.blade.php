@@ -5,11 +5,11 @@
 
 @section('content')
     <p><a href="{{ route('ops.module', 'bookings') }}"><i data-lucide="arrow-left"></i> Back to bookings</a></p>
-    <h1>Booking ID {{ $booking['publicRef'] ?? 'Booking' }}</h1>
+    <h1>{{ $booking['publicRef'] ?? 'Booking' }}</h1>
     @if (!empty($error))
         <p class="error">{{ $error }}</p>
     @endif
-    <p>{{ $booking['product'] ?? '' }} · {{ $booking['status'] ?? '' }}</p>
+    <p>{{ str_replace('_', ' ', (string) ($booking['product'] ?? '')) }} · {{ str_replace('_', ' ', (string) ($booking['status'] ?? '')) }}</p>
     @if (empty($booking['driverId']) && in_array($booking['status'] ?? '', ['CONFIRMED', 'PENDING', 'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING'], true))
         @can('bookings.manage')
             <section class="card">
@@ -56,7 +56,7 @@
         <div class="table-wrap">
             <table class="data">
                 <tbody>
-                    @foreach (collect($booking)->except(['track', 'statusLog', 'quoteSnapshot', 'navigation'])->all() as $key => $value)
+                    @foreach (collect($booking)->except(['id', 'driverId', 'track', 'statusLog', 'paymentHistory', 'walletHistory', 'driverHistory', 'quoteSnapshot', 'navigation'])->all() as $key => $value)
                         @if (!is_array($value))
                             <tr>
                                 <th style="width:220px;text-align:left">{{ ucwords(preg_replace('/([a-z])([A-Z])/', '$1 $2', str_replace('_', ' ', $key))) }}</th>
@@ -69,36 +69,43 @@
         </div>
     </section>
 
-    <section class="card">
-        <h2>Status log</h2>
-        @php $log = $booking['statusLog'] ?? []; @endphp
-        @if (empty($log) || !is_array($log))
-            <p class="muted">No status history yet.</p>
-        @else
-            <div class="table-wrap">
-                <table class="data">
-                    <thead>
-                        <tr>
-                            @foreach (array_keys(is_array($log[0] ?? null) ? $log[0] : ['status' => '', 'at' => '']) as $col)
-                                <th>{{ $col }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($log as $row)
+    @foreach ([
+        'statusLog' => 'Status log',
+        'paymentHistory' => 'Payment history',
+        'walletHistory' => 'Wallet / commission log',
+        'driverHistory' => 'Driver trip history',
+    ] as $key => $title)
+        <section class="card">
+            <h2>{{ $title }}</h2>
+            @php $log = $booking[$key] ?? []; @endphp
+            @if (empty($log) || !is_array($log))
+                <p class="muted">Nothing recorded yet.</p>
+            @else
+                <div class="table-wrap">
+                    <table class="data">
+                        <thead>
                             <tr>
-                                @if (is_array($row))
-                                    @foreach ($row as $value)
-                                        <td>{{ is_array($value) ? implode(', ', $value) : $value }}</td>
-                                    @endforeach
-                                @else
-                                    <td>{{ $row }}</td>
-                                @endif
+                                @foreach (array_keys(is_array($log[0] ?? null) ? $log[0] : ['Detail' => '']) as $col)
+                                    <th>{{ $col }}</th>
+                                @endforeach
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
-    </section>
+                        </thead>
+                        <tbody>
+                            @foreach ($log as $row)
+                                <tr>
+                                    @if (is_array($row))
+                                        @foreach ($row as $value)
+                                            <td>{{ is_array($value) ? implode(', ', $value) : $value }}</td>
+                                        @endforeach
+                                    @else
+                                        <td>{{ $row }}</td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
+    @endforeach
 @endsection

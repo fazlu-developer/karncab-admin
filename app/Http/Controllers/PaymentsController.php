@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\PaymentService;
+use App\Support\NamePicker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,6 +19,7 @@ class PaymentsController extends Controller
             'invoices' => $this->payments->invoices($request->user()),
             'catalog' => $this->payments->catalog(),
             'query' => $request->query(),
+            'pickerBookings' => NamePicker::bookings($request->user()),
         ]);
     }
 

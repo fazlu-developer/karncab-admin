@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Platform\CustomerDashboard;
 use App\Platform\OperatorRole;
+use App\Support\NamePicker;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -27,18 +28,24 @@ class CustomerExperienceService
     {
         $this->assertCustomer($operator);
         $userId = $this->actorId($operator);
+        $active = $this->bookings($operator, 'active')[0] ?? null;
+        $upcoming = $this->bookings($operator, 'upcoming');
+        $scheduled = $this->bookings($operator, 'scheduled');
+        $history = $this->bookings($operator, 'history');
+        $corporate = $this->bookings($operator, 'corporate');
+        $guest = $this->bookings($operator, 'guest');
 
         return [
             'catalog' => $this->catalog(),
             'profile' => $this->profile($operator),
-            'activeRide' => $this->bookings($operator, 'active')[0] ?? null,
-            'upcoming' => $this->bookings($operator, 'upcoming'),
-            'scheduled' => $this->bookings($operator, 'scheduled'),
-            'history' => $this->bookings($operator, 'history'),
+            'activeRide' => $active,
+            'upcoming' => $upcoming,
+            'scheduled' => $scheduled,
+            'history' => $history,
             'parcels' => $this->parcels($operator),
             'travel' => $this->travel($operator),
             'bulk' => $this->bulk($operator),
-            'corporate' => $this->bookings($operator, 'corporate'),
+            'corporate' => $corporate,
             'wallet' => $this->wallet($operator),
             'coupons' => $this->coupons($operator),
             'offers' => $this->offers($operator),
@@ -48,13 +55,19 @@ class CustomerExperienceService
             'invoices' => $this->invoices($operator),
             'places' => $this->places($operator),
             'family' => $this->family($operator),
-            'guest' => $this->bookings($operator, 'guest'),
+            'guest' => $guest,
             'emergency' => $this->emergency($operator),
             'contacts' => app(SafetyService::class)->contacts($operator),
-            'verify' => ($active = $this->bookings($operator, 'active')[0] ?? null)
-                ? app(SafetyService::class)->verify($operator, (int) $active['id'])
-                : null,
+            'verify' => $active ? app(SafetyService::class)->verify($operator, (int) $active['id']) : null,
             'userId' => $userId,
+            'bookingOptions' => NamePicker::fromBookingRows(array_values(array_filter(array_merge(
+                [$active],
+                $upcoming,
+                $scheduled,
+                $history,
+                $corporate,
+                $guest,
+            )))),
         ];
     }
 
@@ -102,6 +115,7 @@ class CustomerExperienceService
             'family' => $dash['family'],
             'places' => $dash['places'],
             'emergency' => $dash['emergency'],
+            'bookingOptions' => $dash['bookingOptions'] ?? [],
             'contacts' => $dash['contacts'] ?? [],
             'verify' => $dash['verify'] ?? null,
         ];

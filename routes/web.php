@@ -108,6 +108,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::resource('users', UsersController::class)->parameters(['users' => 'platformUser']);
     Route::get('/old-users', [OldUsersController::class, 'index'])->name('old-users.index');
     Route::post('/old-users/import', [OldUsersController::class, 'import'])->name('old-users.import');
+    Route::get('/organization/heads', [OrganizationController::class, 'heads'])->name('organization.heads');
     Route::get('/organization/states', [OrganizationController::class, 'states'])->name('organization.states');
     Route::post('/organization/states', [OrganizationController::class, 'storeState'])->name('organization.states.store');
     Route::put('/organization/states/{state}', [OrganizationController::class, 'updateState'])->name('organization.states.update')->whereNumber('state');

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Platform\FareCommissionSplit;
+use App\Platform\TerritoryScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -43,10 +44,11 @@ class CommissionSettlementService
         }
         $owners = [];
         if ($schema->hasTable('fleet_owners')) {
-            $rows = $db->table('fleet_owners')
+            $ownerQuery = $db->table('fleet_owners')
                 ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
-                ->orderBy('fleet_owners.trade_name')
-                ->get([
+                ->orderBy('fleet_owners.trade_name');
+            TerritoryScope::applyFleets($ownerQuery, $operator);
+            $rows = $ownerQuery->get([
                     'fleet_owners.id',
                     'fleet_owners.trade_name',
                     'fleet_owners.user_id',
@@ -150,12 +152,11 @@ class CommissionSettlementService
                 $select[] = 'fleet_owners.'.$column;
             }
         }
-        $fleets = $db->table('fleet_owners')
+        $fleetsQuery = $db->table('fleet_owners')
             ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
-            ->when($operator?->isDistrictHead() && $operator->district_id && $schema->hasColumn('fleet_owners', 'district_id'), fn ($q) => $q->where('fleet_owners.district_id', $operator->district_id))
-            ->when($operator?->isStateHead() && $operator->state_id && $schema->hasColumn('fleet_owners', 'state_id'), fn ($q) => $q->where('fleet_owners.state_id', $operator->state_id))
-            ->orderBy($schema->hasColumn('fleet_owners', 'trade_name') ? 'fleet_owners.trade_name' : 'fleet_owners.id')
-            ->get($select);
+            ->orderBy($schema->hasColumn('fleet_owners', 'trade_name') ? 'fleet_owners.trade_name' : 'fleet_owners.id');
+        TerritoryScope::applyFleets($fleetsQuery, $operator);
+        $fleets = $fleetsQuery->get($select);
         $defaultPercent = 0.0;
         if ($schema->hasTable('system_settings')) {
             $global = $db->table('system_settings')->where('key', 'fleet_owner_commission_percent')->value('value');
@@ -246,9 +247,12 @@ class CommissionSettlementService
 
     public function payout(User $operator, int $fleetOwnerId, ?string $note = null, ?string $bankReference = null, ?float $amountRupees = null, ?string $weekLabel = null): array
     {
-        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
+        abort_unless($this->canSettle($operator), 403);
         $db = DB::connection('platform');
         $schema = Schema::connection('platform');
+        $visible = $db->table('fleet_owners')->where('id', $fleetOwnerId);
+        TerritoryScope::applyFleets($visible, $operator);
+        abort_unless($visible->exists(), 404, 'Fleet owner not found.');
         $fleet = $db->table('fleet_owners')->where('id', $fleetOwnerId)->first();
         abort_unless($fleet, 404, 'Fleet owner not found.');
         $userId = (int) $fleet->user_id;
@@ -307,7 +311,7 @@ class CommissionSettlementService
 
     public function payoutDistrict(User $operator, int $userId, float $rupees, string $bankReference, string $weekLabel): array
     {
-        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin'), 403);
+        abort_unless($operator->can('payments.edit') || $operator->can('platform.admin') || $operator->isStateHead(), 403);
         abort_unless($userId > 0 && $rupees > 0, 422, 'Nothing to settle for this district head.');
         $db = DB::connection('platform');
         $schema = Schema::connection('platform');
@@ -355,5 +359,17 @@ class CommissionSettlementService
         ], fn ($key) => $schema->hasColumn('wallet_ledger', $key), ARRAY_FILTER_USE_KEY));
 
         return ['ok' => true, 'amountRupees' => $amount / 100];
+    }
+
+    public function canSettle(?User $operator): bool
+    {
+        if (! $operator) {
+            return false;
+        }
+
+        return $operator->can('payments.edit')
+            || $operator->can('platform.admin')
+            || $operator->isStateHead()
+            || $operator->isDistrictHead();
     }
 }

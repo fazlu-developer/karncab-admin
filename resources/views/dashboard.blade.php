@@ -13,9 +13,15 @@
             @if (!empty($states) && $states->count())
                 <form method="GET" class="filters">
                     <select name="stateId" onchange="this.form.submit()">
-                        <option value="">All States</option>
+                        <option value="">All states</option>
                         @foreach ($states as $state)
                             <option value="{{ $state->id }}" @selected((int) ($selectedStateId ?? 0) === (int) $state->id)>{{ $state->name }}</option>
+                        @endforeach
+                    </select>
+                    <select name="districtId" onchange="this.form.submit()">
+                        <option value="">All districts</option>
+                        @foreach ($districts ?? [] as $district)
+                            <option value="{{ $district->id }}" @selected((int) ($selectedDistrictId ?? 0) === (int) $district->id)>{{ $district->name }}</option>
                         @endforeach
                     </select>
                 </form>
@@ -45,7 +51,7 @@
             ['platformKeepRupees', 'Platform keep ₹', 'landmark'],
             ['pendingKyc', 'Pending KYC', 'badge-alert'],
             ['pendingComplaints', 'Complaints', 'message-circle-warning'],
-            ['pendingLeads', 'Website enquiries', 'inbox'],
+            ...((auth()->user()?->isStateHead() || auth()->user()?->isDistrictHead()) ? [] : [['pendingLeads', 'Website enquiries', 'inbox']]),
             ['activeAdvertisements', 'Ads live', 'megaphone'],
         ] as [$key, $label, $icon])
             <div class="kpi">

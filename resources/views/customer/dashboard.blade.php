@@ -206,7 +206,10 @@
         <form method="POST" action="{{ route('customer.ratings.store') }}">
             @csrf
             <div class="filters">
-                <div><label>Booking ID</label><input name="booking_id" type="number" required></div>
+                <div>
+                    <label>Booking</label>
+                    @include('partials.name-picker', ['name' => 'booking_id', 'options' => $bookingOptions ?? [], 'required' => true, 'empty' => 'Search your booking'])
+                </div>
                 <div><label>Stars</label><input name="stars" type="number" min="1" max="5" required></div>
                 <div><label>Comment</label><input name="comment"></div>
             </div>
@@ -224,7 +227,10 @@
                 <div><label>Subject</label><input name="subject" required minlength="4"></div>
                 <div><label>Description</label><input name="description"></div>
                 <div><label>Category</label><input name="category" placeholder="booking"></div>
-                <div><label>Booking ID</label><input name="booking_id" type="number"></div>
+                <div>
+                    <label>Booking</label>
+                    @include('partials.name-picker', ['name' => 'booking_id', 'options' => $bookingOptions ?? [], 'empty' => 'Optional booking'])
+                </div>
                 <div><label>Priority</label><input name="priority" placeholder="medium"></div>
                 <div><label>Attachment</label><input type="file" name="file"></div>
             </div>

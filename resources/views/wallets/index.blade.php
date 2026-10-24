@@ -99,7 +99,10 @@
                             @endforeach
                         </select>
                     </div>
-                    <div><label>User ID</label><input name="owner_user_id" type="number" required></div>
+                    <div>
+                        <label>User</label>
+                        @include('partials.name-picker', ['name' => 'owner_user_id', 'options' => $pickerUsers ?? [], 'required' => true, 'empty' => 'Search user name or phone'])
+                    </div>
                     <div>
                         <label>Credit / Debit</label>
                         <select name="direction">
@@ -107,9 +110,12 @@
                             <option value="DEBIT">DEBIT</option>
                         </select>
                     </div>
-                    <div><label>Amount (paise)</label><input name="amount_paise" type="number" min="1" required></div>
-                    <div><label>Commission (paise)</label><input name="commission_paise" type="number" min="0" value="0"></div>
-                    <div><label>Booking ID</label><input name="booking_id" type="number"></div>
+                    <div><label>Amount (₹)</label><input name="amount_rupees" type="number" min="0.01" step="0.01" required></div>
+                    <div><label>Commission (₹)</label><input name="commission_rupees" type="number" min="0" step="0.01" value="0"></div>
+                    <div>
+                        <label>Booking</label>
+                        @include('partials.name-picker', ['name' => 'booking_id', 'options' => $pickerBookings ?? [], 'empty' => 'Optional booking'])
+                    </div>
                     <div><label>Type</label><input name="kind" value="adjustment"></div>
                     <div><label>Payment reference</label><input name="payment_ref"></div>
                     <div><label>Note</label><input name="note"></div>
@@ -122,7 +128,10 @@
             <form method="POST" action="{{ route('wallets.settle') }}">
                 @csrf
                 <div class="filters">
-                    <div><label>Booking ID</label><input name="booking_id" type="number" required></div>
+                    <div>
+                        <label>Booking</label>
+                        @include('partials.name-picker', ['name' => 'booking_id', 'options' => $pickerBookings ?? [], 'required' => true, 'empty' => 'Search booking or customer'])
+                    </div>
                 </div>
                 <button class="btn" type="submit"><i data-lucide="scale"></i> Settle</button>
             </form>
@@ -179,8 +188,14 @@
         <h2>Ledger</h2>
         <form class="filters" method="GET">
             <div><label>Search</label><input name="q" value="{{ $query['q'] ?? '' }}" placeholder="Txn / payment ref"></div>
-            <div><label>Booking ID</label><input name="booking_id" value="{{ $query['booking_id'] ?? '' }}"></div>
-            <div><label>User ID</label><input name="user_id" value="{{ $query['user_id'] ?? '' }}"></div>
+            <div>
+                <label>Booking</label>
+                @include('partials.name-picker', ['name' => 'booking_id', 'options' => $pickerBookings ?? [], 'value' => $query['booking_id'] ?? '', 'empty' => 'All bookings'])
+            </div>
+            <div>
+                <label>User</label>
+                @include('partials.name-picker', ['name' => 'user_id', 'options' => $pickerUsers ?? $creditUsers ?? [], 'value' => $query['user_id'] ?? '', 'empty' => 'All users'])
+            </div>
             <div>
                 <label>Direction</label>
                 <select name="direction">

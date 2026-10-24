@@ -25,7 +25,7 @@
     @if (($def['key'] ?? '') === 'bookings')
         <form class="card" method="GET">
             <div class="filters">
-                <div><label>Booking ID / ref</label><input name="publicRef" value="{{ $query['publicRef'] ?? '' }}"></div>
+                <div><label>Booking / customer / driver</label><input name="publicRef" value="{{ $query['publicRef'] ?? $query['q'] ?? '' }}" placeholder="Name, phone or booking ref"></div>
                 <div><label>Customer</label><input name="customer" value="{{ $query['customer'] ?? '' }}"></div>
                 <div><label>Driver</label><input name="driver" value="{{ $query['driver'] ?? '' }}"></div>
                 <div><label>Vehicle</label><input name="vehicle" value="{{ $query['vehicle'] ?? '' }}"></div>
@@ -48,8 +48,6 @@
                     'emptyState' => 'All states',
                     'emptyDistrict' => 'All districts',
                 ])
-                <div><label>Fleet ID</label><input name="fleetId" value="{{ $query['fleetId'] ?? '' }}"></div>
-                <div><label>Franchise ID</label><input name="franchiseId" value="{{ $query['franchiseId'] ?? '' }}"></div>
                 <div><label>From</label><input type="date" name="from" value="{{ $query['from'] ?? '' }}"></div>
                 <div><label>To</label><input type="date" name="to" value="{{ $query['to'] ?? '' }}"></div>
             </div>
@@ -157,6 +155,7 @@
                     <thead>
                         <tr>
                             @foreach (array_keys($rows[0]) as $col)
+                                @continue(str_starts_with((string) $col, '_'))
                                 <th>{{ \Illuminate\Support\Str::headline(str_replace(['Inr', 'inr'], ['INR', 'INR'], $col)) }}</th>
                             @endforeach
                             <th></th>
@@ -170,11 +169,12 @@
                             @endphp
                             <tr @if ($newRequest) style="background:#FFF4CC;font-weight:700" @endif>
                                 @foreach ($row as $key => $value)
+                                    @continue(str_starts_with((string) $key, '_'))
                                     <td title="{{ is_scalar($value) ? $value : '' }}" style="white-space:normal">{{ is_scalar($value) ? $value : json_encode($value) }}</td>
                                 @endforeach
                                 <td>
-                                    @if (($def['key'] ?? '') === 'bookings' && !empty($row['Id'] ?? $row['id']))
-                                        <a class="icon-btn" href="{{ route('ops.bookings.show', $row['Id'] ?? $row['id']) }}" title="Lifecycle"><i data-lucide="eye"></i></a>
+                                    @if (($def['key'] ?? '') === 'bookings' && !empty($row['_linkId'] ?? $row['Id'] ?? $row['id']))
+                                        <a class="icon-btn" href="{{ route('ops.bookings.show', $row['_linkId'] ?? $row['Id'] ?? $row['id']) }}" title="Booking details"><i data-lucide="eye"></i></a>
                                     @endif
                                 </td>
                             </tr>
@@ -182,6 +182,9 @@
                     </tbody>
                 </table>
             </div>
+            @if (!empty($pager) && method_exists($pager, 'links'))
+                <div class="pager">{{ $pager->links('pagination.admin') }}</div>
+            @endif
         @endif
     </section>
 @endsection

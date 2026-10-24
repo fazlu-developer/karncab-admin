@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\DistrictHeadKycStore;
 use App\Services\StateHeadKycStore;
 use App\Services\OrganizationAudit;
+use App\Services\TerritoryDirectory;
 use App\Support\PlatformSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OrganizationController extends Controller
 {
+    public function heads(Request $request, TerritoryDirectory $directory): View
+    {
+        abort_unless(
+            $request->user()?->can('users.view')
+            || $request->user()?->can('state.view')
+            || $request->user()?->can('district.view')
+            || $request->user()?->can('platform.admin'),
+            403,
+        );
+
+        return view('organization.heads', $directory->heads($request->user()));
+    }
+
     public function states(Request $request): View
     {
         abort_if($request->user()?->isStateHead(), 403);

@@ -82,7 +82,10 @@
             <form method="POST" action="{{ route('notifications.dispatch') }}">
                 @csrf
                 <div class="filters">
-                    <div><label>Platform user ID</label><input name="user_id" type="number" required placeholder="From Users list"></div>
+                    <div>
+                        <label>User</label>
+                        @include('partials.name-picker', ['name' => 'user_id', 'options' => $pickerUsers ?? [], 'required' => true, 'empty' => 'Search user name or phone'])
+                    </div>
                     <div>
                         <label>Event</label>
                         <select name="event">

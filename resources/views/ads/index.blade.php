@@ -54,14 +54,17 @@
                     <div><label>End date</label><input name="ends_on" type="date" required></div>
                     <div><label>Budget (₹)</label><input name="budget_rupees" type="number" min="1" required></div>
                     <div><label>CTA URL</label><input name="cta_url" placeholder="https://"></div>
-                    <div><label>Banner image URL</label><input name="image_url" type="url" placeholder="https://karnaride.in/uploads/ads/banner.jpg"></div>
+                    <div>
+                        <label>Banner image URL</label>
+                        <input name="image_url" type="url" data-image-preview placeholder="https://karnaride.in/uploads/ads/banner.jpg">
+                    </div>
                     <div>
                         <label>Upload banner</label>
-                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp">
+                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
                     </div>
                 </div>
                 <div><label>Business information</label><textarea name="business_info" rows="2"></textarea></div>
-                <p class="muted">JPEG / PNG / WebP, 1600×740 recommended, max 2 MB. Use a public HTTPS image URL or upload a file. New campaigns stay pending until an admin approves them.</p>
+                <p class="muted">JPEG / PNG / WebP / GIF, 1600×740 recommended, max 4 MB. Upload a file or paste a public HTTPS URL. The apps load this URL after approval.</p>
                 <button class="btn" type="submit"><i data-lucide="send"></i> Submit for review</button>
             </form>
         </section>
@@ -98,6 +101,7 @@
                 <table class="data">
                     <thead>
                         <tr>
+                            <th>Banner</th>
                             <th>Campaign</th>
                             <th>Business</th>
                             <th>Status</th>
@@ -111,6 +115,13 @@
                     <tbody>
                         @foreach ($campaigns as $row)
                             <tr>
+                                <td>
+                                    @if (!empty($row['bannerUrl']))
+                                        <img src="{{ str_starts_with($row['bannerUrl'], 'http') ? $row['bannerUrl'] : url($row['bannerUrl']) }}" alt="" style="width:88px;height:44px;object-fit:cover;border-radius:8px">
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                                 <td>{{ $row['campaign'] }}</td>
                                 <td>{{ $row['business'] }}</td>
                                 <td>{{ $row['status'] }}</td>

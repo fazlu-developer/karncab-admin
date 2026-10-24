@@ -59,6 +59,7 @@ final class RouteAbility
             ['managers.*', ['manager.view']],
             ['organization.states', ['state.view']],
             ['organization.districts', ['district.view']],
+            ['organization.heads', ['users.view', 'state.view', 'district.view']],
             ['organization.district-kyc', ['kyc.view']],
             ['organization.state-kyc', ['kyc.view']],
             ['organization.*', ['state.view', 'district.view', 'kyc.view']],

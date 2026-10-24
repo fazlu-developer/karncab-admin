@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\WalletLedgerService;
+use App\Support\NamePicker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -25,6 +26,8 @@ class WalletsController extends Controller
             'canCredit' => $canCredit,
             'creditUsers' => $canCredit ? $this->wallets->creditCandidates($operator, (string) $request->query('user_q', '')) : [],
             'userQuery' => (string) $request->query('user_q', ''),
+            'pickerUsers' => NamePicker::users($operator),
+            'pickerBookings' => NamePicker::bookings($operator),
             'canViewWithdrawals' => $this->wallets->canViewWithdrawals($operator),
             'platformEarnings' => $this->wallets->platformEarnings($operator),
         ]);
@@ -98,8 +101,13 @@ class WalletsController extends Controller
         }
         $added = number_format($paise / 100, 2);
         $balance = number_format(((int) ($posted['newBalancePaise'] ?? 0)) / 100, 2);
+        $status = "Added ₹{$added}. New wallet balance is ₹{$balance}.";
+        $walletId = $posted['walletId'] ?? null;
+        if ($walletId) {
+            return redirect()->route('wallets.show', $walletId)->with('status', $status);
+        }
 
-        return back()->with('status', "Added ₹{$added}. New wallet balance is ₹{$balance}.");
+        return back()->with('status', $status);
     }
 
     public function post(Request $request): RedirectResponse
@@ -108,13 +116,16 @@ class WalletsController extends Controller
             'owner_type' => ['required', 'in:'.implode(',', WalletLedgerService::ACCOUNTS)],
             'owner_user_id' => ['required', 'integer'],
             'direction' => ['required', 'in:CREDIT,DEBIT'],
-            'amount_paise' => ['required', 'integer', 'min:1'],
-            'commission_paise' => ['nullable', 'integer', 'min:0'],
+            'amount_rupees' => ['required', 'numeric', 'min:0.01', 'max:500000'],
+            'commission_rupees' => ['nullable', 'numeric', 'min:0'],
             'booking_id' => ['nullable', 'integer'],
             'kind' => ['nullable', 'string', 'max:24'],
             'payment_ref' => ['nullable', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
+        $data['amount_paise'] = (int) round(((float) $data['amount_rupees']) * 100);
+        $data['commission_paise'] = (int) round(((float) ($data['commission_rupees'] ?? 0)) * 100);
+        unset($data['amount_rupees'], $data['commission_rupees']);
         try {
             $this->wallets->post($request->user(), $data);
         } catch (HttpExceptionInterface $e) {
@@ -122,11 +133,11 @@ class WalletsController extends Controller
                 throw $e;
             }
 
-            return back()->withInput()->withErrors(['amount_paise' => $e->getMessage() ?: 'Could not post ledger row.']);
+            return back()->withInput()->withErrors(['amount_rupees' => $e->getMessage() ?: 'Could not post ledger row.']);
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->withInput()->withErrors(['amount_paise' => 'Could not post ledger row. Try again.']);
+            return back()->withInput()->withErrors(['amount_rupees' => 'Could not post ledger row. Try again.']);
         }
 
         return back()->with('status', 'Ledger row posted.');

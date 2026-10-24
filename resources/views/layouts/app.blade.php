@@ -60,6 +60,58 @@
 <script>window.KarnaRideGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
 <script src="{{ asset('js/geo-select.js') }}"></script>
 <script src="{{ asset('js/kc-select.js') }}?v={{ filemtime(public_path('js/kc-select.js')) }}"></script>
+<script>
+document.addEventListener('input', function (event) {
+    var id = event.target.getAttribute('data-table-filter');
+    if (!id) return;
+    var table = document.getElementById(id);
+    if (!table) return;
+    var term = (event.target.value || '').toLowerCase();
+    table.querySelectorAll('tbody tr').forEach(function (row) {
+        row.hidden = term !== '' && row.innerText.toLowerCase().indexOf(term) === -1;
+    });
+});
+(function () {
+    function boxFor(input) {
+        var box = input.parentNode.querySelector('.kc-image-preview');
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'kc-image-preview';
+            box.style.marginTop = '8px';
+            input.parentNode.appendChild(box);
+        }
+        return box;
+    }
+    function show(input, src) {
+        var box = boxFor(input);
+        if (!src) {
+            box.innerHTML = '';
+            return;
+        }
+        box.innerHTML = '<img src="' + src.replace(/"/g, '&quot;') + '" alt="Preview" style="max-width:100%;max-height:160px;border-radius:10px;object-fit:cover">';
+    }
+    document.querySelectorAll('input[data-image-preview], input[type=file][accept*="image"], input[name=image_url], input[name=banner]').forEach(function (input) {
+        if (input.type === 'file') {
+            input.addEventListener('change', function () {
+                var file = input.files && input.files[0];
+                if (!file) {
+                    show(input, '');
+                    return;
+                }
+                show(input, URL.createObjectURL(file));
+            });
+            return;
+        }
+        if ((input.value || '').match(/^https?:\/\//i)) {
+            show(input, input.value);
+        }
+        input.addEventListener('input', function () {
+            var value = (input.value || '').trim();
+            show(input, /^https?:\/\//i.test(value) ? value : '');
+        });
+    });
+})();
+</script>
 @livewireScripts
 @stack('scripts')
 </body>

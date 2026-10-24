@@ -22,6 +22,7 @@ final class OpsNav
             ['key' => 'states', 'label' => 'States', 'icon' => 'globe', 'group' => 'Organization', 'ability' => 'state.view', 'route' => 'organization.states'],
             ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
             ['key' => 'users', 'label' => 'All users', 'icon' => 'users', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'users.index'],
+            ['key' => 'territory-heads', 'label' => 'State & district heads', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'organization.heads'],
             ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
             ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
             ['key' => 'fleet-kyc', 'label' => 'Fleet Owner KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'fleet-owners.kyc'],
@@ -220,6 +221,9 @@ final class OpsNav
         if (($item['route'] ?? '') === 'users.index') {
             return request()->routeIs('users.*');
         }
+        if (($item['route'] ?? '') === 'organization.heads') {
+            return request()->routeIs('organization.heads');
+        }
         if (($item['route'] ?? '') === 'old-users.index') {
             return request()->routeIs('old-users.*');
         }
@@ -366,6 +370,9 @@ final class OpsNav
                 continue;
             }
             if (PrivilegedModules::denied($user, $key)) {
+                continue;
+            }
+            if (($stateHead || $districtHead) && in_array($key, PrivilegedModules::HEAD_HIDDEN, true)) {
                 continue;
             }
             if ($stateHead && ! in_array($key, ['dashboard', 'users'], true)) {

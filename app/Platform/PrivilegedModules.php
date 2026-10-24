@@ -23,6 +23,14 @@ final class PrivilegedModules
         'branding' => 'branding.view',
     ];
 
+    /**
+     * Website enquiries, old users, and driver withdraw requests stay with Super Admin / Admin.
+     * State Head and District Head settle fleet earnings from Commission settlement instead.
+     *
+     * @var list<string>
+     */
+    public const HEAD_HIDDEN = ['leads', 'old-users', 'payout'];
+
     /** @var array<string, string> */
     public const LABELS = [
         'revenue.view' => 'Revenue',
@@ -36,7 +44,13 @@ final class PrivilegedModules
 
     public static function denied(object $user, string $key): bool
     {
-        if (! isset(self::ABILITIES[$key]) || ! $user instanceof User) {
+        if (! $user instanceof User) {
+            return false;
+        }
+        if (in_array($key, self::HEAD_HIDDEN, true) && in_array($user->role, [OperatorRole::STATE_HEAD, OperatorRole::DISTRICT_HEAD], true)) {
+            return true;
+        }
+        if (! isset(self::ABILITIES[$key])) {
             return false;
         }
         if ($user->isSuperAdmin()) {
@@ -59,6 +73,15 @@ final class PrivilegedModules
             $section = $name === 'state.notify' ? 'notifications' : (string) $request->route('section');
 
             return isset(self::ABILITIES[$section]) ? $section : null;
+        }
+        if (str_starts_with($name, 'leads.')) {
+            return 'leads';
+        }
+        if (str_starts_with($name, 'old-users.')) {
+            return 'old-users';
+        }
+        if (str_starts_with($name, 'withdrawals.')) {
+            return 'payout';
         }
         if (str_starts_with($name, 'reports.')) {
             return 'reports';

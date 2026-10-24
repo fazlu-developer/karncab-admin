@@ -16,7 +16,10 @@
                 <div class="filters">
                     <div><label>Pickup</label><input name="pickup_text" required></div>
                     <div><label>Drop</label><input name="drop_text" required></div>
-                    <div><label>Customer user ID</label><input name="customer_id" type="number"></div>
+                    <div>
+                        <label>Customer</label>
+                        @include('partials.name-picker', ['name' => 'customer_id', 'options' => $pickerUsers ?? [], 'empty' => 'Search customer name or phone'])
+                    </div>
                     <div><label>Quote (₹)</label><input name="quote_rupees" type="number" min="0" step="1"></div>
                     <button class="btn" type="submit">Create</button>
                 </div>
@@ -45,7 +48,7 @@
                                         <option value="{{ $st }}" @selected(($row->status ?? '') === $st)>{{ $st }}</option>
                                     @endforeach
                                 </select>
-                                <input name="driver_id" type="number" value="{{ $row->driver_id ?? '' }}" placeholder="Driver ID" style="max-width:110px">
+                                @include('partials.name-picker', ['name' => 'driver_id', 'options' => $pickerDrivers ?? [], 'value' => $row->driver_id ?? '', 'empty' => 'Assign driver'])
                                 <button class="btn ghost" type="submit">Update</button>
                             </form>
                         @endcan

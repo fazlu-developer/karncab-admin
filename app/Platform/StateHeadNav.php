@@ -23,6 +23,7 @@ final class StateHeadNav
             ['key' => 'map', 'label' => 'Live fleet map', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'complaints.manage', 'route' => 'state.section'],
             ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
+            ['key' => 'settlements', 'label' => 'Earning settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'settlements.index'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
         ];
     }
@@ -46,6 +47,9 @@ final class StateHeadNav
         }
         if ($item['key'] === 'wallets') {
             return route('wallets.index');
+        }
+        if ($item['key'] === 'settlements') {
+            return route('settlements.index');
         }
         if ($item['key'] === 'commission') {
             return route('wallets.commission');
@@ -79,6 +83,9 @@ final class StateHeadNav
         }
         if ($item['key'] === 'wallets') {
             return request()->routeIs('wallets.*') && ! request()->routeIs('wallets.commission*');
+        }
+        if ($item['key'] === 'settlements') {
+            return request()->routeIs('settlements.*');
         }
         if ($item['key'] === 'commission') {
             return request()->routeIs('wallets.commission*');

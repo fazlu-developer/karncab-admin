@@ -223,7 +223,7 @@ class WalletLedgerService
             });
         }
 
-        return $q->orderByDesc('wallet_ledger.id')->limit(200)->get()->map(fn ($row) => $this->presentLedger($row))->all();
+        return $q->orderByDesc('wallet_ledger.id')->limit(80)->get()->map(fn ($row) => $this->presentLedger($row))->all();
     }
 
     /**
@@ -251,7 +251,7 @@ class WalletLedgerService
                 }
             });
         }
-        $rows = $q->orderByDesc('users.id')->limit(40)->get();
+        $rows = $q->orderBy('users.name')->orderByDesc('users.id')->limit(250)->get();
         if ($rows->isEmpty()) {
             return [];
         }
@@ -1200,29 +1200,8 @@ class WalletLedgerService
 
     private function ensureSchema(): void
     {
-        static $done = false;
-        if ($done || $this->db()->transactionLevel() > 0) {
-            return;
-        }
-        $done = true;
-        try {
-            if ($this->hasColumn('wallet_ledger', 'account')) {
-                $this->db()->statement('ALTER TABLE wallet_ledger MODIFY COLUMN account VARCHAR(32) NULL');
-            }
-        } catch (\Throwable) {
-        }
-        try {
-            if ($this->hasColumn('wallets', 'owner_type')) {
-                $this->db()->statement('ALTER TABLE wallets MODIFY COLUMN owner_type VARCHAR(32) NULL');
-            }
-        } catch (\Throwable) {
-        }
-        try {
-            if ($this->hasColumn('wallets', 'updated_at')) {
-                $this->db()->statement('ALTER TABLE wallets MODIFY COLUMN updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)');
-            }
-        } catch (\Throwable) {
-        }
+        // Schema is owned by migrations. ALTER TABLE in a wallet request locks the table
+        // and makes Add money hang for minutes.
     }
 
     private function db()

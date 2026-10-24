@@ -24,11 +24,14 @@ class PlatformOpsService
         $users = $this->scopedUsers($operator, $stateId, $districtId);
         $drivers = $this->scopedDrivers($operator, $stateId, $districtId);
         $bookings = $this->bookingsQuery($operator);
-        if ($stateId && TerritoryScope::isUnrestricted($operator)) {
+        if ($districtId && TerritoryScope::isUnrestricted($operator)) {
+            $bookings->where('district_id', $districtId);
+        } elseif ($stateId && TerritoryScope::isUnrestricted($operator)) {
             TerritoryScope::restrictBookingsToStateId($bookings, $stateId);
         }
         $parcels = $this->scopedParcels($operator);
         $fleets = $this->scopedFleets($operator);
+        TerritoryScope::applyAdminGeo($fleets, $operator, $stateId, $districtId);
         $completed = (clone $bookings)->where('status', 'COMPLETED');
         $startToday = now()->startOfDay();
         $startMonth = now()->startOfMonth();
@@ -154,7 +157,7 @@ class PlatformOpsService
                 'userId' => (string) $row->user_id,
             ])],
             'vehicles' => ['vehicles' => $this->listVehicles($operator)],
-            'bookings' => ['bookings' => $this->listBookings($query, $operator)],
+            'bookings' => $this->bookingListing($query, $operator),
             'parcels' => ['parcels' => $this->map($this->scopedParcels($operator)->orderByDesc('id')->limit(100)->get(), fn ($row) => [
                 'id' => (string) $row->id,
                 'publicRef' => $row->public_ref,
@@ -569,7 +572,7 @@ class PlatformOpsService
      * @param  array<string, mixed>  $query
      * @return list<array<string, mixed>>
      */
-    public function listBookings(array $query, ?User $operator = null): array
+    public function listBookings(array $query, ?User $operator = null): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $query = TerritoryScope::constrainQuery($query, $operator);
         $q = $this->bookingsQuery($operator)
@@ -594,6 +597,9 @@ class PlatformOpsService
             $q->where(function (Builder $inner) use ($term) {
                 $inner->where('bookings.public_ref', 'like', "%{$term}%")
                     ->orWhere('customers.name', 'like', "%{$term}%")
+                    ->orWhere('customers.phone', 'like', "%{$term}%")
+                    ->orWhere('driver_users.name', 'like', "%{$term}%")
+                    ->orWhere('driver_users.phone', 'like', "%{$term}%")
                     ->orWhere('bookings.pickup_text', 'like', "%{$term}%")
                     ->orWhere('bookings.drop_text', 'like', "%{$term}%")
                     ->orWhere('districts.name', 'like', "%{$term}%");
@@ -653,7 +659,8 @@ class PlatformOpsService
             });
         }
 
-        return $this->map($q->orderByDesc('bookings.id')->limit(100)->get(), function ($row) {
+        $paginator = $q->orderByDesc('bookings.id')->paginate(25)->withQueryString();
+        $rows = $this->map($paginator->getCollection(), function ($row) {
             $track = $this->tripTrack((string) $row->status);
             $matched = \App\Platform\GeoCatalog::matchDistrictId((string) ($row->pickup_text ?? '').' '.(string) ($row->drop_text ?? ''));
             $district = $row->district_name
@@ -678,28 +685,152 @@ class PlatformOpsService
                 'createdAt' => $row->created_at,
             ];
         });
+        $paginator->setCollection(collect($rows));
+
+        return $paginator;
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     * @return array{bookings: list<array<string, mixed>>, pager: \Illuminate\Contracts\Pagination\LengthAwarePaginator}
+     */
+    private function bookingListing(array $query, ?User $operator = null): array
+    {
+        $paginator = $this->listBookings($query, $operator);
+
+        return [
+            'bookings' => $paginator->items(),
+            'pager' => $paginator,
+        ];
     }
 
     public function booking(int $id, ?User $operator = null): array
     {
-        $row = $this->bookingsQuery($operator)->where('bookings.id', $id)->first();
+        $row = $this->bookingsQuery($operator)
+            ->leftJoin('users as customers', 'customers.id', '=', 'bookings.customer_id')
+            ->leftJoin('drivers', 'drivers.id', '=', 'bookings.driver_id')
+            ->leftJoin('users as driver_users', 'driver_users.id', '=', 'drivers.user_id')
+            ->leftJoin('vehicles', 'vehicles.id', '=', 'bookings.vehicle_id')
+            ->leftJoin('fleet_owners', 'fleet_owners.id', '=', 'vehicles.fleet_owner_id')
+            ->leftJoin('districts', 'districts.id', '=', 'bookings.district_id')
+            ->leftJoin('states', 'states.id', '=', 'districts.state_id')
+            ->where('bookings.id', $id)
+            ->select(
+                'bookings.*',
+                'customers.name as customer_name',
+                'customers.phone as customer_phone',
+                'driver_users.name as driver_name',
+                'driver_users.phone as driver_phone',
+                'vehicles.registration_no as vehicle_reg',
+                'vehicles.category as vehicle_category',
+                'fleet_owners.trade_name as fleet_name',
+                'districts.name as district_name',
+                'states.name as state_name',
+            )
+            ->first();
         abort_if($row === null, 404, 'Booking not found');
-        $log = $this->q('platform_audit_events')->where('entity_type', 'booking')->where('entity_id', (string) $id)->orderBy('id')->get();
+        $schema = Schema::connection('platform');
+        $log = $schema->hasTable('platform_audit_events')
+            ? $this->q('platform_audit_events')->where('entity_type', 'booking')->where('entity_id', (string) $id)->orderBy('id')->get()
+            : collect();
+        $payments = [];
+        if ($schema->hasTable('payments')) {
+            $paySelect = ['id', 'status', 'created_at'];
+            foreach (['amount_paise', 'gross_paise', 'method', 'gateway', 'kind', 'provider_ref', 'booking_id'] as $col) {
+                if ($schema->hasColumn('payments', $col)) {
+                    $paySelect[] = $col;
+                }
+            }
+            $payments = $this->q('payments')->where('booking_id', $id)->orderBy('id')->get($paySelect);
+        }
+        $ledger = [];
+        if ($schema->hasTable('wallet_ledger') && $schema->hasColumn('wallet_ledger', 'booking_id')) {
+            $ledger = $this->q('wallet_ledger')
+                ->leftJoin('users', 'users.id', '=', 'wallet_ledger.owner_user_id')
+                ->where('wallet_ledger.booking_id', $id)
+                ->orderBy('wallet_ledger.id')
+                ->get([
+                    'wallet_ledger.kind',
+                    'wallet_ledger.direction',
+                    'wallet_ledger.amount_paise',
+                    'wallet_ledger.account',
+                    'wallet_ledger.status',
+                    'wallet_ledger.note',
+                    'wallet_ledger.created_at',
+                    'users.name as owner_name',
+                ]);
+        }
+        $driverHistory = [];
+        if ($row->driver_id) {
+            $driverHistory = $this->bookingsQuery($operator)
+                ->leftJoin('users as customers', 'customers.id', '=', 'bookings.customer_id')
+                ->where('bookings.driver_id', $row->driver_id)
+                ->where('bookings.id', '!=', $id)
+                ->orderByDesc('bookings.id')
+                ->limit(12)
+                ->get([
+                    'bookings.public_ref',
+                    'bookings.product',
+                    'bookings.status',
+                    'bookings.pickup_text',
+                    'bookings.drop_text',
+                    'bookings.created_at',
+                    'customers.name as customer_name',
+                ]);
+        }
+        $farePaise = (int) ($row->final_fare_paise ?? $row->quote_paise ?? 0);
 
         return [
             'id' => (string) $row->id,
             'publicRef' => $row->public_ref,
             'product' => $row->product,
             'status' => $row->status,
-            'pickupText' => $row->pickup_text,
-            'dropText' => $row->drop_text,
-            'category' => $row->category ?? null,
-            'driverId' => $row->driver_id ?? null,
+            'category' => $row->category ?? $row->vehicle_category ?? null,
+            'customer' => $row->customer_name ?: '—',
+            'customerPhone' => $row->customer_phone,
+            'driver' => $row->driver_name ?: 'Unassigned',
+            'driverPhone' => $row->driver_phone,
+            'vehicle' => $row->vehicle_reg,
+            'fleet' => $row->fleet_name,
+            'district' => $row->district_name ?: '—',
+            'state' => $row->state_name ?: '—',
+            'pickup' => $row->pickup_text,
+            'drop' => $row->drop_text,
+            'fareInr' => '₹'.number_format($farePaise / 100, 2),
             'scheduledAt' => $row->scheduled_at ?? null,
+            'createdAt' => $row->created_at,
+            'driverId' => $row->driver_id ?? null,
             'track' => $this->tripTrack((string) $row->status),
             'statusLog' => $this->map($log, fn ($e) => [
-                'action' => $e->action,
-                'createdAt' => $e->created_at,
+                'Event' => $e->action,
+                'When' => $e->created_at,
+            ]),
+            'paymentHistory' => $this->map($payments, function ($pay) {
+                $paise = (int) ($pay->amount_paise ?? $pay->gross_paise ?? 0);
+
+                return [
+                    'Status' => $pay->status,
+                    'Amount' => '₹'.number_format($paise / 100, 2),
+                    'Method' => $pay->method ?? $pay->gateway ?? $pay->kind ?? '—',
+                    'Reference' => $pay->provider_ref ?? '—',
+                    'When' => $pay->created_at,
+                ];
+            }),
+            'walletHistory' => $this->map($ledger, fn ($entry) => [
+                'Person' => $entry->owner_name ?: ($entry->account ?? 'Wallet'),
+                'Kind' => str_replace('_', ' ', (string) $entry->kind),
+                'Direction' => $entry->direction,
+                'Amount' => '₹'.number_format(((int) $entry->amount_paise) / 100, 2),
+                'Note' => $entry->note,
+                'When' => $entry->created_at,
+            ]),
+            'driverHistory' => $this->map($driverHistory, fn ($trip) => [
+                'Booking' => $trip->public_ref,
+                'Customer' => $trip->customer_name ?: '—',
+                'Service' => str_replace('_', ' ', (string) $trip->product),
+                'Status' => $trip->status,
+                'Route' => trim((string) $trip->pickup_text).' → '.trim((string) $trip->drop_text),
+                'When' => $trip->created_at,
             ]),
         ];
     }
@@ -1156,7 +1287,11 @@ class PlatformOpsService
     {
         $q = $this->q('drivers');
         TerritoryScope::applyDrivers($q, $operator);
-        if ($stateId && TerritoryScope::isUnrestricted($operator)) {
+        if ($districtId && TerritoryScope::isUnrestricted($operator)) {
+            $q->whereExists(function ($sub) use ($districtId) {
+                $sub->selectRaw('1')->from('users')->whereColumn('users.id', 'drivers.user_id')->where('users.district_id', $districtId);
+            });
+        } elseif ($stateId && TerritoryScope::isUnrestricted($operator)) {
             $ids = TerritoryScope::districtIdsForState($stateId);
             if ($ids !== []) {
                 $q->whereExists(function ($sub) use ($ids) {

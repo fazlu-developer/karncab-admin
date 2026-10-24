@@ -20,6 +20,25 @@
         </div>
     </div>
     <section class="card">
+        <form class="filters" method="GET">
+            <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search owner, company, phone, district">
+            <select name="status">
+                <option value="">All status</option>
+                @foreach (['ACTIVE','PENDING','SUSPENDED'] as $status)
+                    <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ $status }}</option>
+                @endforeach
+            </select>
+            @if (!empty($canSwitchGeo))
+                @include('partials.geo-fields', [
+                    'stateValue' => (string) ($filters['state_id'] ?? ''),
+                    'districtValue' => (string) ($filters['district_id'] ?? ''),
+                    'emptyState' => 'All states',
+                    'emptyDistrict' => 'All districts',
+                ])
+            @endif
+            <button class="btn ghost" type="submit"><i data-lucide="search"></i> Search</button>
+        </form>
+        <div class="table-wrap" style="margin-top:16px">
         <table class="data">
             <thead><tr><th>Business</th><th>Owner</th><th>Mobile</th><th>Company</th><th>KYC</th><th>Status</th><th>District</th><th></th></tr></thead>
             <tbody>
@@ -47,5 +66,9 @@
             @endforelse
             </tbody>
         </table>
+        </div>
+        @if (method_exists($owners, 'links'))
+            <div class="pager">{{ $owners->links('pagination.admin') }}</div>
+        @endif
     </section>
 @endsection

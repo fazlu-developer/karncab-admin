@@ -73,7 +73,7 @@ class AdvertisingController extends Controller
     public function banner(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
         ]);
 
         return response()->json($this->ads->uploadBanner($request->user(), $id, $request->file('banner')));

@@ -25,7 +25,10 @@
                             @endforeach
                         </select>
                     </div>
-                    <div><label>Booking ID</label><input name="booking_id" type="number" required></div>
+                    <div>
+                        <label>Booking</label>
+                        @include('partials.name-picker', ['name' => 'booking_id', 'options' => $pickerBookings ?? [], 'required' => true, 'empty' => 'Search booking or customer'])
+                    </div>
                     <div><label>Amount (paise)</label><input name="amount_paise" type="number" min="1" placeholder="from quote"></div>
                     <div>
                         <label>Intent</label>

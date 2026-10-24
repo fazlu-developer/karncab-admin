@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -12,11 +13,58 @@ use Illuminate\Support\Facades\Schema;
 class FleetOwnerDirectoryService
 {
     /**
+     * @param  array<string, mixed>  $filters
+     */
+    public function list(User $actor, array $filters = []): LengthAwarePaginator
+    {
+        $q = $this->baseQuery();
+        TerritoryScope::applyFleets($q, $actor);
+        TerritoryScope::applyAdminGeo(
+            $q,
+            $actor,
+            isset($filters['state_id']) ? (int) $filters['state_id'] : null,
+            isset($filters['district_id']) ? (int) $filters['district_id'] : null,
+            'fleet_owners.state_id',
+            'fleet_owners.district_id',
+        );
+        if ($actor->isStateHead() && ! empty($filters['district_id'])) {
+            $districtId = (int) $filters['district_id'];
+            if (in_array($districtId, TerritoryScope::districtIdsForState((int) $actor->state_id), true)) {
+                $q->where('fleet_owners.district_id', $districtId);
+            }
+        }
+        $search = trim((string) ($filters['q'] ?? ''));
+        if ($search !== '') {
+            $q->where(function ($inner) use ($search) {
+                $inner->where('fleet_owners.trade_name', 'like', '%'.$search.'%')
+                    ->orWhere('users.name', 'like', '%'.$search.'%')
+                    ->orWhere('users.phone', 'like', '%'.$search.'%')
+                    ->orWhere('users.email', 'like', '%'.$search.'%')
+                    ->orWhere('districts.name', 'like', '%'.$search.'%')
+                    ->orWhere('states.name', 'like', '%'.$search.'%');
+            });
+        }
+        if (! empty($filters['status'])) {
+            $q->where('fleet_owners.status', $filters['status']);
+        }
+
+        return $q->orderByDesc('fleet_owners.id')->paginate(20)->withQueryString();
+    }
+
+    /**
      * @return list<object>
      */
-    public function list(User $actor): array
+    public function all(User $actor): array
     {
-        $q = $this->db()->table('fleet_owners')
+        $q = $this->baseQuery();
+        TerritoryScope::applyFleets($q, $actor);
+
+        return $q->orderByDesc('fleet_owners.id')->limit(300)->get()->all();
+    }
+
+    private function baseQuery()
+    {
+        return $this->db()->table('fleet_owners')
             ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
             ->leftJoin('states', 'states.id', '=', 'fleet_owners.state_id')
             ->leftJoin('districts', 'districts.id', '=', 'fleet_owners.district_id')
@@ -30,9 +78,6 @@ class FleetOwnerDirectoryService
                 'states.name as state_name',
                 'districts.name as district_name',
             );
-        TerritoryScope::applyFleets($q, $actor);
-
-        return $q->orderByDesc('fleet_owners.id')->limit(300)->get()->all();
     }
 
     /**

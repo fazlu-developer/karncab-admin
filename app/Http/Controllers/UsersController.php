@@ -33,6 +33,19 @@ class UsersController extends Controller
             ->select('users.*', 'states.name as state_name', 'districts.name as district_name')
             ->orderByDesc('users.id');
         TerritoryScope::applyUsers($query, $request->user());
+        TerritoryScope::applyAdminGeo(
+            $query,
+            $request->user(),
+            $request->integer('state_id') ?: null,
+            $request->integer('district_id') ?: null,
+        );
+        $actor = $request->user();
+        if ($actor?->isStateHead() && $request->integer('district_id')) {
+            $districtId = $request->integer('district_id');
+            if (in_array($districtId, TerritoryScope::districtIdsForState((int) $actor->state_id), true)) {
+                $query->where('users.district_id', $districtId);
+            }
+        }
         if ($search = trim((string) $request->get('q', ''))) {
             $query->where(function ($inner) use ($search) {
                 $inner->where('users.name', 'like', "%{$search}%")
@@ -40,7 +53,6 @@ class UsersController extends Controller
                     ->orWhere('users.phone', 'like', "%{$search}%");
             });
         }
-        $actor = $request->user();
         $allowedRoles = $this->roleChoices($actor);
         if ($actor?->isStateHead()) {
             $query->whereIn('users.role', $allowedRoles);
@@ -66,7 +78,10 @@ class UsersController extends Controller
                 'q' => $request->get('q'),
                 'roles' => $picked,
                 'status' => $request->get('status'),
+                'state_id' => $request->integer('state_id') ?: null,
+                'district_id' => $request->integer('district_id') ?: null,
             ],
+            'canSwitchGeo' => $actor?->isPrivilegedOperator() || $actor?->isStateHead(),
             'roles' => $allowedRoles,
         ]);
     }
@@ -79,6 +94,7 @@ class UsersController extends Controller
             'user' => new PlatformUser(['status' => 'ACTIVE', 'role' => 'CUSTOMER']),
             'roles' => $this->roleChoices($request->user()),
             'permissionCatalog' => $this->permissionCatalog(),
+            'navPermissions' => $this->navPermissions(),
             'granted' => [],
         ]);
     }
@@ -101,10 +117,7 @@ class UsersController extends Controller
         $data['password_hash'] = Hash::make($password);
         unset($data['password']);
         $actor = $request->user();
-        if ($actor && ! $actor->isPrivilegedOperator()) {
-            $data['state_id'] = $actor->state_id;
-            $data['district_id'] = $actor->district_id;
-        }
+        $this->lockActorTerritory($actor, $data);
         $this->assertTerritory($data, null);
         $user = PlatformUser::query()->create($data);
         $this->saveRoleKyc($request, $user);
@@ -181,6 +194,7 @@ class UsersController extends Controller
             'user' => $platformUser,
             'roles' => $this->roleChoices($request->user(), (string) $platformUser->role),
             'permissionCatalog' => $this->permissionCatalog(),
+            'navPermissions' => $this->navPermissions(),
             'granted' => $operator?->assignedAbilities() ?? [],
         ]);
     }
@@ -205,6 +219,7 @@ class UsersController extends Controller
             $data['password_hash'] = Hash::make($password);
         }
         unset($data['password']);
+        $this->lockActorTerritory($request->user(), $data);
         $this->assertTerritory($data, $platformUser->id);
         $platformUser->update($data);
         $this->saveRoleKyc($request, $platformUser->fresh());
@@ -272,9 +287,35 @@ class UsersController extends Controller
     /**
      * @param  array<string, mixed>  $data
      */
+    private function lockActorTerritory(?User $actor, array &$data): void
+    {
+        if (! $actor || $actor->isPrivilegedOperator()) {
+            return;
+        }
+        if ($actor->isDistrictHead()) {
+            $data['state_id'] = $actor->state_id;
+            $data['district_id'] = $actor->district_id;
+
+            return;
+        }
+        if ($actor->isStateHead()) {
+            $data['state_id'] = $actor->state_id;
+            $districtId = (int) ($data['district_id'] ?? 0);
+            if ($districtId > 0 && ! in_array($districtId, TerritoryScope::districtIdsForState((int) $actor->state_id), true)) {
+                $data['district_id'] = null;
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
     private function assertTerritory(array &$data, ?int $exceptId): void
     {
         $role = (string) ($data['role'] ?? '');
+        if (in_array($role, [OperatorRole::FLEET_OWNER, OperatorRole::DISTRICT_HEAD], true)) {
+            abort_unless((int) ($data['district_id'] ?? 0) > 0, 422, 'Select the district this account belongs to.');
+        }
         if ($role === OperatorRole::STATE_HEAD) {
             $stateId = (int) ($data['state_id'] ?? 0);
             abort_unless($stateId > 0, 422, 'A State Head must be assigned one state.');
@@ -331,6 +372,13 @@ class UsersController extends Controller
      */
     private function roleChoices(?User $actor, ?string $current = null): array
     {
+        if ($actor?->isDistrictHead()) {
+            return [
+                OperatorRole::FLEET_OWNER,
+                OperatorRole::DRIVER,
+                OperatorRole::CUSTOMER,
+            ];
+        }
         if ($actor?->isStateHead()) {
             return [
                 OperatorRole::DISTRICT_HEAD,
@@ -360,6 +408,29 @@ class UsersController extends Controller
             PlatformPermission::catalog(),
             fn (string $ability) => $ability !== 'platform.admin',
         ));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function navPermissions(): array
+    {
+        $map = [];
+        foreach (\App\Platform\OpsNav::coreItems() as $item) {
+            $ability = (string) ($item['ability'] ?? '');
+            $key = (string) ($item['key'] ?? '');
+            if ($ability === '' || $ability === 'platform.admin' || isset(\App\Platform\PrivilegedModules::LABELS[$ability])) {
+                continue;
+            }
+            if (in_array($key, \App\Platform\PrivilegedModules::HEAD_HIDDEN, true)) {
+                continue;
+            }
+            if (! isset($map[$ability])) {
+                $map[$ability] = (string) $item['label'];
+            }
+        }
+
+        return $map;
     }
 
     /**

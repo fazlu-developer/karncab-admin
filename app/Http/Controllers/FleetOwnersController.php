@@ -25,9 +25,22 @@ class FleetOwnersController extends Controller
     public function index(Request $request): View
     {
         abort_unless($request->user()?->can('fleet.view') || $request->user()?->can('fleet_owner.view'), 403);
+        $actor = $request->user();
 
         return view('fleet_owners.index', [
-            'owners' => $this->fleets->list($request->user()),
+            'owners' => $this->fleets->list($actor, [
+                'q' => $request->get('q'),
+                'status' => $request->get('status'),
+                'state_id' => $request->integer('state_id') ?: null,
+                'district_id' => $request->integer('district_id') ?: null,
+            ]),
+            'filters' => [
+                'q' => $request->get('q'),
+                'status' => $request->get('status'),
+                'state_id' => $request->integer('state_id') ?: null,
+                'district_id' => $request->integer('district_id') ?: null,
+            ],
+            'canSwitchGeo' => $actor?->isPrivilegedOperator() || $actor?->isStateHead(),
         ]);
     }
 
@@ -36,7 +49,7 @@ class FleetOwnersController extends Controller
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
         return view('fleet_owners.kyc', [
-            'owners' => $this->fleets->list($request->user()),
+            'owners' => $this->fleets->all($request->user()),
         ]);
     }
 

@@ -39,6 +39,14 @@
                     <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ $status }}</option>
                 @endforeach
             </select>
+            @if (!empty($canSwitchGeo))
+                @include('partials.geo-fields', [
+                    'stateValue' => (string) ($filters['state_id'] ?? ''),
+                    'districtValue' => (string) ($filters['district_id'] ?? ''),
+                    'emptyState' => 'All states',
+                    'emptyDistrict' => 'All districts',
+                ])
+            @endif
             <button class="btn ghost" type="submit"><i data-lucide="search"></i> Search</button>
         </form>
         <div class="table-wrap" style="margin-top:16px">

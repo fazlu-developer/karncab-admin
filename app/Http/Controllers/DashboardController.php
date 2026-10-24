@@ -34,8 +34,10 @@ class DashboardController extends Controller
         $error = null;
         $kpis = [];
         $liveCustomers = [];
+        $selectedStateId = $request->integer('stateId') ?: null;
+        $selectedDistrictId = $request->integer('districtId') ?: null;
         try {
-            $dash = $ops->dashboard($request->user(), $request->integer('stateId') ?: null, $request->integer('districtId') ?: null);
+            $dash = $ops->dashboard($request->user(), $selectedStateId, $selectedDistrictId);
             $kpis = $dash['kpis'] ?? [];
             $liveCustomers = $dash['liveCustomers'] ?? [];
         } catch (Throwable $exception) {
@@ -43,10 +45,15 @@ class DashboardController extends Controller
         }
 
         $states = collect();
+        $districts = collect();
         try {
             $states = DB::connection('platform')->table('states')->orderBy('name')->get();
+            if ($selectedStateId) {
+                $districts = DB::connection('platform')->table('districts')->where('state_id', $selectedStateId)->orderBy('name')->get();
+            }
         } catch (Throwable) {
             $states = collect();
+            $districts = collect();
         }
 
         $liveRides = collect();
@@ -57,6 +64,11 @@ class DashboardController extends Controller
                 ->leftJoin('drivers as d', 'd.id', '=', 'b.driver_id')
                 ->leftJoin('users as du', 'du.id', '=', 'd.user_id');
             \App\Platform\TerritoryScope::applyBookings($liveRides, $request->user(), 'b');
+            if ($selectedDistrictId && \App\Platform\TerritoryScope::isUnrestricted($request->user())) {
+                $liveRides->where('b.district_id', $selectedDistrictId);
+            } elseif ($selectedStateId && \App\Platform\TerritoryScope::isUnrestricted($request->user())) {
+                \App\Platform\TerritoryScope::restrictBookingsToStateId($liveRides, $selectedStateId, 'b');
+            }
             $liveRides = $liveRides
                 ->whereIn('b.status', [
                     'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING', 'PENDING', 'CONFIRMED',
@@ -95,13 +107,18 @@ class DashboardController extends Controller
             'liveCustomers' => $liveCustomers,
             'liveRides' => $liveRides,
             'expiringDocuments' => $expiringDocuments,
-            'recentUsers' => tap(PlatformUser::query()->orderByDesc('id'), function ($q) use ($request) {
+            'recentUsers' => tap(PlatformUser::query()->orderByDesc('id'), function ($q) use ($request, $selectedStateId, $selectedDistrictId) {
                 \App\Platform\TerritoryScope::applyUsers($q, $request->user());
-                \App\Platform\TerritoryScope::applyAdminGeo($q, $request->user(), $request->integer('stateId') ?: null, $request->integer('districtId') ?: null);
+                \App\Platform\TerritoryScope::applyAdminGeo($q, $request->user(), $selectedStateId, $selectedDistrictId);
             })->limit(6)->get(),
-            'recentDrivers' => tap(PlatformDriver::query()->with('user')->orderByDesc('id'), fn ($q) => \App\Platform\TerritoryScope::applyDrivers($q, $request->user()))->limit(6)->get(),
+            'recentDrivers' => tap(PlatformDriver::query()->with('user')->orderByDesc('id'), function ($q) use ($request, $selectedStateId, $selectedDistrictId) {
+                \App\Platform\TerritoryScope::applyDrivers($q, $request->user());
+                \App\Platform\TerritoryScope::applyAdminGeo($q, $request->user(), $selectedStateId, $selectedDistrictId);
+            })->limit(6)->get(),
             'states' => $states,
-            'selectedStateId' => $request->integer('stateId') ?: null,
+            'districts' => $districts,
+            'selectedStateId' => $selectedStateId,
+            'selectedDistrictId' => $selectedDistrictId,
         ]);
     }
 

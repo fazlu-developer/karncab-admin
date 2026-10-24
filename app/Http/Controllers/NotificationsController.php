@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Platform\NotificationPolicy;
 use App\Services\NotificationService;
 use App\Services\PlatformOpsService;
+use App\Support\NamePicker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,7 +19,9 @@ class NotificationsController extends Controller
 
     public function index(Request $request): View
     {
-        return view('notifications.index', $this->notifications->workspace($request->user(), $request->query()));
+        return view('notifications.index', $this->notifications->workspace($request->user(), $request->query()) + [
+            'pickerUsers' => NamePicker::users($request->user()),
+        ]);
     }
 
     public function announce(Request $request): RedirectResponse

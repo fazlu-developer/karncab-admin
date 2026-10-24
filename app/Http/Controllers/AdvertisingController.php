@@ -35,11 +35,10 @@ class AdvertisingController extends Controller
         if ($request->hasFile('banner')) {
             try {
                 $this->ads->uploadBanner($request->user(), $row['id'], $request->file('banner'));
-            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-                if ($e->getStatusCode() === 400) {
-                    return redirect()->route('ads.show', $row['id'])->withErrors(['banner' => $e->getMessage()]);
-                }
-                throw $e;
+            } catch (\Throwable $e) {
+                report($e);
+
+                return redirect()->route('ads.show', $row['id'])->withErrors(['banner' => $e->getMessage() ?: 'Could not upload this banner. Use JPEG, PNG, WebP, or GIF under 4 MB.']);
             }
         }
 
@@ -52,11 +51,10 @@ class AdvertisingController extends Controller
         if ($request->hasFile('banner')) {
             try {
                 $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
-            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-                if ($e->getStatusCode() === 400) {
-                    return back()->withErrors(['banner' => $e->getMessage()]);
-                }
-                throw $e;
+            } catch (\Throwable $e) {
+                report($e);
+
+                return back()->withErrors(['banner' => $e->getMessage() ?: 'Could not upload this banner. Use JPEG, PNG, WebP, or GIF under 4 MB.']);
             }
         }
 
@@ -66,15 +64,14 @@ class AdvertisingController extends Controller
     public function banner(Request $request, int $ad): RedirectResponse
     {
         $request->validate([
-            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:2048'],
+            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
         ]);
         try {
             $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
-            if ($e->getStatusCode() === 400) {
-                return back()->withErrors(['banner' => $e->getMessage()]);
-            }
-            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['banner' => $e->getMessage() ?: 'Could not upload this banner. Use JPEG, PNG, WebP, or GIF under 4 MB.']);
         }
 
         return back()->with('status', 'Banner uploaded.');

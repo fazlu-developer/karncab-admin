@@ -6,10 +6,12 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1><i data-lucide="banknote"></i> Platform commission & fleet 5%</h1>
-            <p class="muted">Completed trips take platform commission. Fleet owners get their configured 5% of fare as a wallet credit in the fleet owner app. Settle here when you pay them out.</p>
+            <h1><i data-lucide="banknote"></i> Fleet earning settlement</h1>
+            <p class="muted">Settle fleet owner earnings for your territory. Super Admin and Admin see every fleet. A State Head sees that state. A District Head sees only their district. Driver withdraw requests stay with Super Admin / Admin.</p>
         </div>
-        <a class="btn ghost" href="{{ route('wallets.commission') }}"><i data-lucide="percent"></i> Commission rule</a>
+        @canany(['commission.view', 'platform.admin'])
+            <a class="btn ghost" href="{{ route('wallets.commission') }}"><i data-lucide="percent"></i> Commission rule</a>
+        @endcanany
     </div>
 
     <div class="kpis">
@@ -59,13 +61,13 @@
                         <td>₹{{ number_format($row['walletRupees'], 0) }}</td>
                         <td>
                             @if ($row['walletRupees'] > 0)
-                                @canany(['payments.edit', 'platform.admin'])
+                                @if (auth()->user()?->can('payments.edit') || auth()->user()?->can('platform.admin') || auth()->user()?->isStateHead() || auth()->user()?->isDistrictHead())
                                     <form method="POST" action="{{ route('settlements.payout', $row['id']) }}" onsubmit="return confirm('Mark ₹{{ number_format($row['walletRupees'], 0) }} as paid to this fleet owner bank account?');">
                                         @csrf
                                         <input name="bank_reference" placeholder="Bank UTR" required style="max-width:140px">
                                         <button class="btn" type="submit">Settle bank payment</button>
                                     </form>
-                                @endcanany
+                                @endif
                             @else
                                 <span class="muted">Settled</span>
                             @endif
@@ -106,7 +108,7 @@
                         <td>₹{{ number_format($row['districtRupees'], 0) }}</td>
                         <td>
                             @if ($row['fleetRupees'] > 0)
-                                @canany(['payments.edit', 'platform.admin'])
+                                @if (auth()->user()?->can('payments.edit') || auth()->user()?->can('platform.admin') || auth()->user()?->isStateHead() || auth()->user()?->isDistrictHead())
                                     <form method="POST" action="{{ route('settlements.payout', $row['id']) }}" onsubmit="return confirm('Record a bank transfer of ₹{{ number_format($row['fleetRupees'], 0) }} to this fleet owner?');">
                                         @csrf
                                         <input type="hidden" name="amount_rupees" value="{{ number_format($row['fleetRupees'], 2, '.', '') }}">
@@ -114,7 +116,7 @@
                                         <input name="bank_reference" placeholder="Bank UTR" required style="max-width:140px">
                                         <button class="btn" type="submit">Pay fleet</button>
                                     </form>
-                                @endcanany
+                                @endif
                             @else
                                 <span class="muted">Nothing to pay</span>
                             @endif
@@ -146,7 +148,7 @@
                             @if ($row['userId'] < 1)
                                 <span class="muted">Assign a district head</span>
                             @elseif ($row['amountRupees'] > 0)
-                                @canany(['payments.edit', 'platform.admin'])
+                                @if (auth()->user()?->can('payments.edit') || auth()->user()?->can('platform.admin') || auth()->user()?->isStateHead())
                                     <form method="POST" action="{{ route('settlements.district-payout', $row['userId']) }}">
                                         @csrf
                                         <input type="hidden" name="amount_rupees" value="{{ number_format($row['amountRupees'], 2, '.', '') }}">
@@ -154,7 +156,7 @@
                                         <input name="bank_reference" placeholder="Bank UTR" required style="max-width:140px">
                                         <button class="btn" type="submit">Pay district head</button>
                                     </form>
-                                @endcanany
+                                @endif
                             @else
                                 <span class="muted">Nothing to pay</span>
                             @endif

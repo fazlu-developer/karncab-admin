@@ -212,8 +212,8 @@ class AdvertisingService
             abort(403, 'Cannot upload a banner for this campaign');
         }
         $mime = $this->bannerMime($file);
-        abort_unless(in_array($mime, AdPolicy::BANNER_MIMES, true), 400, 'Upload a JPEG, PNG, or WebP banner');
-        abort_unless($file->getSize() >= 32 && $file->getSize() <= 2 * 1024 * 1024, 400, 'Banner must be between 32 bytes and 2 MB');
+        abort_unless(in_array($mime, AdPolicy::BANNER_MIMES, true), 400, 'Upload a JPEG, PNG, WebP, or GIF banner');
+        abort_unless($file->getSize() >= 32 && $file->getSize() <= 4 * 1024 * 1024, 400, 'Banner must be between 32 bytes and 4 MB');
         $relative = StoredUpload::replace($file, 'ads', $row->banner_key ?? null, 'ad-'.$id);
         $storedMime = in_array($mime, ['image/jpg', 'image/pjpeg'], true) ? 'image/jpeg' : ($mime === 'image/x-png' ? 'image/png' : $mime);
         $patch = [
@@ -710,8 +710,12 @@ class AdvertisingService
         if ($key !== '' && (str_starts_with($key, 'uploads/') || str_starts_with($key, '/uploads/'))) {
             return $this->publicMediaUrl($key);
         }
+        if ($key === '') {
+            return null;
+        }
+        $api = rtrim((string) env('API_PUBLIC_URL', env('APP_URL', 'https://api.karnaride.in')), '/');
 
-        return $key !== '' ? '/ads/'.$row->id.'/banner' : null;
+        return $api.'/api/v1/ads/'.$row->id.'/banner';
     }
 
     private function publicMediaUrl(string $path): string

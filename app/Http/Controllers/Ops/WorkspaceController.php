@@ -10,6 +10,7 @@ use App\Services\OrganizationAudit;
 use App\Services\SiteBrandingService;
 use App\Services\VehicleCatalogAdmin;
 use App\Support\CorporatePlanSchema;
+use App\Support\NamePicker;
 use App\Support\PlatformSettings;
 use App\Support\StoredUpload;
 use App\Support\TravelPackageSchema;
@@ -553,7 +554,11 @@ class WorkspaceController extends Controller
             ? DB::connection('platform')->table('parcel_shipments')->orderByDesc('id')->limit(200)->get()
             : collect();
 
-        return view('ops.parcels', ['rows' => $rows]);
+        return view('ops.parcels', [
+            'rows' => $rows,
+            'pickerUsers' => NamePicker::users($request->user(), 'CUSTOMER'),
+            'pickerDrivers' => NamePicker::drivers($request->user()),
+        ]);
     }
 
     public function storeParcel(Request $request): RedirectResponse

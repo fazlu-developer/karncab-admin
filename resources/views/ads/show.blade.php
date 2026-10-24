@@ -75,14 +75,17 @@
                             @endforeach
                         </select>
                     </div>
-                    <div><label>Banner image URL</label><input name="image_url" type="url" value="{{ $campaign['imageUrl'] }}" placeholder="https://"></div>
+                    <div>
+                        <label>Banner image URL</label>
+                        <input name="image_url" type="url" value="{{ $campaign['imageUrl'] }}" placeholder="https://" data-image-preview>
+                    </div>
                     <div>
                         <label>Replace banner file</label>
-                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp">
+                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
                     </div>
                 </div>
                 <div><label>Business information</label><textarea name="business_info" rows="2">{{ $campaign['businessInfo'] }}</textarea></div>
-                <p class="muted">JPEG / PNG / WebP, 1600×740 recommended, max 2 MB. A public HTTPS URL is what the customer app loads.</p>
+                <p class="muted">JPEG / PNG / WebP / GIF, 1600×740 recommended, max 4 MB. Public HTTPS URL is what the customer app loads.</p>
                 <button class="btn" type="submit">Save</button>
             </form>
         </section>
