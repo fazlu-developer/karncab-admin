@@ -45,7 +45,15 @@ final class AdPolicy
         'live_trip',
     ];
 
-    public const BANNER_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    public const BANNER_MIMES = [
+        'image/jpeg',
+        'image/jpg',
+        'image/pjpeg',
+        'image/png',
+        'image/x-png',
+        'image/webp',
+        'image/gif',
+    ];
 
     /**
      * @return array{ok: bool, reason: ?string}

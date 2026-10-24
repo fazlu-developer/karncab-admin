@@ -152,7 +152,9 @@ class AdvertisingService
         abort_unless($operator->can('advertising.edit'), 403);
         $row = $this->load($operator, $id);
         if ($row->status === 'published' && ! $operator->isPrivilegedOperator()) {
-            abort(400, 'Published campaigns must be paused before editing');
+            throw ValidationException::withMessages([
+                'status' => 'Pause this campaign before editing.',
+            ]);
         }
         if (! $this->owns($operator, $row) && ! $operator->isPrivilegedOperator()) {
             abort(403, 'Cannot edit this campaign');
@@ -209,13 +211,14 @@ class AdvertisingService
         if (! $this->owns($operator, $row) && ! $operator->isPrivilegedOperator()) {
             abort(403, 'Cannot upload a banner for this campaign');
         }
-        $mime = strtolower((string) $file->getMimeType());
+        $mime = $this->bannerMime($file);
         abort_unless(in_array($mime, AdPolicy::BANNER_MIMES, true), 400, 'Upload a JPEG, PNG, or WebP banner');
         abort_unless($file->getSize() >= 32 && $file->getSize() <= 2 * 1024 * 1024, 400, 'Banner must be between 32 bytes and 2 MB');
         $relative = StoredUpload::replace($file, 'ads', $row->banner_key ?? null, 'ad-'.$id);
+        $storedMime = in_array($mime, ['image/jpg', 'image/pjpeg'], true) ? 'image/jpeg' : ($mime === 'image/x-png' ? 'image/png' : $mime);
         $patch = [
             'banner_key' => ltrim($relative, '/'),
-            'banner_mime' => $mime === 'image/jpg' ? 'image/jpeg' : $mime,
+            'banner_mime' => $storedMime,
             'updated_at' => now(),
         ];
         if ($this->hasColumn('image_url')) {
@@ -717,6 +720,30 @@ class AdvertisingService
         $origin = rtrim((string) env('ADMIN_PUBLIC_URL', env('WEBSITE_URL', 'https://karnaride.in')), '/');
 
         return $origin.$path;
+    }
+
+    private function bannerMime(UploadedFile $file): string
+    {
+        $mime = strtolower((string) ($file->getMimeType() ?: $file->getClientMimeType() ?: ''));
+        $ext = strtolower((string) $file->getClientOriginalExtension());
+        $fromExt = match ($ext) {
+            'jpg', 'jpeg', 'jpe', 'pjpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => '',
+        };
+        if (in_array($mime, ['application/octet-stream', 'binary/octet-stream', 'application/download', ''], true) && $fromExt !== '') {
+            return $fromExt;
+        }
+        if ($mime === 'image/pjpeg' || $mime === 'image/jpg') {
+            return 'image/jpeg';
+        }
+        if ($mime === 'image/x-png') {
+            return 'image/png';
+        }
+
+        return $mime !== '' ? $mime : $fromExt;
     }
 
     private function hasColumn(string $column): bool

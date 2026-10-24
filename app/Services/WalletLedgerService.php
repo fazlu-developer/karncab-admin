@@ -997,16 +997,9 @@ class WalletLedgerService
         $reviewer = $operator->nest_user_id ?: null;
 
         if ($decision === 'approve') {
-            $this->db()->table('wallet_withdrawals')->where('id', $id)->update($this->withdrawalUpdate([
-                'status' => 'approved',
-                'note' => $note ?: $row->note,
-                'reviewed_by' => $reviewer,
-                'reviewed_by_id' => $reviewer,
-                'reviewed_at' => now(),
-                'updated_at' => now(),
-            ]));
-
-            return;
+            $decision = 'settle';
+            $note = $note ?: 'Admin approved and paid withdrawal';
+            $transferRef = $transferRef ?: ('PAY-'.$id);
         }
 
         if ($decision === 'reject') {
@@ -1037,7 +1030,7 @@ class WalletLedgerService
             'direction' => 'DEBIT',
             'amountPaise' => $amount,
             'kind' => 'withdraw',
-            'note' => $note ?: 'Admin settled withdrawal',
+            'note' => $note ?: 'Withdrawal paid successfully',
             'paymentRef' => $transferRef,
         ]);
         $walletUpdate = ['updated_at' => now()];

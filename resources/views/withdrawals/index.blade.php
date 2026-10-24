@@ -7,7 +7,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="hand-coins"></i> Withdraw requests</h1>
-            <p class="muted">Drivers and partners request cash from their wallet. Approve, then settle after the bank or UPI transfer. Access is admin-only unless Super Admin grants <code>payout.view</code> / <code>payout.approve</code> on Roles.</p>
+            <p class="muted">Drivers request cash from their wallet. The amount is frozen until you approve and pay. Access is admin-only unless Super Admin grants <code>payout.view</code> / <code>payout.approve</code> on Roles.</p>
         </div>
         <a class="btn ghost" href="{{ route('wallets.index') }}"><i data-lucide="wallet"></i> Wallets</a>
     </div>
@@ -61,9 +61,11 @@
                                                 @csrf
                                                 <input name="transfer_ref" placeholder="Bank/UPI ref" value="{{ $row['transferRef'] }}">
                                                 @if ($row['status'] === 'requested')
-                                                    <button class="btn ghost" name="decision" value="approve">Approve</button>
+                                                    <button class="btn" name="decision" value="approve">Approve &amp; pay</button>
                                                 @endif
-                                                <button class="btn" name="decision" value="settle">Settle (debit frozen)</button>
+                                                @if ($row['status'] === 'approved')
+                                                    <button class="btn" name="decision" value="settle">Mark paid</button>
+                                                @endif
                                                 <button class="btn ghost" name="decision" value="reject">Reject</button>
                                             </form>
                                         @endif

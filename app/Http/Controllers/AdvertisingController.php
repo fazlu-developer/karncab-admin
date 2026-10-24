@@ -33,7 +33,14 @@ class AdvertisingController extends Controller
     {
         $row = $this->ads->create($request->user(), $this->campaignPayload($request, true));
         if ($request->hasFile('banner')) {
-            $this->ads->uploadBanner($request->user(), $row['id'], $request->file('banner'));
+            try {
+                $this->ads->uploadBanner($request->user(), $row['id'], $request->file('banner'));
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                if ($e->getStatusCode() === 400) {
+                    return redirect()->route('ads.show', $row['id'])->withErrors(['banner' => $e->getMessage()]);
+                }
+                throw $e;
+            }
         }
 
         return redirect()->route('ads.show', $row['id'])->with('status', 'Campaign submitted as pending. Admin approval is required before it can run.');
@@ -43,7 +50,14 @@ class AdvertisingController extends Controller
     {
         $this->ads->update($request->user(), $ad, $this->campaignPayload($request, false));
         if ($request->hasFile('banner')) {
-            $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
+            try {
+                $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                if ($e->getStatusCode() === 400) {
+                    return back()->withErrors(['banner' => $e->getMessage()]);
+                }
+                throw $e;
+            }
         }
 
         return back()->with('status', 'Campaign saved.');
@@ -52,9 +66,16 @@ class AdvertisingController extends Controller
     public function banner(Request $request, int $ad): RedirectResponse
     {
         $request->validate([
-            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:2048'],
         ]);
-        $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
+        try {
+            $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            if ($e->getStatusCode() === 400) {
+                return back()->withErrors(['banner' => $e->getMessage()]);
+            }
+            throw $e;
+        }
 
         return back()->with('status', 'Banner uploaded.');
     }
