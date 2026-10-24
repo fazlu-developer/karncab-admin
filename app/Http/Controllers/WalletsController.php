@@ -6,6 +6,7 @@ use App\Services\WalletLedgerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 class WalletsController extends Controller
 {
@@ -82,7 +83,19 @@ class WalletsController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
         $paise = (int) round(((float) $data['amount_rupees']) * 100);
-        $posted = $this->wallets->creditUser($request->user(), (int) $data['user_id'], $paise, $data['note'] ?? null);
+        try {
+            $posted = $this->wallets->creditUser($request->user(), (int) $data['user_id'], $paise, $data['note'] ?? null);
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() === 403) {
+                throw $e;
+            }
+
+            return back()->withInput()->withErrors(['amount_rupees' => $e->getMessage() ?: 'Could not add wallet money.']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors(['amount_rupees' => 'Could not add wallet money. Try again.']);
+        }
         $added = number_format($paise / 100, 2);
         $balance = number_format(((int) ($posted['newBalancePaise'] ?? 0)) / 100, 2);
 
@@ -102,7 +115,19 @@ class WalletsController extends Controller
             'payment_ref' => ['nullable', 'string', 'max:64'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
-        $this->wallets->post($request->user(), $data);
+        try {
+            $this->wallets->post($request->user(), $data);
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() === 403) {
+                throw $e;
+            }
+
+            return back()->withInput()->withErrors(['amount_paise' => $e->getMessage() ?: 'Could not post ledger row.']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors(['amount_paise' => 'Could not post ledger row. Try again.']);
+        }
 
         return back()->with('status', 'Ledger row posted.');
     }
@@ -112,7 +137,19 @@ class WalletsController extends Controller
         $data = $request->validate([
             'booking_id' => ['required', 'integer'],
         ]);
-        $this->wallets->settleBooking($request->user(), (int) $data['booking_id']);
+        try {
+            $this->wallets->settleBooking($request->user(), (int) $data['booking_id']);
+        } catch (HttpExceptionInterface $e) {
+            if ($e->getStatusCode() === 403) {
+                throw $e;
+            }
+
+            return back()->withInput()->withErrors(['booking_id' => $e->getMessage() ?: 'Could not settle this booking.']);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withInput()->withErrors(['booking_id' => 'Could not settle this booking. Try again.']);
+        }
 
         return back()->with('status', 'Booking settled through the wallet ledger.');
     }

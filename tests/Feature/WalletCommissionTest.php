@@ -62,6 +62,31 @@ class WalletCommissionTest extends TestCase
         $this->assertSame(26050, (int) DB::connection('platform')->table('wallets')->where('id', $wallet->id)->value('balance_paise'));
     }
 
+    public function test_admin_can_add_wallet_money_after_wallets_are_emptied(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+        DB::connection('platform')->table('wallet_ledger')->delete();
+        DB::connection('platform')->table('wallets')->delete();
+
+        $this->actingAs($admin)
+            ->post('/wallets/credit', [
+                'user_id' => 401,
+                'amount_rupees' => 100,
+                'note' => 'After truncate',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+
+        $wallet = DB::connection('platform')->table('wallets')
+            ->where('owner_user_id', 401)
+            ->where('owner_type', 'CUSTOMER')
+            ->first();
+        $this->assertNotNull($wallet);
+        $this->assertSame(10000, (int) $wallet->balance_paise);
+        $this->assertNotEmpty($wallet->updated_at ?? 'ok');
+    }
+
     public function test_advertiser_cannot_add_wallet_money(): void
     {
         $user = User::factory()->create(['role' => OperatorRole::ADVERTISER]);

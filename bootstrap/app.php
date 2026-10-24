@@ -24,5 +24,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if ($response->getStatusCode() !== 419) {
+                return $response;
+            }
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Session expired. Please sign in again.'], 419);
+            }
+
+            return redirect()->route('login')->with('status', 'Your session expired. Sign in and try again.');
+        });
     })->create();

@@ -10,6 +10,7 @@ use App\Platform\TerritoryScope;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 class WalletLedgerService
@@ -87,6 +88,7 @@ class WalletLedgerService
     public function wallets(?User $operator, array $query = []): array
     {
         abort_unless($operator?->can('wallet.view'), 403);
+        $this->ensureSchema();
         $q = $this->scopedWallets($operator)
             ->leftJoin('users', 'users.id', '=', 'wallets.owner_user_id')
             ->select('wallets.*', 'users.name as owner_name', 'users.email as owner_email', 'users.role as owner_role');
@@ -108,23 +110,23 @@ class WalletLedgerService
         if (! $operator || (! $operator->can('platform.admin') && ! $operator->isPrivilegedOperator())) {
             return null;
         }
+        $this->ensureSchema();
         $q = $this->db()->table('wallets')->where('owner_type', 'PLATFORM')->orderByDesc('id');
         $row = $q->first();
         if (! $row) {
             try {
-                $insert = [
+                $platformUserId = $this->platformWalletUserId();
+                $insert = $this->filterRow('wallets', [
                     'owner_type' => 'PLATFORM',
-                    'owner_user_id' => null,
+                    'owner_user_id' => $platformUserId,
                     'balance_paise' => 0,
                     'created_at' => now(),
                     'updated_at' => now(),
-                ];
-                $this->db()->table('wallets')->insert(array_filter(
-                    $insert,
-                    fn ($key) => $this->hasColumn('wallets', $key),
-                    ARRAY_FILTER_USE_KEY,
-                ));
-                $row = $this->db()->table('wallets')->where('owner_type', 'PLATFORM')->orderByDesc('id')->first();
+                ]);
+                if ($platformUserId || ! $this->hasColumn('wallets', 'owner_user_id')) {
+                    $this->db()->table('wallets')->insert($insert);
+                    $row = $this->db()->table('wallets')->where('owner_type', 'PLATFORM')->orderByDesc('id')->first();
+                }
             } catch (QueryException) {
                 $row = null;
             }
@@ -507,8 +509,10 @@ class WalletLedgerService
         $direction = strtoupper((string) $input['direction']);
         abort_unless(in_array($direction, ['CREDIT', 'DEBIT'], true), 422, 'Direction must be CREDIT or DEBIT');
 
+        $this->ensureSchema();
         $posted = $this->db()->transaction(function () use ($input, $amount, $direction) {
             $wallet = $this->ensureWallet((int) $input['ownerUserId'], (string) $input['ownerType'], true);
+            abort_unless($wallet, 422, 'Could not create a wallet for this user.');
             $before = (int) $wallet->balance_paise;
             $delta = $direction === 'CREDIT' ? $amount : -$amount;
             $after = $before + $delta;
@@ -517,11 +521,13 @@ class WalletLedgerService
             }
             $commission = (int) ($input['commissionPaise'] ?? 0);
             $gross = (int) ($input['grossPaise'] ?? ($amount + $commission));
-            $ledger = [
+            $ledger = $this->filterRow('wallet_ledger', [
                 'public_ref' => $this->newRef('KCW'),
                 'wallet_id' => (int) $wallet->id,
                 'booking_id' => $input['bookingId'] ?? null,
+                'owner_user_id' => (int) $input['ownerUserId'],
                 'account' => $input['ownerType'],
+                'owner_type' => $input['ownerType'],
                 'direction' => $direction,
                 'amount_paise' => $amount,
                 'commission_paise' => $commission,
@@ -531,14 +537,9 @@ class WalletLedgerService
                 'kind' => $input['kind'] ?? 'trip',
                 'status' => $input['status'] ?? 'posted',
                 'note' => $input['note'] ?? null,
+                'payment_ref' => $input['paymentRef'] ?? null,
                 'created_at' => now(),
-            ];
-            if ($this->hasColumn('wallet_ledger', 'owner_user_id')) {
-                $ledger['owner_user_id'] = (int) $input['ownerUserId'];
-            }
-            if ($this->hasColumn('wallet_ledger', 'payment_ref')) {
-                $ledger['payment_ref'] = $input['paymentRef'] ?? null;
-            }
+            ]);
             try {
                 $ledger['id'] = $this->db()->table('wallet_ledger')->insertGetId($ledger);
             } catch (QueryException $exception) {
@@ -553,18 +554,26 @@ class WalletLedgerService
 
                     return ['wallet' => $wallet, 'ledger' => (array) $existing, 'created' => false];
                 }
-                throw $exception;
+                Log::warning('wallet.ledger_insert_failed', ['error' => $exception->getMessage()]);
+                abort(422, 'Could not save this wallet entry. Try again.');
             }
-            $this->db()->table('wallets')->where('id', $wallet->id)->update(['balance_paise' => $after]);
+            $this->db()->table('wallets')->where('id', $wallet->id)->update($this->filterRow('wallets', [
+                'balance_paise' => $after,
+                'updated_at' => now(),
+            ]));
 
             return ['wallet' => (object) array_merge((array) $wallet, ['balance_paise' => $after]), 'ledger' => $ledger, 'created' => true];
         });
         if (! empty($posted['created'])) {
-            app(NotificationService::class)->dispatch((int) $input['ownerUserId'], 'wallet_transaction', [
-                'amount' => number_format(((int) $input['amountPaise']) / 100, 2, '.', ''),
-                'direction' => strtolower($direction),
-                'note' => $input['note'] ?? $input['kind'] ?? 'Wallet update',
-            ], ['entity' => ['type' => 'ledger', 'id' => (string) ($posted['ledger']['id'] ?? '')]]);
+            try {
+                app(NotificationService::class)->dispatch((int) $input['ownerUserId'], 'wallet_transaction', [
+                    'amount' => number_format(((int) $input['amountPaise']) / 100, 2, '.', ''),
+                    'direction' => strtolower($direction),
+                    'note' => $input['note'] ?? $input['kind'] ?? 'Wallet update',
+                ], ['entity' => ['type' => 'ledger', 'id' => (string) ($posted['ledger']['id'] ?? '')]]);
+            } catch (\Throwable $e) {
+                Log::warning('wallet.notify_failed', ['error' => $e->getMessage()]);
+            }
         }
 
         return $posted;
@@ -572,6 +581,8 @@ class WalletLedgerService
 
     public function ensureWallet(int $userId, string $ownerType, bool $lock = false): object
     {
+        $this->ensureSchema();
+        abort_unless($userId > 0, 422, 'This user cannot receive wallet money.');
         $q = $this->db()->table('wallets')->where('owner_type', $ownerType)->where('owner_user_id', $userId);
         if ($lock) {
             $q->lockForUpdate();
@@ -580,18 +591,33 @@ class WalletLedgerService
         if ($wallet) {
             return $wallet;
         }
-        $this->db()->table('wallets')->insert([
-            'owner_type' => $ownerType,
-            'owner_user_id' => $userId,
-            'balance_paise' => 0,
-        ]);
+        try {
+            $this->db()->table('wallets')->insert($this->filterRow('wallets', [
+                'owner_type' => $ownerType,
+                'owner_user_id' => $userId,
+                'balance_paise' => 0,
+                'joining_credit_limit_paise' => 0,
+                'joining_credit_paise' => 0,
+                'joining_credit_used_paise' => 0,
+                'frozen_paise' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        } catch (QueryException $exception) {
+            if (! $this->isUniqueConflict($exception)) {
+                Log::warning('wallet.create_failed', ['userId' => $userId, 'error' => $exception->getMessage()]);
+                abort(422, 'Could not create a wallet for this user.');
+            }
+        }
 
         $created = $this->db()->table('wallets')->where('owner_type', $ownerType)->where('owner_user_id', $userId);
         if ($lock) {
             $created->lockForUpdate();
         }
+        $wallet = $created->first();
+        abort_unless($wallet, 422, 'Could not create a wallet for this user.');
 
-        return $created->first();
+        return $wallet;
     }
 
     public function activeRule(): ?object
@@ -1164,6 +1190,46 @@ class WalletLedgerService
     private function hasColumn(string $table, string $column): bool
     {
         return Schema::connection('platform')->hasColumn($table, $column);
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function filterRow(string $table, array $row): array
+    {
+        if (! Schema::connection('platform')->hasTable($table)) {
+            return $row;
+        }
+
+        return array_filter($row, fn ($key) => $this->hasColumn($table, $key), ARRAY_FILTER_USE_KEY);
+    }
+
+    private function ensureSchema(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        try {
+            if ($this->hasColumn('wallet_ledger', 'account')) {
+                $this->db()->statement('ALTER TABLE wallet_ledger MODIFY COLUMN account VARCHAR(32) NULL');
+            }
+        } catch (\Throwable) {
+        }
+        try {
+            if ($this->hasColumn('wallets', 'owner_type')) {
+                $this->db()->statement('ALTER TABLE wallets MODIFY COLUMN owner_type VARCHAR(32) NULL');
+            }
+        } catch (\Throwable) {
+        }
+        try {
+            if ($this->hasColumn('wallets', 'updated_at')) {
+                $this->db()->statement('ALTER TABLE wallets MODIFY COLUMN updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)');
+            }
+        } catch (\Throwable) {
+        }
     }
 
     private function db()

@@ -386,6 +386,7 @@ trait CreatesPlatformSchema
                 $table->string('owner_type')->nullable();
                 $table->unsignedBigInteger('owner_user_id')->nullable();
                 $table->bigInteger('balance_paise')->default(0);
+                $table->timestamps();
                 $table->unique(['owner_type', 'owner_user_id']);
             },
             'booking_ratings' => function (Blueprint $table) {
