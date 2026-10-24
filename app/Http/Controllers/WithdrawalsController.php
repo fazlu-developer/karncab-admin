@@ -16,10 +16,12 @@ class WithdrawalsController extends Controller
         $operator = $request->user();
         abort_unless($this->wallets->canViewWithdrawals($operator), 403);
         $status = (string) $request->query('status', 'requested');
+        $q = trim((string) $request->query('q', ''));
 
         return view('withdrawals.index', [
-            'rows' => $this->wallets->withdrawals($operator, ['status' => $status]),
+            'rows' => $this->wallets->withdrawals($operator, ['status' => $status, 'q' => $q]),
             'status' => $status,
+            'q' => $q,
             'canSettle' => $this->wallets->canSettleWithdrawals($operator),
         ]);
     }
@@ -29,7 +31,7 @@ class WithdrawalsController extends Controller
         $data = $request->validate([
             'decision' => ['required', 'in:approve,reject,settle'],
             'transfer_ref' => ['nullable', 'string', 'max:64'],
-            'note' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255', 'required_if:decision,reject'],
         ]);
         $this->wallets->decideWithdrawal(
             $request->user(),

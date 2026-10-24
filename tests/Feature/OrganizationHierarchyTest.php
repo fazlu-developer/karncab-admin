@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Platform\OperatorRole;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\CreatesPlatformSchema;
 use Tests\TestCase;
 
@@ -167,5 +169,29 @@ class OrganizationHierarchyTest extends TestCase
         $driver = DB::connection('platform')->table('drivers')->orderByDesc('id')->first();
         $this->assertNull($driver->fleet_owner_id);
         $this->assertSame('individual_driver', $driver->driver_type);
+    }
+
+    public function test_admin_can_open_state_and_district_heads(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+
+        $this->actingAs($admin)->get('/organization/heads')
+            ->assertOk()
+            ->assertSee('Bihar')
+            ->assertSee('Saharsa');
+    }
+
+    public function test_heads_page_works_when_states_have_no_status_column(): void
+    {
+        Schema::connection('platform')->table('states', function (Blueprint $table) {
+            $table->dropColumn('status');
+        });
+
+        $admin = User::factory()->create(['role' => OperatorRole::SUPER_ADMIN]);
+
+        $this->actingAs($admin)->get('/organization/heads')
+            ->assertOk()
+            ->assertSee('Bihar')
+            ->assertSee('Saharsa');
     }
 }

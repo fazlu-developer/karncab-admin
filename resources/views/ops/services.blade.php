@@ -3,13 +3,7 @@
 @section('heading', 'Service Management')
 @section('content')
     @php
-        $photo = function (?string $path) {
-            $path = trim((string) $path);
-            if ($path === '') {
-                return '';
-            }
-            return str_starts_with($path, 'http') ? $path : url($path);
-        };
+        $photo = fn (?string $path) => \App\Support\PublicMedia::presentMediaUrl($path) ?? '';
         $pickedFor = fn ($row) => \App\Http\Controllers\Ops\WorkspaceController::selectedVehicleKeys($row);
     @endphp
     <div class="hero">

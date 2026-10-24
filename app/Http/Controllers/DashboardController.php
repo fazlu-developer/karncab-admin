@@ -6,9 +6,11 @@ use App\Models\Platform\PlatformDriver;
 use App\Models\Platform\PlatformUser;
 use App\Platform\OperatorRole;
 use App\Services\PlatformOpsService;
+use App\Support\PublicMedia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Throwable;
 
@@ -119,7 +121,51 @@ class DashboardController extends Controller
             'districts' => $districts,
             'selectedStateId' => $selectedStateId,
             'selectedDistrictId' => $selectedDistrictId,
+            'pulse' => $this->pulse(),
         ]);
+    }
+
+    /**
+     * @return array{withdraws: int, corporate: int, bulk: int, tours: int, banners: list<array{title: string, url: string, status: string}>}
+     */
+    private function pulse(): array
+    {
+        $db = DB::connection('platform');
+        $schema = Schema::connection('platform');
+        $pending = function (string $table) use ($db, $schema): int {
+            if (! $schema->hasTable($table) || ! $schema->hasColumn($table, 'status')) {
+                return 0;
+            }
+
+            return (int) $db->table($table)->where(function ($query) {
+                $query->whereIn('status', ['requested', 'pending', 'REQUESTED', 'PENDING', 'SUBMITTED', 'NEW', 'awaiting_approval', 'awaiting_payment'])
+                    ->orWhere('status', 'like', '%pend%')
+                    ->orWhere('status', 'like', '%request%');
+            })->count();
+        };
+        $banners = [];
+        if ($schema->hasTable('ad_campaigns')) {
+            $field = fn (object $row, string $name) => property_exists($row, $name) ? $row->{$name} : null;
+            foreach ($db->table('ad_campaigns')->orderByDesc('id')->limit(4)->get() as $row) {
+                $url = PublicMedia::presentMediaUrl($field($row, 'image_url') ?: $field($row, 'banner_key'), $field($row, 'updated_at'));
+                if ($url === null) {
+                    continue;
+                }
+                $banners[] = [
+                    'title' => (string) ($field($row, 'title') ?: ($field($row, 'name') ?: 'Banner')),
+                    'url' => $url,
+                    'status' => (string) ($field($row, 'status') ?? ''),
+                ];
+            }
+        }
+
+        return [
+            'withdraws' => $pending('wallet_withdrawals'),
+            'corporate' => $pending('corporate_travel_bookings'),
+            'bulk' => $pending('bulk_bookings'),
+            'tours' => $pending('travel_bookings'),
+            'banners' => $banners,
+        ];
     }
 
     public static function roles(): array

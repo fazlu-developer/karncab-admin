@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\PlatformSettings;
+use App\Support\PublicMedia;
 use App\Support\StoredUpload;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,8 @@ class SiteBrandingService
             'appStoreUrl' => $site['appStoreUrl'] ?? '',
             'customerAppLogoUrl' => $site['customerAppLogoUrl'] ?? '',
             'driverAppLogoUrl' => $site['driverAppLogoUrl'] ?? '',
+            'customerUpdateImageUrl' => $site['customerUpdateImageUrl'] ?? '',
+            'driverUpdateImageUrl' => $site['driverUpdateImageUrl'] ?? '',
             'customerPlayStoreUrl' => $site['customerPlayStoreUrl'] ?? ($site['playStoreUrl'] ?? 'https://play.google.com/store/apps/details?id=com.karnacabride'),
             'driverPlayStoreUrl' => $site['driverPlayStoreUrl'] ?? 'https://play.google.com/store/apps/details?id=com.karnacabpartner',
             'customerAppVersion' => $site['customerAppVersion'] ?? '1.1.10',
@@ -57,7 +60,7 @@ class SiteBrandingService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function save(array $data, ?UploadedFile $logo = null, ?UploadedFile $favicon = null, ?UploadedFile $og = null, ?UploadedFile $adminLogo = null, ?UploadedFile $customerLogo = null, ?UploadedFile $driverLogo = null): void
+    public function save(array $data, ?UploadedFile $logo = null, ?UploadedFile $favicon = null, ?UploadedFile $og = null, ?UploadedFile $adminLogo = null, ?UploadedFile $customerLogo = null, ?UploadedFile $driverLogo = null, ?UploadedFile $customerUpdate = null, ?UploadedFile $driverUpdate = null): void
     {
         $site = $this->form();
         foreach ($site as $key => $current) {
@@ -71,9 +74,14 @@ class SiteBrandingService
         $this->swapImage($site, 'logoUrl', $logo, 'logo', ! empty($data['remove_logo']));
         $this->swapImage($site, 'customerAppLogoUrl', $customerLogo, 'customer-app', ! empty($data['remove_customer_app_logo']));
         $this->swapImage($site, 'driverAppLogoUrl', $driverLogo, 'driver-app', ! empty($data['remove_driver_app_logo']));
+        $this->swapImage($site, 'customerUpdateImageUrl', $customerUpdate, 'customer-update', ! empty($data['remove_customer_update_image']));
+        $this->swapImage($site, 'driverUpdateImageUrl', $driverUpdate, 'driver-update', ! empty($data['remove_driver_update_image']));
         $this->swapImage($site, 'adminLogoUrl', $adminLogo, 'admin-logo', ! empty($data['remove_admin_logo']));
         $this->swapImage($site, 'faviconUrl', $favicon, 'favicon', ! empty($data['remove_favicon']));
         $this->swapImage($site, 'ogImage', $og, 'og', ! empty($data['remove_og']));
+        foreach (['logoUrl', 'customerAppLogoUrl', 'driverAppLogoUrl', 'customerUpdateImageUrl', 'driverUpdateImageUrl', 'adminLogoUrl', 'faviconUrl', 'ogImage'] as $imageKey) {
+            $site[$imageKey] = PublicMedia::storagePath($site[$imageKey] ?? null) ?? '';
+        }
         if (array_key_exists('mapEmbed', $site) && is_string($site['mapEmbed'])) {
             $embed = $site['mapEmbed'];
             $embed = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $embed) ?? '';
@@ -86,7 +94,7 @@ class SiteBrandingService
     {
         $current = $site[$key] ?? null;
         if ($file) {
-            $site[$key] = StoredUpload::replace($file, 'branding', is_string($current) ? $current : null, $prefix);
+            $site[$key] = PublicMedia::storagePath(StoredUpload::replace($file, 'branding', is_string($current) ? $current : null, $prefix)) ?? '';
 
             return;
         }

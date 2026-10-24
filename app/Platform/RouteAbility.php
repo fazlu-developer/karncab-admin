@@ -60,12 +60,13 @@ final class RouteAbility
             ['organization.states', ['state.view']],
             ['organization.districts', ['district.view']],
             ['organization.heads', ['users.view', 'state.view', 'district.view']],
+            ['territory-contacts.*', ['users.edit', 'platform.admin']],
             ['organization.district-kyc', ['kyc.view']],
             ['organization.state-kyc', ['kyc.view']],
             ['organization.*', ['state.view', 'district.view', 'kyc.view']],
             ['payments.*', ['payments.view']],
             ['settlements.*', ['payments.view']],
-            ['withdrawals.*', ['payout.view']],
+            ['withdrawals.*', ['payout.view', 'payout.approve']],
             ['coupons.*', ['platform.admin']],
             ['ads.*', ['advertising.view']],
             ['safety.*', ['safety.view']],
@@ -100,6 +101,8 @@ final class RouteAbility
             ['ops.manual-bookings.*', ['bookings.manage']],
             ['ops.assign-drivers', ['bookings.manage']],
             ['ops.assign-drivers.*', ['bookings.manage']],
+            ['ops.bulk-bookings', ['bookings.manage', 'bookings.view']],
+            ['ops.bulk-bookings.*', ['bookings.manage']],
         ];
     }
 }

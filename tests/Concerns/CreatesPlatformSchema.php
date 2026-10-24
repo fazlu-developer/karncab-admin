@@ -157,6 +157,8 @@ trait CreatesPlatformSchema
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->string('trade_name')->nullable();
                 $table->decimal('commission_percent', 5, 2)->nullable();
+                $table->decimal('dh_share_percent', 5, 2)->nullable();
+                $table->unsignedInteger('dh_share_paise')->nullable();
                 $table->string('gstin')->nullable();
                 $table->unsignedInteger('state_id')->nullable();
                 $table->unsignedInteger('district_id')->nullable();
@@ -386,8 +388,25 @@ trait CreatesPlatformSchema
                 $table->string('owner_type')->nullable();
                 $table->unsignedBigInteger('owner_user_id')->nullable();
                 $table->bigInteger('balance_paise')->default(0);
+                $table->unsignedBigInteger('frozen_paise')->default(0);
                 $table->timestamps();
                 $table->unique(['owner_type', 'owner_user_id']);
+            },
+            'wallet_withdrawals' => function (Blueprint $table) {
+                $table->id();
+                $table->string('public_ref', 24)->unique();
+                $table->unsignedBigInteger('wallet_id');
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->unsignedBigInteger('amount_paise');
+                $table->string('status', 24)->default('requested');
+                $table->string('payout_method', 16)->nullable();
+                $table->string('upi_or_account', 120)->nullable();
+                $table->string('transfer_ref', 64)->nullable();
+                $table->string('note', 255)->nullable();
+                $table->unsignedBigInteger('reviewed_by')->nullable();
+                $table->timestamp('reviewed_at')->nullable();
+                $table->timestamp('settled_at')->nullable();
+                $table->timestamps();
             },
             'booking_ratings' => function (Blueprint $table) {
                 $table->id();

@@ -47,7 +47,9 @@ class AdvertisingController extends Controller
 
     public function update(Request $request, int $ad): RedirectResponse
     {
-        $this->ads->update($request->user(), $ad, $this->campaignPayload($request, false));
+        $payload = $this->campaignPayload($request, false);
+        $payload['remove_banner'] = $request->boolean('remove_banner');
+        $this->ads->update($request->user(), $ad, $payload);
         if ($request->hasFile('banner')) {
             try {
                 $this->ads->uploadBanner($request->user(), $ad, $request->file('banner'));
@@ -127,7 +129,8 @@ class AdvertisingController extends Controller
             'ends_on' => [$creating ? 'required' : 'nullable', 'date'],
             'budget_rupees' => [$creating ? 'required' : 'nullable', 'integer', 'min:1'],
             'cta_url' => ['nullable', 'string', 'max:500'],
-            'image_url' => ['nullable', 'url', 'max:500'],
+            'image_url' => ['nullable', 'string', 'max:500'],
+            'remove_banner' => ['nullable'],
             'placement' => ['nullable', 'in:'.implode(',', AdPolicy::ALLOWED_PLACEMENTS)],
             'status' => ['prohibited'],
         ];

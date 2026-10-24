@@ -56,7 +56,7 @@
                     <div><label>CTA URL</label><input name="cta_url" placeholder="https://"></div>
                     <div>
                         <label>Banner image URL</label>
-                        <input name="image_url" type="url" data-image-preview placeholder="https://karnaride.in/uploads/ads/banner.jpg">
+                        <input name="image_url" type="url" data-image-preview placeholder="https://admin.karnaride.in/uploads/ads/banner.jpg">
                     </div>
                     <div>
                         <label>Upload banner</label>

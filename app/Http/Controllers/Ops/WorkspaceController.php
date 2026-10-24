@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
+use App\Services\CorporateDeskService;
 use App\Services\OrganizationAudit;
 use App\Services\SiteBrandingService;
 use App\Services\VehicleCatalogAdmin;
 use App\Support\CorporatePlanSchema;
 use App\Support\NamePicker;
 use App\Support\PlatformSettings;
+use App\Support\PublicMedia;
 use App\Support\StoredUpload;
 use App\Support\TravelPackageSchema;
 use Illuminate\Http\RedirectResponse;
@@ -66,20 +68,34 @@ class WorkspaceController extends Controller
             'driverForceUpdate' => ['nullable', 'boolean'],
             'highAlertEnabled' => ['nullable', 'boolean'],
             'footerBlurb' => ['nullable', 'string', 'max:400'],
-            'logo' => ['nullable', 'image', 'max:4096'],
-            'customer_app_logo' => ['nullable', 'image', 'max:4096'],
-            'driver_app_logo' => ['nullable', 'image', 'max:4096'],
-            'admin_logo' => ['nullable', 'image', 'max:2048'],
-            'favicon' => ['nullable', 'image', 'max:1024'],
-            'og' => ['nullable', 'image', 'max:2048'],
+            'customer_app_logo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'driver_app_logo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'customer_update_image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'driver_update_image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'admin_logo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:2048'],
+            'favicon' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:1024'],
+            'og' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:2048'],
+            'logo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'remove_logo' => ['nullable'],
             'remove_customer_app_logo' => ['nullable'],
             'remove_driver_app_logo' => ['nullable'],
+            'remove_customer_update_image' => ['nullable'],
+            'remove_driver_update_image' => ['nullable'],
             'remove_admin_logo' => ['nullable'],
             'remove_favicon' => ['nullable'],
             'remove_og' => ['nullable'],
         ]);
-        $this->branding->save($data, $request->file('logo'), $request->file('favicon'), $request->file('og'), $request->file('admin_logo'), $request->file('customer_app_logo'), $request->file('driver_app_logo'));
+        $this->branding->save(
+            $data,
+            $request->file('logo'),
+            $request->file('favicon'),
+            $request->file('og'),
+            $request->file('admin_logo'),
+            $request->file('customer_app_logo'),
+            $request->file('driver_app_logo'),
+            $request->file('customer_update_image'),
+            $request->file('driver_update_image'),
+        );
         OrganizationAudit::record($request->user(), 'branding.update', 'cms_site', 'site', null, ['name' => $data['name']], 'cms');
 
         return back()->with('status', 'Website, SEO, logo and contact details saved. Public pages pick this up from cms_site.');
@@ -129,7 +145,7 @@ class WorkspaceController extends Controller
             'sort_order' => ['nullable', 'integer'],
             'seats' => ['nullable', 'integer', 'min:0', 'max:60'],
             'active' => ['nullable'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'remove_image' => ['nullable'],
         ]);
         $existing = DB::connection('platform')->table('catalog_services')->where('id', $service)->first();
@@ -191,7 +207,7 @@ class WorkspaceController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
             'blurb' => ['nullable', 'string', 'max:180'],
             'active' => ['nullable', 'boolean'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
         ]);
         if (($data['family_key'] ?? '') === '__NEW__') {
             $data['family_key'] = $data['new_family_key'] ?: $data['new_family_label'] ?: 'LOADING';
@@ -226,7 +242,7 @@ class WorkspaceController extends Controller
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
             'blurb' => ['nullable', 'string', 'max:180'],
             'active' => ['nullable', 'boolean'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'remove_image' => ['nullable'],
         ]);
         foreach ($this->vehicles->families(false) as $family) {
@@ -253,7 +269,7 @@ class WorkspaceController extends Controller
         abort_unless($request->user()?->can('platform.admin'), 403);
         $request->validate([
             'family_label' => ['nullable', 'string', 'max:80'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'remove_image' => ['nullable'],
         ]);
         $key = strtoupper($family);
@@ -294,7 +310,7 @@ class WorkspaceController extends Controller
             'subtitle' => ['nullable', 'string', 'max:160'],
             'code' => ['nullable', 'string', 'max:32'],
             'link_url' => ['nullable', 'string', 'max:255'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
         ]);
         $rows = PlatformSettings::json('cms_home_offers');
         $rows[] = [
@@ -324,7 +340,7 @@ class WorkspaceController extends Controller
 
     private function absoluteUpload(string $path): string
     {
-        return rtrim((string) env('ADMIN_PUBLIC_URL', 'https://admin.karnaride.in'), '/').'/'.ltrim($path, '/');
+        return PublicMedia::storagePath($path) ?? '';
     }
 
     public function travel(Request $request): View
@@ -334,11 +350,11 @@ class WorkspaceController extends Controller
         $packages = Schema::connection('platform')->hasTable('travel_packages')
             ? DB::connection('platform')->table('travel_packages')->orderByDesc('id')->limit(200)->get()
             : collect();
-        $bookings = Schema::connection('platform')->hasTable('travel_bookings')
-            ? DB::connection('platform')->table('travel_bookings')->orderByDesc('id')->limit(50)->get()
-            : collect();
+        $bucket = $request->query('bucket');
+        $tours = app(\App\Services\TourDeskService::class)->rows(is_string($bucket) ? $bucket : null);
+        $drivers = \App\Support\NamePicker::drivers($request->user(), 300);
 
-        return view('ops.travel', compact('packages', 'bookings'));
+        return view('ops.travel', compact('packages', 'tours', 'drivers', 'bucket'));
     }
 
     public function storeTravel(Request $request): RedirectResponse
@@ -378,6 +394,72 @@ class WorkspaceController extends Controller
         return back()->with('status', 'Travel package updated.');
     }
 
+    public function approveTour(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
+        app(\App\Services\TourDeskService::class)->approve($booking);
+
+        return back()->with('status', 'Tour approved. The customer can see the ticket and pay the 30% advance.');
+    }
+
+    public function rejectTour(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
+        $data = $request->validate(['reason' => ['required', 'string', 'max:240']]);
+        app(\App\Services\TourDeskService::class)->reject($booking, $data['reason']);
+
+        return back()->with('status', 'Tour rejected.');
+    }
+
+    public function assignTour(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
+        $data = $request->validate(['driver_id' => ['required', 'integer', 'min:1']]);
+        app(\App\Services\TourDeskService::class)->assign($booking, (int) $data['driver_id']);
+
+        return back()->with('status', 'Driver assigned. The customer and driver have been notified.');
+    }
+
+    public function bulkBookings(Request $request): View
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('bookings.view') || $request->user()?->can('platform.admin'), 403);
+        $desk = app(\App\Services\BulkDeskService::class);
+
+        return view('ops.bulk-bookings', [
+            'rows' => $desk->rows(),
+            'drivers' => $desk->drivers(),
+        ]);
+    }
+
+    public function confirmBulk(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        app(\App\Services\BulkDeskService::class)->confirm($booking);
+
+        return back()->with('status', 'Bulk booking confirmed. The customer can pay the 10% advance.');
+    }
+
+    public function rejectBulk(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        $data = $request->validate(['reason' => ['required', 'string', 'max:240']]);
+        app(\App\Services\BulkDeskService::class)->reject($booking, $data['reason']);
+
+        return back()->with('status', 'Bulk booking rejected.');
+    }
+
+    public function assignBulk(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'driver_ids' => ['required', 'array', 'min:2'],
+            'driver_ids.*' => ['required', 'integer', 'min:1'],
+        ]);
+        app(\App\Services\BulkDeskService::class)->assign($booking, $data['driver_ids']);
+
+        return back()->with('status', 'All drivers assigned. Each driver and the customer were notified.');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -401,7 +483,7 @@ class WorkspaceController extends Controller
             'itinerary' => ['nullable', 'string', 'max:8000'],
             'status' => ['required', 'in:DRAFT,PUBLISHED,ARCHIVED'],
             'popular' => ['nullable', 'boolean'],
-            'image' => ['nullable', 'image', 'max:4096'],
+            'image' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'remove_image' => ['nullable'],
         ]);
     }
@@ -471,11 +553,89 @@ class WorkspaceController extends Controller
         $plans = Schema::connection('platform')->hasTable('corporate_plans')
             ? DB::connection('platform')->table('corporate_plans')->orderBy('sort_order')->orderByDesc('id')->get()
             : collect();
-        $bookings = Schema::connection('platform')->hasTable('corporate_travel_bookings')
-            ? DB::connection('platform')->table('corporate_travel_bookings')->orderByDesc('id')->limit(40)->get()
-            : collect();
+        $desk = app(CorporateDeskService::class);
+        $status = $request->string('status')->toString();
+        $bookings = $desk->rows($request->user(), $status !== '' ? $status : null);
 
-        return view('ops.corporate-plans', compact('plans', 'bookings'));
+        return view('ops.corporate-plans', [
+            'plans' => $plans,
+            'bookings' => $bookings,
+            'drivers' => $desk->drivers($request->user()),
+            'totals' => $desk->totals($bookings),
+            'status' => $status,
+            'canMoney' => $request->user()?->can('corporate.edit') || $request->user()?->can('platform.admin'),
+        ]);
+    }
+
+    public function approveCorporate(Request $request, int $booking): RedirectResponse
+    {
+        $this->corporateMoney($request);
+        app(CorporateDeskService::class)->approve($booking);
+
+        return back()->with('status', 'Corporate plan approved. The customer can pay 10%.');
+    }
+
+    public function rejectCorporate(Request $request, int $booking): RedirectResponse
+    {
+        $this->corporateMoney($request);
+        app(CorporateDeskService::class)->reject($booking, (string) $request->input('reason', ''));
+
+        return back()->with('status', 'Corporate plan rejected.');
+    }
+
+    public function assignCorporate(Request $request, int $booking): RedirectResponse
+    {
+        $this->corporateMoney($request);
+        $data = $request->validate(['driver_id' => ['required', 'integer', 'min:1']]);
+        app(CorporateDeskService::class)->assign($booking, (int) $data['driver_id']);
+
+        return back()->with('status', 'Driver assigned. Their wallet is credited for this plan.');
+    }
+
+    public function shareCorporate(Request $request, int $booking): RedirectResponse
+    {
+        $this->corporateMoney($request);
+        $data = $request->validate([
+            'district_rupees' => ['nullable', 'numeric', 'min:0'],
+            'fleet_rupees' => ['nullable', 'numeric', 'min:0'],
+        ]);
+        app(CorporateDeskService::class)->shares(
+            $booking,
+            (int) round(((float) ($data['district_rupees'] ?? 0)) * 100),
+            (int) round(((float) ($data['fleet_rupees'] ?? 0)) * 100),
+        );
+
+        return back()->with('status', 'Commission shares saved.');
+    }
+
+    public function timetableCorporate(Request $request, int $booking): RedirectResponse
+    {
+        $this->corporateMoney($request);
+        $data = $request->validate([
+            'pickup_time' => ['required', 'string', 'max:8'],
+            'starts_on' => ['required', 'date'],
+            'ends_on' => ['required', 'date'],
+        ]);
+        app(CorporateDeskService::class)->timetable($booking, $data['pickup_time'], $data['starts_on'], $data['ends_on']);
+
+        return back()->with('status', 'Corporate timetable updated.');
+    }
+
+    public function renewCorporate(Request $request, int $booking): RedirectResponse
+    {
+        $this->corporateMoney($request);
+        $data = $request->validate([
+            'duration_days' => ['required', 'integer', 'min:7', 'max:366'],
+            'comped' => ['nullable', 'boolean'],
+        ]);
+        app(CorporateDeskService::class)->renew($booking, (int) $data['duration_days'], $request->boolean('comped'));
+
+        return back()->with('status', 'Corporate plan renewed.');
+    }
+
+    private function corporateMoney(Request $request): void
+    {
+        abort_unless($request->user()?->can('corporate.edit') || $request->user()?->can('platform.admin'), 403);
     }
 
     public function storeCorporatePlan(Request $request): RedirectResponse
@@ -513,6 +673,7 @@ class WorkspaceController extends Controller
             'pricing_mode' => ['required', 'in:VEHICLE,FIXED,QUOTE'],
             'price_rupees' => ['nullable', 'numeric', 'min:0'],
             'price_label' => ['nullable', 'string', 'max:80'],
+            'duration_days' => ['nullable', 'integer', 'min:1', 'max:366'],
             'gst_percent' => ['nullable', 'numeric', 'min:0', 'max:28'],
             'highlights' => ['nullable', 'string', 'max:4000'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:99'],
@@ -542,6 +703,9 @@ class WorkspaceController extends Controller
         ];
         if ($creating) {
             $row['created_at'] = now();
+        }
+        if (isset($data['duration_days']) && $data['duration_days'] !== '') {
+            $row['duration_days'] = (int) $data['duration_days'];
         }
 
         return $row;

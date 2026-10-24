@@ -322,11 +322,15 @@ final class AclCatalog
             OperatorRole::MANAGER => ['users.view', 'state_head.view', 'tracking.view'],
             OperatorRole::STATE_HEAD => [
                 'users.view', 'state_head.view', 'fleet.view', 'fleet.manage', 'fleet_owner.view',
-                'payments.view', 'wallet.view', 'tracking.view', 'bookings.view', 'drivers.view', 'vehicles.view',
+                'payments.view', 'wallet.view', 'tracking.view', 'bookings.view', 'bookings.manage',
+                'drivers.view', 'drivers.create', 'drivers.edit', 'vehicles.view', 'vehicles.edit',
+                'corporate.view', 'travel.view', 'parcels.view', 'parcels.manage',
+                'safety.view', 'complaints.manage', 'kyc.view',
             ],
             OperatorRole::DISTRICT_HEAD => [
-                'users.view', 'vehicles.view', 'bookings.view', 'fleet.view', 'fleet.manage', 'fleet_owner.view',
-                'drivers.create', 'payments.view', 'commission.view', 'wallet.view',
+                'users.view', 'vehicles.view', 'bookings.view', 'bookings.manage', 'fleet.view', 'fleet.manage', 'fleet_owner.view',
+                'drivers.create', 'payments.view', 'commission.view', 'wallet.view', 'tracking.view',
+                'corporate.view', 'travel.view', 'parcels.view', 'parcels.manage', 'safety.view',
             ],
         ];
         foreach ($ensure as $role => $abilities) {

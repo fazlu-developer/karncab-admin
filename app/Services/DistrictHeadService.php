@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Platform\FareCommissionSplit;
+use App\Platform\FleetDhShare;
 use App\Platform\TerritoryScope;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +22,9 @@ class DistrictHeadService
             $districtId = (int) $operator->district_id;
         } elseif (TerritoryScope::isUnrestricted($operator)) {
             $districtId = (int) ($query['districtId'] ?? $operator->district_id ?? 0);
+            if ($districtId < 1 && Schema::connection('platform')->hasTable('districts')) {
+                $districtId = (int) ($this->db()->table('districts')->orderBy('name')->value('id') ?? 0);
+            }
             abort_if($districtId < 1, 422, 'Choose a district.');
         } else {
             abort(403);
@@ -79,45 +83,38 @@ class DistrictHeadService
         abort_unless($operator->can('fleet.manage') || $operator->can('commission.edit'), 403);
         $ctx = $this->context($operator, $query);
 
+        $districts = [];
+        if (TerritoryScope::isUnrestricted($operator) && Schema::connection('platform')->hasTable('districts')) {
+            $districts = $this->db()->table('districts')->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($row) => ['id' => (int) $row->id, 'name' => (string) $row->name])->all();
+        }
+
         return [
             'district' => $ctx,
-            'capPercent' => FareCommissionSplit::DISTRICT_PERCENT,
+            'districts' => $districts,
+            'capPercent' => 100,
             'fleets' => $this->fleetRows($ctx['districtId']),
         ];
     }
 
-    public function saveFleetCut(User $operator, int $fleetId, float $percent, array $query = []): void
+    public function saveFleetCut(User $operator, int $fleetId, ?float $percent, ?int $paise, array $query = []): void
     {
-        abort_unless($operator->can('fleet.manage') || $operator->can('commission.edit'), 403);
-        abort_unless($percent >= 0 && $percent <= FareCommissionSplit::DISTRICT_PERCENT, 422, 'Fleet cut cannot exceed the District Head 4% share.');
+        abort_unless($operator->can('fleet.manage') || $operator->can('commission.edit') || $operator->can('platform.admin'), 403);
+        if ($percent !== null) {
+            abort_unless($percent >= 0 && $percent <= 100, 422, 'Fleet share is a percent of the District Head commission, from 0 to 100.');
+        }
         $ctx = $this->context($operator, $query);
         $fleet = $this->fleetQuery($ctx['districtId'])->where('fleet_owners.id', $fleetId)->first();
         abort_if($fleet === null, 404, 'Fleet is not in this district.');
-        $schema = Schema::connection('platform');
-        if ($schema->hasColumn('fleet_owners', 'commission_percent')) {
-            $patch = ['commission_percent' => $percent];
-            if ($schema->hasColumn('fleet_owners', 'updated_at')) {
-                $patch['updated_at'] = now();
-            }
-            $this->db()->table('fleet_owners')->where('id', $fleetId)->update($patch);
+        FleetDhShare::ensure();
+        $patch = [
+            'dh_share_percent' => $percent,
+            'dh_share_paise' => $paise !== null && $paise > 0 && $percent === null ? $paise : null,
+        ];
+        if (Schema::connection('platform')->hasColumn('fleet_owners', 'updated_at')) {
+            $patch['updated_at'] = now();
         }
-        if ($schema->hasTable('system_settings')) {
-            $key = 'fleet_cut_percent_'.$fleetId;
-            $existing = $this->db()->table('system_settings')->where('key', $key)->first();
-            $row = ['value' => (string) $percent];
-            if ($schema->hasColumn('system_settings', 'updated_at')) {
-                $row['updated_at'] = now();
-            }
-            if ($existing) {
-                $this->db()->table('system_settings')->where('key', $key)->update($row);
-            } else {
-                $row['key'] = $key;
-                if ($schema->hasColumn('system_settings', 'created_at')) {
-                    $row['created_at'] = now();
-                }
-                $this->db()->table('system_settings')->insert($row);
-            }
-        }
+        $this->db()->table('fleet_owners')->where('id', $fleetId)->update($patch);
     }
 
     private function districtSharePaise($completed, int $farePaise): int
@@ -148,8 +145,13 @@ class DistrictHeadService
     private function fleetQuery(int $districtId)
     {
         return $this->db()->table('fleet_owners')
-            ->join('users', 'users.id', '=', 'fleet_owners.user_id')
-            ->where('users.district_id', $districtId);
+            ->leftJoin('users', 'users.id', '=', 'fleet_owners.user_id')
+            ->where(function ($q) use ($districtId) {
+                $q->where('users.district_id', $districtId);
+                if (Schema::connection('platform')->hasColumn('fleet_owners', 'district_id')) {
+                    $q->orWhere('fleet_owners.district_id', $districtId);
+                }
+            });
     }
 
     /**
@@ -159,26 +161,30 @@ class DistrictHeadService
     {
         $schema = Schema::connection('platform');
         $select = ['fleet_owners.id', 'fleet_owners.trade_name', 'users.name as owner_name'];
-        if ($schema->hasColumn('fleet_owners', 'commission_percent')) {
-            $select[] = 'fleet_owners.commission_percent';
+        foreach (['commission_percent', 'dh_share_percent', 'dh_share_paise'] as $column) {
+            if ($schema->hasColumn('fleet_owners', $column)) {
+                $select[] = 'fleet_owners.'.$column;
+            }
         }
         $rows = $this->fleetQuery($districtId)->orderBy('fleet_owners.id')->get($select);
 
+        FleetDhShare::ensure();
+
         return $rows->map(function ($row) use ($schema) {
-            $percent = 0.0;
-            if ($schema->hasColumn('fleet_owners', 'commission_percent') && $row->commission_percent !== null && $row->commission_percent !== '') {
-                $percent = (float) $row->commission_percent;
-            } elseif ($schema->hasTable('system_settings')) {
-                $stored = $this->db()->table('system_settings')->where('key', 'fleet_cut_percent_'.$row->id)->value('value');
-                if (is_numeric($stored)) {
-                    $percent = (float) $stored;
-                }
+            $percent = null;
+            $paise = null;
+            if ($schema->hasColumn('fleet_owners', 'dh_share_percent') && $row->dh_share_percent !== null && $row->dh_share_percent !== '') {
+                $percent = (float) $row->dh_share_percent;
+            }
+            if ($schema->hasColumn('fleet_owners', 'dh_share_paise') && $row->dh_share_paise !== null && (int) $row->dh_share_paise > 0) {
+                $paise = (int) $row->dh_share_paise;
             }
 
             return [
                 'id' => (int) $row->id,
                 'name' => (string) ($row->trade_name ?: $row->owner_name),
-                'percent' => min(FareCommissionSplit::DISTRICT_PERCENT, max(0, $percent)),
+                'percent' => $percent,
+                'paise' => $paise,
             ];
         })->all();
     }

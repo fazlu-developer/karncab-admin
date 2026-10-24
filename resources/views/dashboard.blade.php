@@ -47,7 +47,7 @@
             ['todayRevenueRupees', "Today ₹", 'banknote'],
             ['monthlyRevenueRupees', 'Month ₹', 'wallet'],
             ['commissionEarnedRupees', 'Platform commission ₹', 'percent'],
-            ['fleetSettlementRupees', 'Fleet 5% ₹', 'warehouse'],
+            ['fleetSettlementRupees', 'Fleet share ₹', 'warehouse'],
             ['platformKeepRupees', 'Platform keep ₹', 'landmark'],
             ['pendingKyc', 'Pending KYC', 'badge-alert'],
             ['pendingComplaints', 'Complaints', 'message-circle-warning'],
@@ -60,6 +60,28 @@
             </div>
         @endforeach
     </div>
+    <section class="card" style="margin-bottom:18px">
+        <h2>Needs a look</h2>
+        <div class="kpis">
+            <div class="kpi"><div class="label">Withdraw requests</div><b>{{ $pulse['withdraws'] ?? 0 }}</b><div><a href="{{ route('withdrawals.index') }}">Open</a></div></div>
+            <div class="kpi"><div class="label">Corporate plans</div><b>{{ $pulse['corporate'] ?? 0 }}</b></div>
+            <div class="kpi"><div class="label">Bulk bookings</div><b>{{ $pulse['bulk'] ?? 0 }}</b></div>
+            <div class="kpi"><div class="label">Travel tickets</div><b>{{ $pulse['tours'] ?? 0 }}</b></div>
+        </div>
+        @if (!empty($pulse['banners']))
+            <h3>Live banners</h3>
+            <div class="table-wrap" style="display:flex;gap:12px;flex-wrap:wrap">
+                @foreach ($pulse['banners'] as $banner)
+                    <figure style="margin:0;max-width:220px">
+                        <img src="{{ $banner['url'] }}" alt="{{ $banner['title'] }}" style="width:220px;height:110px;object-fit:cover;border-radius:12px">
+                        <figcaption class="muted">{{ $banner['title'] }} · {{ $banner['status'] }}</figcaption>
+                    </figure>
+                @endforeach
+            </div>
+        @else
+            <p class="muted">No published banner yet. Upload one under Advertising. The preview uses admin.karnaride.in.</p>
+        @endif
+    </section>
     <section class="card" style="margin-bottom:18px">
         <div class="toolbar">
             <h3 style="margin:0">Customers using KarnaRide now</h3>

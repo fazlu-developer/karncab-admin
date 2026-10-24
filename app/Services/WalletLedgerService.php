@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Platform\CommissionEngine;
 use App\Platform\FareCommissionSplit;
+use App\Platform\FleetDhShare;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
 use Illuminate\Database\Query\Builder;
@@ -396,9 +397,15 @@ class WalletLedgerService
             $fleetUserId = $this->db()->table('fleet_owners')->where('id', $driver->fleet_owner_id)->value('user_id');
         }
 
-        $fleetPct = $this->fleetCutPercent($fleetOwnerId);
+        $share = FleetDhShare::resolve($fleetOwnerId);
         $farePaise = $totalPaise ?: ((int) ($fromQuote['netPaise'] ?? 0) + (int) ($settled['commissionPaise'] ?? 0));
-        $split = FareCommissionSplit::split($farePaise, (int) $settled['commissionPaise'], $fleetPct);
+        $split = FareCommissionSplit::applyFleetShare(
+            $farePaise,
+            (int) $settled['commissionPaise'],
+            $fleetOwnerId > 0 ? $share['percent'] : null,
+            $fleetOwnerId > 0 ? $share['paise'] : null,
+            $fleetOwnerId > 0,
+        );
         $districtUserId = 0;
         if (! empty($row->district_id)) {
             $districtUserId = (int) ($this->db()->table('users')
@@ -458,7 +465,7 @@ class WalletLedgerService
                 'grossPaise' => (int) $settled['commissionPaise'],
                 'bookingId' => (int) $row->id,
                 'kind' => 'fleet_commission',
-                'note' => 'Fleet cut from the district 4% share',
+                'note' => 'Fleet share of the district commission',
                 'paymentRef' => $paymentRef,
             ]);
         }
@@ -473,7 +480,7 @@ class WalletLedgerService
                 'grossPaise' => (int) $settled['commissionPaise'],
                 'bookingId' => (int) $row->id,
                 'kind' => 'district_head_commission',
-                'note' => 'District Head net 4% after fleet cut',
+                'note' => 'District Head share after the fleet split',
                 'paymentRef' => $paymentRef,
             ]);
         }
@@ -929,16 +936,37 @@ class WalletLedgerService
 
         $q = $this->db()->table('wallet_withdrawals')
             ->leftJoin('wallets', 'wallets.id', '=', 'wallet_withdrawals.wallet_id');
-        if ($this->hasColumn('wallet_withdrawals', 'user_id')) {
-            $q->leftJoin('users', 'users.id', '=', 'wallet_withdrawals.user_id');
+        if ($this->hasColumn('wallet_withdrawals', 'user_id') && $this->hasColumn('wallets', 'owner_user_id')) {
+            $q->leftJoin('users', function ($join) {
+                $join->whereRaw('users.id = COALESCE(NULLIF(wallet_withdrawals.user_id, 0), wallets.owner_user_id)');
+            });
         } else {
             $q->leftJoin('users', 'users.id', '=', 'wallets.owner_user_id');
         }
         $status = strtolower(trim((string) ($filters['status'] ?? '')));
-        if ($status !== '' && $status !== 'all') {
-            $q->where('wallet_withdrawals.status', $status);
+        $statusGroup = match ($status) {
+            'requested', 'pending' => ['requested', 'pending', ''],
+            'approved' => ['approved'],
+            'settled', 'paid' => ['settled', 'paid'],
+            'rejected' => ['rejected'],
+            default => [],
+        };
+        if ($statusGroup !== []) {
+            $q->whereIn('wallet_withdrawals.status', $statusGroup);
         }
-        if ($operator && ! TerritoryScope::isUnrestricted($operator)) {
+        $term = trim((string) ($filters['q'] ?? ''));
+        if ($term !== '') {
+            $like = '%'.$term.'%';
+            $q->where(function ($inner) use ($like) {
+                $inner->where('users.name', 'like', $like)
+                    ->orWhere('users.phone', 'like', $like)
+                    ->orWhere('wallet_withdrawals.public_ref', 'like', $like);
+                if ($this->hasColumn('wallet_withdrawals', 'upi_or_account')) {
+                    $inner->orWhere('wallet_withdrawals.upi_or_account', 'like', $like);
+                }
+            });
+        }
+        if ($operator && ! $operator->isPrivilegedOperator() && ! TerritoryScope::isUnrestricted($operator)) {
             $ids = $this->scopedWallets($operator)->pluck('id');
             if ($ids->isEmpty()) {
                 $q->whereRaw('0 = 1');
@@ -950,35 +978,66 @@ class WalletLedgerService
         return $q->select(
             'wallet_withdrawals.*',
             'wallets.owner_user_id as wallet_owner_user_id',
+            'wallets.owner_type as wallet_owner_type',
             'users.name as owner_name',
             'users.phone as owner_phone',
         )
             ->orderByDesc('wallet_withdrawals.id')
-            ->limit(120)
+            ->limit(200)
             ->get()
-            ->map(fn ($row) => [
-                'id' => (int) $row->id,
-                'publicRef' => $row->public_ref ?? null,
-                'userId' => (int) ($row->user_id ?? $row->wallet_owner_user_id ?? 0),
-                'walletId' => (int) ($row->wallet_id ?? 0),
-                'ownerName' => $row->owner_name ?: 'User #'.($row->user_id ?? $row->wallet_owner_user_id ?? '?'),
-                'ownerPhone' => $row->owner_phone,
-                'amountRupees' => ((int) $row->amount_paise) / 100,
-                'status' => $row->status,
-                'transferRef' => $row->transfer_ref ?? null,
-                'note' => $row->note,
-                'createdAt' => $row->created_at,
-            ])->all();
+            ->map(function ($row) {
+                $status = strtolower((string) ($row->status ?? ''));
+                if ($status === '' || $status === 'pending') {
+                    $status = 'requested';
+                }
+                if ($status === 'paid') {
+                    $status = 'settled';
+                }
+
+                return [
+                    'id' => (int) $row->id,
+                    'publicRef' => $row->public_ref ?? null,
+                    'userId' => (int) ($row->user_id ?? $row->wallet_owner_user_id ?? 0),
+                    'walletId' => (int) ($row->wallet_id ?? 0),
+                    'ownerName' => $row->owner_name ?: 'Driver #'.($row->user_id ?? $row->wallet_owner_user_id ?? '?'),
+                    'ownerPhone' => $row->owner_phone,
+                    'ownerType' => $row->wallet_owner_type ?? 'DRIVER',
+                    'amountRupees' => ((int) $row->amount_paise) / 100,
+                    'status' => $status,
+                    'payoutMethod' => $row->payout_method ?? null,
+                    'destination' => $row->upi_or_account ?? null,
+                    'transferRef' => $row->transfer_ref ?? null,
+                    'note' => $row->note,
+                    'createdAt' => $row->created_at,
+                ];
+            })->all();
     }
 
     public function canViewWithdrawals(?User $operator): bool
     {
-        return (bool) ($operator?->can('payout.view') || $operator?->can('payout.approve') || $operator?->can('platform.admin'));
+        if (! $operator) {
+            return false;
+        }
+        if ($operator->isPrivilegedOperator() || $operator->isSuperAdmin()) {
+            return true;
+        }
+
+        return $operator->can('payout.view') || $operator->can('payout.approve');
     }
 
     public function canSettleWithdrawals(?User $operator): bool
     {
-        return (bool) ($operator?->can('payout.approve') || $operator?->can('platform.admin'));
+        if (! $operator) {
+            return false;
+        }
+        if ($operator->isPrivilegedOperator() || $operator->isSuperAdmin()) {
+            return true;
+        }
+        if ($operator->isStateHead() || $operator->isDistrictHead()) {
+            return $operator->can('payout.approve');
+        }
+
+        return $operator->can('payout.approve');
     }
 
     public function decideWithdrawal(User $operator, int $id, string $decision, ?string $transferRef = null, ?string $note = null): void
@@ -989,9 +1048,16 @@ class WalletLedgerService
         abort_unless($row, 404, 'Withdrawal not found.');
         $decision = strtolower($decision);
         abort_unless(in_array($decision, ['approve', 'reject', 'settle'], true), 422, 'Unknown withdrawal action.');
-        abort_unless($row->status !== 'settled' && $row->status !== 'rejected', 422, 'This withdrawal is already closed.');
+        $closed = in_array(strtolower((string) $row->status), ['settled', 'paid', 'rejected'], true);
+        abort_unless(! $closed, 422, 'This withdrawal is already closed.');
         $wallet = $this->db()->table('wallets')->where('id', $row->wallet_id)->first();
         abort_unless($wallet, 404, 'Wallet not found.');
+        if (! $operator->isPrivilegedOperator() && ! TerritoryScope::isUnrestricted($operator)) {
+            $ownerId = (int) ($row->user_id ?? $wallet->owner_user_id ?? 0);
+            $visible = $this->db()->table('users')->where('users.id', $ownerId);
+            TerritoryScope::applyUsers($visible, $operator, 'users');
+            abort_unless($visible->exists(), 403, 'This driver is outside your territory.');
+        }
         $frozen = max(0, (int) ($wallet->frozen_paise ?? 0));
         $amount = (int) $row->amount_paise;
         $reviewer = $operator->nest_user_id ?: null;
@@ -1003,6 +1069,7 @@ class WalletLedgerService
         }
 
         if ($decision === 'reject') {
+            abort_unless(trim((string) $note) !== '', 422, 'Enter a reason to reject this withdrawal.');
             if ($this->hasColumn('wallets', 'frozen_paise')) {
                 $this->db()->table('wallets')->where('id', $wallet->id)->update([
                     'frozen_paise' => max(0, $frozen - $amount),
@@ -1011,28 +1078,38 @@ class WalletLedgerService
             }
             $this->db()->table('wallet_withdrawals')->where('id', $id)->update($this->withdrawalUpdate([
                 'status' => 'rejected',
-                'note' => $note ?: 'Rejected by admin',
+                'note' => $note,
                 'reviewed_by' => $reviewer,
                 'reviewed_by_id' => $reviewer,
                 'reviewed_at' => now(),
                 'updated_at' => now(),
             ]));
+            $this->notifyWithdrawal((int) ($row->user_id ?? $wallet->owner_user_id), 'rejected', $amount, $note);
 
             return;
         }
 
-        abort_unless(in_array((string) $row->status, ['requested', 'approved'], true), 422, 'Approve this request before settling.');
-        $before = (int) $wallet->balance_paise;
-        abort_unless($before >= $amount, 422, 'Wallet cash is lower than the frozen withdrawal.');
-        $this->postLedger([
-            'ownerType' => (string) ($wallet->owner_type ?: 'DRIVER'),
-            'ownerUserId' => (int) $wallet->owner_user_id,
-            'direction' => 'DEBIT',
-            'amountPaise' => $amount,
-            'kind' => 'withdraw',
-            'note' => $note ?: 'Withdrawal paid successfully',
-            'paymentRef' => $transferRef,
-        ]);
+        abort_unless(in_array(strtolower((string) $row->status), ['requested', 'pending', 'approved', ''], true), 422, 'Approve this request before settling.');
+        $ledgerRef = 'WD-'.$id;
+        $bankRef = trim((string) ($transferRef ?: '')) !== '' ? $transferRef : $ledgerRef;
+        $already = $this->db()->table('wallet_ledger')
+            ->where('wallet_id', $wallet->id)
+            ->where('kind', 'withdraw')
+            ->where('payment_ref', $ledgerRef)
+            ->exists();
+        if (! $already) {
+            $before = (int) $wallet->balance_paise;
+            abort_unless($before >= $amount, 422, 'Wallet cash is lower than the frozen withdrawal.');
+            $this->postLedger([
+                'ownerType' => (string) ($wallet->owner_type ?: 'DRIVER'),
+                'ownerUserId' => (int) $wallet->owner_user_id,
+                'direction' => 'DEBIT',
+                'amountPaise' => $amount,
+                'kind' => 'withdraw',
+                'note' => $note ?: 'Withdrawal paid successfully',
+                'paymentRef' => $ledgerRef,
+            ]);
+        }
         $walletUpdate = ['updated_at' => now()];
         if ($this->hasColumn('wallets', 'frozen_paise')) {
             $walletUpdate['frozen_paise'] = max(0, $frozen - $amount);
@@ -1040,7 +1117,7 @@ class WalletLedgerService
         $this->db()->table('wallets')->where('id', $wallet->id)->update($walletUpdate);
         $this->db()->table('wallet_withdrawals')->where('id', $id)->update($this->withdrawalUpdate([
             'status' => 'settled',
-            'transfer_ref' => $transferRef,
+            'transfer_ref' => $bankRef,
             'note' => $note ?: $row->note,
             'settled_at' => now(),
             'reviewed_by' => $reviewer,
@@ -1079,7 +1156,7 @@ class WalletLedgerService
             return;
         }
         $adds = [];
-        foreach (['user_id', 'upi_or_account', 'transfer_ref', 'reviewed_by', 'reviewed_at', 'settled_at'] as $column) {
+        foreach (['user_id', 'payout_method', 'upi_or_account', 'transfer_ref', 'reviewed_by', 'reviewed_at', 'settled_at'] as $column) {
             if (! $schema->hasColumn('wallet_withdrawals', $column)) {
                 $adds[] = $column;
             }
@@ -1088,6 +1165,9 @@ class WalletLedgerService
             $schema->table('wallet_withdrawals', function ($table) use ($adds) {
                 if (in_array('user_id', $adds, true)) {
                     $table->unsignedBigInteger('user_id')->nullable();
+                }
+                if (in_array('payout_method', $adds, true)) {
+                    $table->string('payout_method', 16)->nullable();
                 }
                 if (in_array('upi_or_account', $adds, true)) {
                     $table->string('upi_or_account', 120)->nullable();
@@ -1106,7 +1186,8 @@ class WalletLedgerService
                 }
             });
         }
-        if ($this->hasColumn('wallet_withdrawals', 'user_id') && $this->hasColumn('wallets', 'owner_user_id')) {
+        $this->widenWithdrawalStatus();
+        if ($this->db()->getDriverName() === 'mysql' && $this->hasColumn('wallet_withdrawals', 'user_id') && $this->hasColumn('wallets', 'owner_user_id')) {
             $this->db()->statement(
                 'UPDATE wallet_withdrawals w INNER JOIN wallets wa ON wa.id = w.wallet_id SET w.user_id = wa.owner_user_id WHERE w.user_id IS NULL OR w.user_id = 0'
             );
@@ -1117,6 +1198,40 @@ class WalletLedgerService
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
+    private function widenWithdrawalStatus(): void
+    {
+        if ($this->db()->getDriverName() !== 'mysql') {
+            return;
+        }
+        $column = $this->db()->select("SHOW COLUMNS FROM wallet_withdrawals WHERE Field = 'status'");
+        $type = strtolower((string) ($column[0]->Type ?? ''));
+        if (str_starts_with($type, 'enum') && ! str_contains($type, 'requested')) {
+            $this->db()->statement("ALTER TABLE wallet_withdrawals MODIFY status VARCHAR(24) NOT NULL DEFAULT 'requested'");
+        }
+        if ($this->hasColumn('wallet_withdrawals', 'ledger_id')) {
+            $ledger = $this->db()->select("SHOW COLUMNS FROM wallet_withdrawals WHERE Field = 'ledger_id'");
+            if (strtoupper((string) ($ledger[0]->Null ?? '')) === 'NO') {
+                $this->db()->statement('ALTER TABLE wallet_withdrawals MODIFY ledger_id BIGINT NULL');
+            }
+        }
+    }
+
+    private function notifyWithdrawal(int $userId, string $outcome, int $amountPaise, ?string $note): void
+    {
+        if ($userId < 1) {
+            return;
+        }
+        try {
+            app(NotificationService::class)->dispatch($userId, 'wallet_transaction', [
+                'direction' => $outcome,
+                'amount' => number_format($amountPaise / 100, 2, '.', ''),
+                'note' => $note ?: 'Withdrawal '.$outcome,
+            ], ['channels' => ['in_app']]);
+        } catch (\Throwable $e) {
+            Log::warning('wallet.withdraw_notify_failed', ['error' => $e->getMessage()]);
+        }
+    }
+
     private function withdrawalUpdate(array $payload): array
     {
         $out = [];

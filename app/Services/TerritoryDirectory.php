@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class TerritoryDirectory
 {
@@ -16,18 +17,26 @@ class TerritoryDirectory
     {
         $states = DB::connection('platform')->table('states')
             ->orderBy('name')
-            ->get(['id', 'name', 'code', 'status']);
+            ->get($this->existingColumns('states', ['id', 'name', 'code', 'status']));
+
+        $districtSelect = [
+            'districts.id',
+            'districts.name',
+            'districts.state_id',
+            'states.name as state_name',
+        ];
+        if (Schema::connection('platform')->hasColumn('districts', 'status')) {
+            $districtSelect[] = 'districts.status';
+        }
+        if (Schema::connection('platform')->hasColumn('districts', 'code')) {
+            $districtSelect[] = 'districts.code';
+        }
+
         $districts = DB::connection('platform')->table('districts')
             ->join('states', 'states.id', '=', 'districts.state_id')
             ->orderBy('states.name')
             ->orderBy('districts.name')
-            ->get([
-                'districts.id',
-                'districts.name',
-                'districts.state_id',
-                'districts.status',
-                'states.name as state_name',
-            ]);
+            ->get($districtSelect);
 
         if ($actor && ! TerritoryScope::isUnrestricted($actor)) {
             $role = TerritoryScope::effectiveRole($actor);
@@ -99,5 +108,21 @@ class TerritoryDirectory
             'states' => $stateRows,
             'districts' => $districtRows,
         ];
+    }
+
+    /**
+     * Live `states` has no status column; tests and newer snapshots may.
+     *
+     * @param  list<string>  $wanted
+     * @return list<string>
+     */
+    private function existingColumns(string $table, array $wanted): array
+    {
+        $schema = Schema::connection('platform');
+
+        return array_values(array_filter(
+            $wanted,
+            fn (string $column) => $schema->hasColumn($table, $column),
+        ));
     }
 }

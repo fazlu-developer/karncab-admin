@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="user-plus"></i> Assign drivers</h1>
-            <p class="muted">Dated one way, round trip, rental, airport, railway and other scheduled bookings wait here until you assign a driver. A same-day round trip already includes 3 hours to reach and 3 hours of waiting in the fare.</p>
+            <p class="muted">Dated one way, round trip, rental, airport, railway and other scheduled bookings wait here until you assign a driver. Bulk bookings are a separate desk: confirm the group, take the 10% advance, then assign every cab.</p>
         </div>
     </div>
     <form class="card" method="GET">
@@ -14,7 +14,7 @@
                 <label>Service</label>
                 <select name="product" onchange="this.form.submit()">
                     <option value="">All remaining services</option>
-                    @foreach (['RENTAL' => 'Cab Rental', 'AIRPORT' => 'Airport', 'RAILWAY' => 'Railway', 'MULTI_STOP' => 'Multi Stop', 'OUTSTATION' => 'Outstation', 'TRAVEL' => 'Travel & Tour', 'BULK' => 'Bulk Booking', 'CORPORATE' => 'Corporate Travel'] as $key => $label)
+                    @foreach (['RENTAL' => 'Cab Rental', 'AIRPORT' => 'Airport', 'RAILWAY' => 'Railway', 'MULTI_STOP' => 'Multi Stop', 'OUTSTATION' => 'Outstation', 'TRAVEL' => 'Travel & Tour', 'CORPORATE' => 'Corporate Travel'] as $key => $label)
                         <option value="{{ $key }}" @selected(($product ?? '') === $key)>{{ $label }}</option>
                     @endforeach
                 </select>

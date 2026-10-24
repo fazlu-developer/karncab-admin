@@ -21,7 +21,7 @@
         @endif
         @if ($campaign['bannerUrl'])
             <p>
-                <img src="{{ str_starts_with($campaign['bannerUrl'], 'http') ? $campaign['bannerUrl'] : url($campaign['bannerUrl']) }}" alt="Banner" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover">
+                <img src="{{ $campaign['bannerUrl'] }}" alt="Banner" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover">
             </p>
             <p class="muted">Image URL: {{ $campaign['imageUrl'] ?? $campaign['bannerUrl'] }}</p>
         @else
@@ -82,6 +82,9 @@
                     <div>
                         <label>Replace banner file</label>
                         <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
+                        @if ($campaign['bannerUrl'])
+                            <label><input type="checkbox" name="remove_banner" value="1"> Remove image</label>
+                        @endif
                     </div>
                 </div>
                 <div><label>Business information</label><textarea name="business_info" rows="2">{{ $campaign['businessInfo'] }}</textarea></div>

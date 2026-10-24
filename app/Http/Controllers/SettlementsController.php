@@ -3,19 +3,49 @@
 namespace App\Http\Controllers;
 
 use App\Services\CommissionSettlementService;
+use App\Services\WeeklyCommissionSettle;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SettlementsController extends Controller
 {
-    public function __construct(private readonly CommissionSettlementService $settlements) {}
+    public function __construct(
+        private readonly CommissionSettlementService $settlements,
+        private readonly WeeklyCommissionSettle $weekly,
+    ) {}
 
     public function index(Request $request): View
     {
         abort_unless($request->user()?->can('payments.view') || $request->user()?->can('wallet.view') || $request->user()?->can('platform.admin'), 403);
+        $week = $request->query('week');
 
-        return view('settlements.index', $this->settlements->overview($request->user()));
+        return view('settlements.index', array_merge(
+            $this->settlements->overview($request->user()),
+            ['weeklyPay' => $this->weekly->board($request->user(), is_string($week) ? $week : null)],
+        ));
+    }
+
+    public function settleDistrictWeek(Request $request, int $user): RedirectResponse
+    {
+        $posted = $this->weekly->settleDistrict($request->user(), $user, $request->input('week'));
+
+        return back()->with('status', 'District Head wallet credited ₹'.number_format((float) $posted['creditedRupees'], 2).' for '.$posted['label'].'. Recorded commission was ₹'.number_format((float) $posted['recordedRupees'], 2).'.');
+    }
+
+    public function settleFleetWeek(Request $request, int $fleetOwner): RedirectResponse
+    {
+        $posted = $this->weekly->settleFleet($request->user(), $fleetOwner, $request->input('week'));
+
+        return back()->with('status', 'Fleet owner wallet credited ₹'.number_format((float) $posted['creditedRupees'], 2).' for '.$posted['label'].'.');
+    }
+
+    public function statement(Request $request): StreamedResponse
+    {
+        $week = $request->query('week');
+
+        return $this->weekly->statement($request->user(), is_string($week) ? $week : null);
     }
 
     public function payout(Request $request, int $fleetOwner): RedirectResponse

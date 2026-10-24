@@ -47,6 +47,9 @@ final class PrivilegedModules
         if (! $user instanceof User) {
             return false;
         }
+        if ($key === 'payout' && in_array($user->role, [OperatorRole::STATE_HEAD, OperatorRole::DISTRICT_HEAD], true)) {
+            return ! $user->can('payout.view') && ! $user->can('payout.approve');
+        }
         if (in_array($key, self::HEAD_HIDDEN, true) && in_array($user->role, [OperatorRole::STATE_HEAD, OperatorRole::DISTRICT_HEAD], true)) {
             return true;
         }

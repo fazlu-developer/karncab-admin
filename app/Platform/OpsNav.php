@@ -23,6 +23,7 @@ final class OpsNav
             ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
             ['key' => 'users', 'label' => 'All users', 'icon' => 'users', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'users.index'],
             ['key' => 'territory-heads', 'label' => 'State & district heads', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'organization.heads'],
+            ['key' => 'territory-contacts', 'label' => 'Territory contacts', 'icon' => 'phone', 'group' => 'Organization', 'ability' => 'platform.admin', 'route' => 'territory-contacts.index'],
             ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
             ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
             ['key' => 'fleet-kyc', 'label' => 'Fleet Owner KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'fleet-owners.kyc'],
@@ -42,6 +43,7 @@ final class OpsNav
             ['key' => 'trips', 'label' => 'Trips', 'icon' => 'navigation', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'map', 'label' => 'Live Tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.manual-bookings'],
+            ['key' => 'bulk-bookings', 'label' => 'Bulk Bookings', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.bulk-bookings'],
             ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'ops.parcels'],
             ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.travel'],
             ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
@@ -224,6 +226,9 @@ final class OpsNav
         if (($item['route'] ?? '') === 'organization.heads') {
             return request()->routeIs('organization.heads');
         }
+        if (($item['route'] ?? '') === 'territory-contacts.index') {
+            return request()->routeIs('territory-contacts.*');
+        }
         if (($item['route'] ?? '') === 'old-users.index') {
             return request()->routeIs('old-users.*');
         }
@@ -235,6 +240,9 @@ final class OpsNav
         }
         if (($item['route'] ?? '') === 'ops.manual-bookings') {
             return request()->routeIs('ops.manual-bookings*') || request()->route('module') === 'bulk';
+        }
+        if (($item['route'] ?? '') === 'ops.bulk-bookings') {
+            return request()->routeIs('ops.bulk-bookings*');
         }
         if (($item['route'] ?? '') === 'ops.parcels') {
             return request()->routeIs('ops.parcels*');
@@ -373,13 +381,20 @@ final class OpsNav
                 continue;
             }
             if (($stateHead || $districtHead) && in_array($key, PrivilegedModules::HEAD_HIDDEN, true)) {
-                continue;
-            }
-            if ($stateHead && ! in_array($key, ['dashboard', 'users'], true)) {
-                $ability = (string) ($item['ability'] ?? '');
-                if ($ability === '' || ! in_array($ability, $assigned, true)) {
+                $payoutGrant = $key === 'payout' && ($user->can('payout.view') || $user->can('payout.approve'));
+                if (! $payoutGrant) {
                     continue;
                 }
+            }
+            if ($key === 'payout') {
+                $canPayout = $user->can('payout.view') || $user->can('payout.approve')
+                    || (method_exists($user, 'isPrivilegedOperator') && $user->isPrivilegedOperator());
+                if (! $canPayout) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $out[] = $item;
+                continue;
             }
             if ($manager && $assigned !== [] && $key !== 'dashboard') {
                 $ability = (string) ($item['ability'] ?? '');
@@ -396,7 +411,8 @@ final class OpsNav
             $seen[$key] = true;
             $out[] = $item;
         }
-        if (method_exists($user, 'isDistrictHead') && $user->isDistrictHead() && $user->can('fleet.manage') && ! isset($seen['fleet-cut'])) {
+        $privileged = method_exists($user, 'isPrivilegedOperator') && $user->isPrivilegedOperator();
+        if (($districtHead || $privileged) && $user->can('fleet.manage') && ! isset($seen['fleet-cut'])) {
             $out[] = ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet.manage', 'route' => 'district.settings'];
         }
 

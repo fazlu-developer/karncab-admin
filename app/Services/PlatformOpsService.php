@@ -904,7 +904,7 @@ class PlatformOpsService
      */
     public function scheduledAssignments(?User $operator = null, ?string $product = null): array
     {
-        $scheduledProducts = ['RENTAL', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'OUTSTATION', 'TRAVEL', 'BULK', 'CORPORATE'];
+        $scheduledProducts = ['RENTAL', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'OUTSTATION', 'TRAVEL', 'CORPORATE'];
         $q = $this->bookingsQuery($operator)
             ->leftJoin('users as customers', 'customers.id', '=', 'bookings.customer_id')
             ->leftJoin('drivers', 'drivers.id', '=', 'bookings.driver_id')

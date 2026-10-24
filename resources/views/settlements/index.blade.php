@@ -14,13 +14,95 @@
         @endcanany
     </div>
 
+    <section class="card">
+        <h2>Weekly wallet credit · {{ $weeklyPay['period']['label'] }}</h2>
+        <p class="muted">This credits the beneficiary wallet once for the week. Money already posted on the trip is not paid again. Commission settlement and driver withdraw are separate.</p>
+        <form class="filters" method="GET">
+            <div>
+                <label>Any day in the week</label>
+                <input type="date" name="week" value="{{ $weeklyPay['period']['key'] }}">
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <button class="btn" type="submit">Show week</button>
+            </div>
+            <div>
+                <label>&nbsp;</label>
+                <a class="btn ghost" href="{{ route('settlements.statement', ['week' => $weeklyPay['period']['key']]) }}">Download statement</a>
+            </div>
+        </form>
+        @if ($weeklyPay['canPayDistrict'])
+            <h3>District Heads</h3>
+            <div class="table-wrap">
+                <table class="data">
+                    <thead><tr><th>Head</th><th>Recorded</th><th>Already in wallet</th><th>To credit</th><th></th></tr></thead>
+                    <tbody>
+                    @forelse ($weeklyPay['districts'] as $row)
+                        <tr>
+                            <td><strong>{{ $row['name'] }}</strong><div class="muted">{{ $row['phone'] }}</div></td>
+                            <td>₹{{ number_format($row['recordedRupees'], 2) }}</td>
+                            <td>₹{{ number_format($row['alreadyRupees'], 2) }}</td>
+                            <td>₹{{ number_format($row['dueRupees'], 2) }}</td>
+                            <td>
+                                @if ($row['settled'])
+                                    <span class="muted">Settled</span>
+                                @else
+                                    <form method="POST" action="{{ route('settlements.weekly.district', $row['userId']) }}">
+                                        @csrf
+                                        <input type="hidden" name="week" value="{{ $weeklyPay['period']['key'] }}">
+                                        <button class="btn" type="submit">Credit district wallet</button>
+                                    </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="muted">No district heads in this scope.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @endif
+        @if ($weeklyPay['canPayFleet'])
+            <h3>Fleet owners</h3>
+            <div class="table-wrap">
+                <table class="data">
+                    <thead><tr><th>Fleet</th><th>Share</th><th>Recorded</th><th>Already in wallet</th><th>To credit</th><th></th></tr></thead>
+                    <tbody>
+                    @forelse ($weeklyPay['fleets'] as $row)
+                        <tr>
+                            <td><strong>{{ $row['name'] }}</strong><div class="muted">{{ $row['phone'] }}</div></td>
+                            <td>{{ $row['share'] ?? '50% default' }}</td>
+                            <td>₹{{ number_format($row['recordedRupees'], 2) }}</td>
+                            <td>₹{{ number_format($row['alreadyRupees'], 2) }}</td>
+                            <td>₹{{ number_format($row['dueRupees'], 2) }}</td>
+                            <td>
+                                @if ($row['settled'])
+                                    <span class="muted">Settled</span>
+                                @else
+                                    <form method="POST" action="{{ route('settlements.weekly.fleet', $row['fleetId']) }}">
+                                        @csrf
+                                        <input type="hidden" name="week" value="{{ $weeklyPay['period']['key'] }}">
+                                        <button class="btn" type="submit">Credit fleet wallet</button>
+                                    </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="muted">No fleets in this scope.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
     <div class="kpis">
         <div class="kpi">
             <div class="label"><i data-lucide="percent"></i> Platform commission</div>
             <b>₹{{ number_format($commissionRupees, 0) }}</b>
         </div>
         <div class="kpi">
-            <div class="label"><i data-lucide="warehouse"></i> Fleet 5% credited</div>
+            <div class="label"><i data-lucide="warehouse"></i> Fleet share credited</div>
             <b>₹{{ number_format($fleetShareRupees, 0) }}</b>
         </div>
         <div class="kpi">

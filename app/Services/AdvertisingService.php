@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Platform\AdPolicy;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
+use App\Support\PublicMedia;
 use App\Support\StoredUpload;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -222,7 +223,7 @@ class AdvertisingService
             'updated_at' => now(),
         ];
         if ($this->hasColumn('image_url')) {
-            $patch['image_url'] = $this->publicMediaUrl($relative);
+            $patch['image_url'] = PublicMedia::storagePath($relative);
         }
         $this->db()->table('ad_campaigns')->where('id', $id)->update($patch);
 
@@ -687,9 +688,18 @@ class AdvertisingService
         if ($this->hasColumn('placement') && isset($data['placement']) && in_array($data['placement'], AdPolicy::ALLOWED_PLACEMENTS, true)) {
             $patch['placement'] = $data['placement'];
         }
-        if ($this->hasColumn('image_url') && array_key_exists('image_url', $data)) {
-            $url = trim((string) ($data['image_url'] ?? ''));
-            $patch['image_url'] = $url !== '' ? $url : null;
+        if (! empty($data['remove_banner'])) {
+            $existing = $this->db()->table('ad_campaigns')->where('id', $id)->first();
+            StoredUpload::forget($existing->image_url ?? null);
+            StoredUpload::forget($existing->banner_key ?? null);
+            if ($this->hasColumn('image_url')) {
+                $patch['image_url'] = null;
+            }
+            if ($this->hasColumn('banner_key')) {
+                $patch['banner_key'] = null;
+            }
+        } elseif ($this->hasColumn('image_url') && array_key_exists('image_url', $data)) {
+            $patch['image_url'] = PublicMedia::storagePath($data['image_url'] ?? null);
         }
         if (count($patch) > 1) {
             $this->db()->table('ad_campaigns')->where('id', $id)->update($patch);
@@ -698,32 +708,13 @@ class AdvertisingService
 
     private function presentBannerUrl(object $row): ?string
     {
-        $direct = trim((string) ($row->image_url ?? ''));
-        if ($direct !== '') {
-            if (str_starts_with($direct, 'http://') || str_starts_with($direct, 'https://')) {
-                return $direct;
-            }
-
-            return $this->publicMediaUrl($direct);
+        $version = $row->updated_at ?? null;
+        $direct = PublicMedia::presentMediaUrl($row->image_url ?? null, $version);
+        if ($direct !== null) {
+            return $direct;
         }
-        $key = trim((string) ($row->banner_key ?? ''));
-        if ($key !== '' && (str_starts_with($key, 'uploads/') || str_starts_with($key, '/uploads/'))) {
-            return $this->publicMediaUrl($key);
-        }
-        if ($key === '') {
-            return null;
-        }
-        $api = rtrim((string) env('API_PUBLIC_URL', env('APP_URL', 'https://api.karnaride.in')), '/');
 
-        return $api.'/api/v1/ads/'.$row->id.'/banner';
-    }
-
-    private function publicMediaUrl(string $path): string
-    {
-        $path = '/'.ltrim($path, '/');
-        $origin = rtrim((string) env('ADMIN_PUBLIC_URL', env('WEBSITE_URL', 'https://karnaride.in')), '/');
-
-        return $origin.$path;
+        return PublicMedia::presentMediaUrl($row->banner_key ?? null, $version);
     }
 
     private function bannerMime(UploadedFile $file): string

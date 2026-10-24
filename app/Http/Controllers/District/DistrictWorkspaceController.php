@@ -36,10 +36,14 @@ class DistrictWorkspaceController extends Controller
     {
         $data = $request->validate([
             'fleet_id' => ['required', 'integer'],
-            'percent' => ['required', 'numeric', 'min:0', 'max:4'],
+            'districtId' => ['nullable', 'integer'],
+            'percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'paise' => ['nullable', 'integer', 'min:0'],
         ]);
-        $this->districts->saveFleetCut($request->user(), (int) $data['fleet_id'], (float) $data['percent'], $request->query());
+        $percent = $request->filled('percent') ? (float) $data['percent'] : null;
+        $paise = $request->filled('paise') ? (int) $data['paise'] : null;
+        $this->districts->saveFleetCut($request->user(), (int) $data['fleet_id'], $percent, $paise, $request->only('districtId'));
 
-        return back()->with('status', 'Fleet cut saved. It is taken from the District Head 4% share.');
+        return back()->with('status', 'Fleet share saved. Leave the percent empty to use the 50% default of the District Head commission.');
     }
 }

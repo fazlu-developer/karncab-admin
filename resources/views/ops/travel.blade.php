@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="map"></i> Travel &amp; tour packages</h1>
-            <p class="muted">Publish packages with cover image, cab / traveller assignment, itinerary and live prices for the customer app Travel &amp; Tour service. After a booking is paid, assign a driver from Assign Drivers.</p>
+            <p class="muted">Publish tour packages for the customer Travel &amp; Tour service. A request stays pending until you approve it. The customer then pays a 30% advance. Assign a driver only after that payment. This is not a city ride and has no live map.</p>
         </div>
     </div>
     @can('travel.edit')
@@ -79,7 +79,7 @@
                     <tr>
                         <td>
                             @if (!empty($row->image_url))
-                                <img src="{{ $row->image_url }}" alt="" style="width:72px;height:48px;object-fit:cover;border-radius:8px">
+                                <img src="{{ \App\Support\PublicMedia::presentMediaUrl($row->image_url, $row->updated_at ?? null) }}" alt="" style="width:72px;height:48px;object-fit:cover;border-radius:8px">
                             @else
                                 —
                             @endif
@@ -142,24 +142,89 @@
         </div>
     </section>
     <section class="card">
-        <h2>Recent travel bookings</h2>
-        <p class="muted">Paid tours also appear under <a href="{{ route('ops.assign-drivers') }}?product=TRAVEL">Assign Drivers → Travel &amp; Tour</a> so ops can assign a cab and driver.</p>
-        <table class="data">
-            <thead><tr><th>ID</th><th>Ref</th><th>Status</th><th>When</th><th>Guests</th><th>Fare</th></tr></thead>
-            <tbody>
-            @forelse ($bookings as $row)
-                <tr>
-                    <td>{{ $row->id }}</td>
-                    <td>{{ $row->public_ref ?? '—' }}</td>
-                    <td>{{ $row->status ?? '—' }}</td>
-                    <td>{{ $row->travel_date ?? '—' }}</td>
-                    <td>{{ $row->guests ?? '—' }}</td>
-                    <td>₹{{ number_format(((int) ($row->quote_paise ?? 0)) / 100, 0) }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="6" class="muted">No travel bookings yet.</td></tr>
-            @endforelse
-            </tbody>
-        </table>
+        <h2>Tour bookings</h2>
+        <p class="muted">30% advance splits as 10% platform and 20% driver (credited when you assign). The other 70% is collected by the driver at the end. No second commission.</p>
+        <form method="GET" class="filters" style="margin-bottom:12px">
+            <div>
+                <label>Status</label>
+                <select name="bucket" onchange="this.form.submit()">
+                    <option value="">All</option>
+                    @foreach (['pending' => 'Pending', 'approved' => 'Approved, unpaid', 'paid' => '30% paid', 'assigned' => 'Assigned / on tour', 'completed' => 'Completed', 'rejected' => 'Rejected / cancelled'] as $key => $label)
+                        <option value="{{ $key }}" @selected(($bucket ?? '') === $key)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </form>
+        <div class="table-wrap">
+            <table class="data">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Package</th>
+                        <th>Travellers</th>
+                        <th>Pickup</th>
+                        <th>Money</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @forelse ($tours as $row)
+                    <tr>
+                        <td>{{ $row['publicRef'] }}<br><span class="muted">{{ $row['travelDate'] ?: '—' }}</span></td>
+                        <td>{{ $row['package'] }}</td>
+                        <td>
+                            {{ $row['guests'] }}
+                            @foreach ($row['passengers'] as $person)
+                                <div class="muted">{{ $person['name'] ?? '' }} {{ $person['phone'] ?? '' }}</div>
+                            @endforeach
+                        </td>
+                        <td>{{ $row['pickup'] ?: '—' }}<br><span class="muted">{{ $row['contactName'] }} {{ $row['contactPhone'] }}</span></td>
+                        <td>
+                            ₹{{ number_format($row['totalRupees'], 0) }} total<br>
+                            <span class="muted">30% ₹{{ number_format($row['advanceRupees'], 0) }} · platform ₹{{ number_format($row['platformRupees'], 0) }} · driver ₹{{ number_format($row['driverRupees'], 0) }} · due ₹{{ number_format($row['balanceRupees'], 0) }}</span>
+                            @if ($row['ticketNo'])
+                                <div class="muted">Ticket {{ $row['ticketNo'] }} · Invoice {{ $row['invoiceNo'] }}</div>
+                            @endif
+                        </td>
+                        <td>
+                            {{ $row['status'] }}
+                            @if ($row['driverName'])
+                                <div class="muted">{{ $row['driverName'] }}</div>
+                            @endif
+                            @if ($row['rejectReason'])
+                                <div class="muted">{{ $row['rejectReason'] }}</div>
+                            @endif
+                        </td>
+                        <td>
+                            @can('travel.edit')
+                                @if ($row['status'] === 'REQUESTED')
+                                    <form method="POST" action="{{ route('ops.travel.approve', $row['id']) }}">
+                                        @csrf
+                                        <button class="btn" type="submit">Approve</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('ops.travel.reject', $row['id']) }}" style="margin-top:8px">
+                                        @csrf
+                                        <input name="reason" required placeholder="Reject reason" maxlength="240">
+                                        <button class="btn ghost" type="submit">Reject</button>
+                                    </form>
+                                @elseif ($row['status'] === 'CONFIRMED')
+                                    <form method="POST" action="{{ route('ops.travel.assign', $row['id']) }}">
+                                        @csrf
+                                        @include('partials.name-picker', ['name' => 'driver_id', 'options' => $drivers, 'required' => true, 'empty' => 'Search driver name or phone'])
+                                        <button class="btn" type="submit">Assign</button>
+                                    </form>
+                                @elseif ($row['status'] === 'APPROVED_UNPAID')
+                                    <span class="muted">Waiting for the customer to pay 30%. Driver assignment stays locked.</span>
+                                @endif
+                            @endcan
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="7" class="muted">No tour bookings in this list.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
     </section>
 @endsection

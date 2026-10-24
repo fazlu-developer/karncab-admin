@@ -120,8 +120,16 @@ final class PlatformPermission
             'manager.view', 'manager.manage',
             'state_head.view',
             'state.operate',
-            'kyc.view',
+            'kyc.view', 'kyc.approve',
             'tracking.view',
+            'bookings.manage',
+            'safety.view', 'safety.edit',
+            'complaints.manage',
+            'parcels.manage',
+            'corporate.view',
+            'travel.view',
+            'drivers.create', 'drivers.edit', 'drivers.approve',
+            'vehicles.edit',
         ];
 
         $manager = [

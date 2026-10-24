@@ -163,12 +163,12 @@ class WalletCommissionTest extends TestCase
             ->assertJsonPath('settlement.commissionPaise', 10_000)
             ->assertJsonPath('settlement.netPaise', 90_000)
             ->assertJsonPath('settlement.platformCommissionPaise', 6_000)
-            ->assertJsonPath('settlement.districtHeadCommissionPaise', 3_000)
-            ->assertJsonPath('settlement.fleetCommissionPaise', 1_000);
+            ->assertJsonPath('settlement.districtHeadCommissionPaise', 2_000)
+            ->assertJsonPath('settlement.fleetCommissionPaise', 2_000);
 
         $this->assertSame(6_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'PLATFORM')->value('amount_paise'));
-        $this->assertSame(3_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'DISTRICT_HEAD')->value('amount_paise'));
-        $this->assertSame(1_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'FLEET_OWNER')->value('amount_paise'));
+        $this->assertSame(2_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'DISTRICT_HEAD')->value('amount_paise'));
+        $this->assertSame(2_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'FLEET_OWNER')->value('amount_paise'));
         $this->assertSame(90_000, (int) DB::connection('platform')->table('wallet_ledger')->where('booking_id', $bookingId)->where('account', 'DRIVER')->where('kind', 'trip')->value('amount_paise'));
     }
 
@@ -205,6 +205,121 @@ class WalletCommissionTest extends TestCase
         $this->actingAs($admin)->postJson("/api/v1/bookings/{$bookingId}/settle")->assertOk()
             ->assertJsonPath('settlement.commissionPaise', 80_000)
             ->assertJsonPath('settlement.netPaise', 920_000);
+    }
+
+    public function test_pending_driver_withdraw_is_listed_and_paid_once(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        $head = User::factory()->create(['role' => OperatorRole::STATE_HEAD, 'state_id' => 1]);
+        $db = DB::connection('platform');
+        $walletId = $db->table('wallets')->insertGetId([
+            'owner_type' => 'DRIVER',
+            'owner_user_id' => 501,
+            'balance_paise' => 80_000,
+            'frozen_paise' => 50_000,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $withdrawId = $db->table('wallet_withdrawals')->insertGetId([
+            'public_ref' => 'WWTEST0001',
+            'wallet_id' => $walletId,
+            'user_id' => 501,
+            'amount_paise' => 50_000,
+            'status' => 'pending',
+            'payout_method' => 'UPI',
+            'upi_or_account' => 'driver@upi',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/withdrawals')
+            ->assertOk()
+            ->assertSee('Driver One', false)
+            ->assertSee('driver@upi', false)
+            ->assertSee('Approve', false);
+
+        $this->actingAs($head)->get('/withdrawals')->assertForbidden();
+
+        $this->actingAs($admin)->post('/withdrawals/'.$withdrawId, [
+            'decision' => 'approve',
+            'transfer_ref' => 'UTR-ONCE',
+        ])->assertRedirect();
+
+        $this->assertSame('settled', $db->table('wallet_withdrawals')->where('id', $withdrawId)->value('status'));
+        $this->assertSame(30_000, (int) $db->table('wallets')->where('id', $walletId)->value('balance_paise'));
+        $this->assertSame(1, $db->table('wallet_ledger')->where('wallet_id', $walletId)->where('kind', 'withdraw')->where('payment_ref', 'WD-'.$withdrawId)->count());
+
+        $this->actingAs($admin)->post('/withdrawals/'.$withdrawId, [
+            'decision' => 'settle',
+            'transfer_ref' => 'UTR-TWICE',
+        ])->assertStatus(422);
+        $this->assertSame(1, $db->table('wallet_ledger')->where('wallet_id', $walletId)->where('kind', 'withdraw')->count());
+    }
+
+    public function test_custom_fleet_share_is_percent_of_district_pool(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        DB::connection('platform')->table('users')->insert([
+            'id' => 802,
+            'role' => 'DISTRICT_HEAD',
+            'status' => 'ACTIVE',
+            'name' => 'Patna Head',
+            'email' => 'dh-patna@karnacab.local',
+            'password_hash' => 'x',
+            'district_id' => 10,
+            'state_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::connection('platform')->table('fleet_owners')->where('id', 1)->update(['dh_share_percent' => 30]);
+        $bookingId = $this->insertCompletedBooking(100_000);
+
+        $this->actingAs($admin)
+            ->postJson("/api/v1/bookings/{$bookingId}/settle")
+            ->assertOk()
+            ->assertJsonPath('settlement.fleetCommissionPaise', 1_200)
+            ->assertJsonPath('settlement.districtHeadCommissionPaise', 2_800);
+    }
+
+    public function test_weekly_settle_credits_only_what_the_trip_has_not_already_paid(): void
+    {
+        $admin = User::factory()->create(['role' => OperatorRole::ADMIN]);
+        $stateHead = User::factory()->create(['role' => OperatorRole::STATE_HEAD, 'state_id' => 1]);
+        $districtHead = User::factory()->create(['role' => OperatorRole::DISTRICT_HEAD, 'state_id' => 1, 'district_id' => 10]);
+        DB::connection('platform')->table('users')->insert([
+            'id' => 803,
+            'role' => 'DISTRICT_HEAD',
+            'status' => 'ACTIVE',
+            'name' => 'Week Head',
+            'phone' => '9000000803',
+            'email' => 'dh-week@karnacab.local',
+            'password_hash' => 'x',
+            'district_id' => 10,
+            'state_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $bookingId = $this->insertCompletedBooking(100_000);
+        $this->actingAs($admin)->postJson("/api/v1/bookings/{$bookingId}/settle")->assertOk();
+        $week = now()->toDateString();
+        $db = DB::connection('platform');
+        $districtBefore = (int) $db->table('wallets')->where('owner_user_id', 803)->where('owner_type', 'DISTRICT_HEAD')->value('balance_paise');
+        $fleetBefore = (int) $db->table('wallets')->where('owner_user_id', 201)->where('owner_type', 'FLEET_OWNER')->value('balance_paise');
+        $this->assertSame(2_000, $districtBefore);
+        $this->assertSame(2_000, $fleetBefore);
+
+        $this->actingAs($admin)->get('/settlements?week='.$week)->assertOk()->assertSee('Week Head', false)->assertSee('Patna Cabs', false);
+        $this->actingAs($stateHead)->post('/settlements/weekly/district/803', ['week' => $week])->assertRedirect();
+        $this->actingAs($admin)->post('/settlements/weekly/district/803', ['week' => $week])->assertStatus(422);
+        $this->actingAs($districtHead)->post('/settlements/weekly/fleet/1', ['week' => $week])->assertRedirect();
+        $this->actingAs($admin)->post('/settlements/weekly/fleet/1', ['week' => $week])->assertStatus(422);
+        $this->actingAs($districtHead)->post('/settlements/weekly/district/803', ['week' => $week])->assertForbidden();
+
+        $this->assertSame(2_000, (int) $db->table('wallets')->where('owner_user_id', 803)->where('owner_type', 'DISTRICT_HEAD')->value('balance_paise'));
+        $this->assertSame(2_000, (int) $db->table('wallets')->where('owner_user_id', 201)->where('owner_type', 'FLEET_OWNER')->value('balance_paise'));
+        $this->assertSame(1, $db->table('commission_settlements')->where('kind', 'district_head')->where('beneficiary_user_id', 803)->count());
+        $this->assertSame(1, $db->table('commission_settlements')->where('kind', 'fleet_owner')->where('beneficiary_user_id', 201)->count());
     }
 
     public function test_double_settle_does_not_double_credit(): void
