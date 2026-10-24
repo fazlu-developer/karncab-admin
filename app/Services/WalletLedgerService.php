@@ -1208,7 +1208,7 @@ class WalletLedgerService
     private function ensureSchema(): void
     {
         static $done = false;
-        if ($done) {
+        if ($done || $this->db()->transactionLevel() > 0) {
             return;
         }
         $done = true;
