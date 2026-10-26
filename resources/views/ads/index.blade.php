@@ -39,7 +39,7 @@
                         <label>App placement</label>
                         <select name="placement">
                             @foreach ($catalog['placements']['allowed'] as $place)
-                                <option value="{{ $place }}" @selected($place === 'home')>{{ ucfirst($place) }}</option>
+                                <option value="{{ $place }}" @selected($place === 'home')>{{ ['home' => 'Home', 'driver' => 'Driver app', 'city' => 'City ride', 'one_way' => 'One Way', 'airport' => 'Airport', 'railway' => 'Railway', 'round_trip' => 'Round trip', 'parcel' => 'Parcel', 'rental' => 'Cab rental', 'multi_stop' => 'Multi stop', 'travel' => 'Travel', 'discovery' => 'Discovery', 'catalog' => 'Catalog'][$place] ?? ucfirst($place) }}</option>
                             @endforeach
                         </select>
                     </div>
