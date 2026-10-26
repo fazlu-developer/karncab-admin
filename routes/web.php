@@ -26,6 +26,7 @@ use App\Http\Controllers\OldUsersController;
 use App\Http\Controllers\CustomerWorkspaceController;
 use App\Http\Controllers\CouponsController;
 use App\Http\Controllers\AdvertisingController;
+use App\Http\Controllers\PopularRouteController;
 use App\Http\Controllers\WalletsController;
 use App\Http\Controllers\WithdrawalsController;
 use App\Http\Controllers\SettlementsController;
@@ -182,6 +183,9 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/dispatch', [NotificationsController::class, 'dispatch'])->name('notifications.dispatch');
     Route::post('/notifications/templates', [NotificationsController::class, 'saveTemplate'])->name('notifications.template');
+    Route::get('/popular-routes', [PopularRouteController::class, 'index'])->name('routes.popular');
+    Route::post('/popular-routes', [PopularRouteController::class, 'store'])->name('routes.popular.store');
+    Route::delete('/popular-routes/{route}', [PopularRouteController::class, 'destroy'])->name('routes.popular.destroy')->whereNumber('route');
     Route::get('/ads', [AdvertisingController::class, 'index'])->name('ads.index');
     Route::post('/ads', [AdvertisingController::class, 'store'])->name('ads.store');
     Route::get('/ads/{ad}/banner', [AdvertisingController::class, 'bannerFile'])->name('ads.banner.file');

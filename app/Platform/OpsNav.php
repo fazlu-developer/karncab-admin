@@ -57,6 +57,7 @@ final class OpsNav
             // Offers
             ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Offers', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
             ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Offers', 'ability' => 'advertising.view', 'route' => 'ads.index'],
+            ['key' => 'popular-routes', 'label' => 'Popular routes', 'icon' => 'route', 'group' => 'Offers', 'ability' => 'bookings.view', 'route' => 'routes.popular'],
             ['key' => 'leads', 'label' => 'Website enquiries', 'icon' => 'inbox', 'group' => 'Offers', 'ability' => 'customers.view', 'route' => 'leads.index'],
 
             // Finance

@@ -27,7 +27,7 @@ final class AdPolicy
         'draft', 'pending', 'approved', 'published', 'paused', 'rejected', 'expired', 'completed',
     ];
 
-    public const ALLOWED_PLACEMENTS = ['home', 'travel', 'discovery', 'catalog'];
+    public const ALLOWED_PLACEMENTS = ['home', 'driver', 'city', 'one_way', 'airport', 'railway', 'round_trip', 'parcel', 'rental', 'multi_stop', 'travel', 'discovery', 'catalog'];
 
     public const BLOCKED_PLACEMENTS = [
         'booking',
@@ -142,7 +142,7 @@ final class AdPolicy
             'placements' => [
                 'allowed' => self::ALLOWED_PLACEMENTS,
                 'blocked' => self::BLOCKED_PLACEMENTS,
-                'note' => 'Ads must never appear on an active ride, driver navigation, SOS, payment, OTP, or other critical booking actions. Use home, travel, discovery, or catalog only.',
+                'note' => 'Upload a banner for home, the driver app, or a service. A service banner replaces that service top graphic. Home and driver banners stay off live trips, SOS, payment, and OTP.',
             ],
             'metrics' => ['impressions', 'clicks', 'ctr', 'revenuePaise'],
         ];
