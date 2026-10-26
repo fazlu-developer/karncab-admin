@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  */
 class TourDeskService
 {
-    public function rows(?string $bucket = null): array
+    public function rows(?string $bucket = null, ?string $search = null): array
     {
         TravelPackageSchema::ensure('platform');
         if (! Schema::connection('platform')->hasTable('travel_bookings')) {
@@ -24,7 +24,21 @@ class TourDeskService
         $q = $this->db()->table('travel_bookings')->orderByDesc('id')->limit(80);
         $statuses = $this->bucketStatuses($bucket);
         if ($statuses) {
-            $q->whereIn('status', $statuses);
+            $q->where(function ($inner) use ($statuses) {
+                foreach ($statuses as $status) {
+                    $inner->orWhereRaw('UPPER(status) = ?', [strtoupper($status)]);
+                }
+            });
+        }
+        $term = trim((string) $search);
+        if ($term !== '') {
+            $like = '%'.$term.'%';
+            $q->where(function ($inner) use ($like) {
+                $inner->where('public_ref', 'like', $like)
+                    ->orWhere('contact_name', 'like', $like)
+                    ->orWhere('contact_phone', 'like', $like)
+                    ->orWhere('pickup_text', 'like', $like);
+            });
         }
         $packages = Schema::connection('platform')->hasTable('travel_packages')
             ? $this->db()->table('travel_packages')->get()->keyBy('id')
@@ -43,7 +57,7 @@ class TourDeskService
             return [
                 'id' => (int) $row->id,
                 'publicRef' => $row->public_ref,
-                'status' => (string) ($row->status ?? ''),
+                'status' => strtoupper((string) ($row->status ?? '')),
                 'travelDate' => $row->travel_date ?? null,
                 'guests' => (int) ($row->guests ?? count($passengers)),
                 'pickup' => $row->pickup_text ?? '',

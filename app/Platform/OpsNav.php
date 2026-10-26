@@ -46,7 +46,7 @@ final class OpsNav
             ['key' => 'bulk-bookings', 'label' => 'Bulk Bookings', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.bulk-bookings'],
             ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'ops.parcels'],
             ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.travel'],
-            ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view'],
+            ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.tour-bookings'],
             ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-plans'],
             ['key' => 'corporate', 'label' => 'Corporate accounts', 'icon' => 'building-2', 'group' => 'Operations', 'ability' => 'corporate.view'],
             ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
@@ -249,7 +249,10 @@ final class OpsNav
             return request()->routeIs('ops.parcels*');
         }
         if (($item['route'] ?? '') === 'ops.travel') {
-            return request()->routeIs('ops.travel*');
+            return request()->routeIs('ops.travel', 'ops.travel.store', 'ops.travel.update');
+        }
+        if (($item['route'] ?? '') === 'ops.tour-bookings') {
+            return request()->routeIs('ops.tour-bookings');
         }
         if (($item['route'] ?? '') === 'ops.corporate-plans') {
             return request()->routeIs('ops.corporate-plans*') || request()->route('module') === 'corporate-plans';

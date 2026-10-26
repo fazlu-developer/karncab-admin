@@ -357,6 +357,17 @@ class WorkspaceController extends Controller
         return view('ops.travel', compact('packages', 'tours', 'drivers', 'bucket'));
     }
 
+    public function tourBookings(Request $request): View
+    {
+        abort_unless($request->user()?->can('travel.view') || $request->user()?->can('platform.admin'), 403);
+        $bucket = $request->query('bucket');
+        $q = $request->query('q');
+        $tours = app(\App\Services\TourDeskService::class)->rows(is_string($bucket) ? $bucket : null, is_string($q) ? $q : null);
+        $drivers = \App\Support\NamePicker::drivers($request->user(), 300);
+
+        return view('ops.travel-bookings', compact('tours', 'drivers', 'bucket', 'q'));
+    }
+
     public function storeTravel(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
