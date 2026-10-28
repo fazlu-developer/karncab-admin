@@ -677,10 +677,11 @@ class WorkspaceController extends Controller
         $this->corporateMoney($request);
         $data = $request->validate([
             'pickup_time' => ['required', 'string', 'max:8'],
+            'return_time' => ['nullable', 'string', 'max:8'],
             'starts_on' => ['required', 'date'],
             'ends_on' => ['required', 'date'],
         ]);
-        app(CorporateDeskService::class)->timetable($booking, $data['pickup_time'], $data['starts_on'], $data['ends_on']);
+        app(CorporateDeskService::class)->timetable($booking, $data['pickup_time'], $data['starts_on'], $data['ends_on'], $data['return_time'] ?? null);
 
         return back()->with('status', 'Corporate timetable updated.');
     }

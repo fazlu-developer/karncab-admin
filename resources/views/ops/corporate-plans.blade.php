@@ -164,7 +164,10 @@
                                     </form>
                                     <form method="POST" action="{{ route('ops.corporate-plans.timetable', $row['id']) }}" style="margin-top:8px">
                                         @csrf
-                                        <input name="pickup_time" value="{{ $row['pickupTime'] }}" required>
+                                        <input name="pickup_time" value="{{ $row['pickupTime'] }}" placeholder="Pickup HH:MM" required>
+                                        @if (($row['tripKind'] ?? '') === 'ROUND_WAY')
+                                            <input name="return_time" value="{{ $row['returnTime'] }}" placeholder="Drop HH:MM">
+                                        @endif
                                         <input name="starts_on" type="date" value="{{ $row['startsOn'] }}" required>
                                         <input name="ends_on" type="date" value="{{ $row['endsOn'] }}" required>
                                         <button class="btn ghost" type="submit">Update time</button>

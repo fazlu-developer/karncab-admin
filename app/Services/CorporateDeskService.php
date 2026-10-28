@@ -47,7 +47,7 @@ class CorporateDeskService
                 'statusLabel' => $this->label((string) ($row->status ?? '')),
                 'planKey' => $row->plan_key,
                 'tripKind' => (string) ($row->trip_kind ?? 'ONE_WAY'),
-                'when' => trim(($row->starts_on ?? $row->travel_date).' → '.($row->ends_on ?? '').' '.(substr((string) ($row->pickup_time ?? ''), 0, 5))),
+                'when' => trim(($row->starts_on ?? $row->travel_date).' → '.($row->ends_on ?? '').' '.substr((string) ($row->pickup_time ?? ''), 0, 5).((strtoupper((string) ($row->trip_kind ?? '')) === 'ROUND_WAY' && ! empty($row->return_time)) ? ' / drop '.substr((string) $row->return_time, 0, 5) : '')),
                 'pickup' => $row->pickup_text ?? '',
                 'drop' => $row->drop_text ?? '',
                 'category' => $row->category ?? '',
@@ -74,6 +74,7 @@ class CorporateDeskService
                 'rejectReason' => $row->reject_reason ?? null,
                 'invoiceNo' => $row->invoice_no ?? null,
                 'pickupTime' => substr((string) ($row->pickup_time ?? ''), 0, 5),
+                'returnTime' => ! empty($row->return_time) ? substr((string) $row->return_time, 0, 5) : '',
                 'startsOn' => $row->starts_on,
                 'endsOn' => $row->ends_on,
                 'renewedFromId' => $row->renewed_from_id,
@@ -210,8 +211,11 @@ class CorporateDeskService
         $this->credit((int) $user->id, 'DRIVER', (int) $fresh->driver_share_paise, 'CORP'.$id.'-DRIVER', 'Corporate plan '.$fresh->public_ref.' driver share. Plan id '.$id.'.', (int) $fresh->quote_paise);
         $this->debitPlatform((int) $fresh->driver_share_paise, 'CORP'.$id.'-DRIVER-OUT', 'Driver share for corporate plan '.$id, (int) $fresh->quote_paise);
         $this->postShares($fresh);
-        $this->notify((int) $fresh->customer_id, 'Corporate driver assigned', ($user->name ?: 'Your driver').' will pick you up daily at '.$fresh->pickup_time.'.', 'corporate_assigned');
-        $this->notify((int) $user->id, 'Corporate plan assigned', 'Daily pickup at '.$fresh->pickup_time.' for '.$fresh->public_ref.'. The plan is prepaid.', 'corporate_assigned');
+        $times = strtoupper((string) ($fresh->trip_kind ?? '')) === 'ROUND_WAY' && ! empty($fresh->return_time)
+            ? 'Pickup '.$fresh->pickup_time.' and drop '.$fresh->return_time
+            : 'Pickup '.$fresh->pickup_time;
+        $this->notify((int) $fresh->customer_id, 'Corporate driver assigned', ($user->name ?: 'Your driver').' will run this plan daily. '.$times.'.', 'corporate_assigned');
+        $this->notify((int) $user->id, 'Corporate plan assigned', $times.' every day for '.$fresh->public_ref.'. You get a same-day alert before pickup'.((strtoupper((string) ($fresh->trip_kind ?? '')) === 'ROUND_WAY') ? ' and drop' : '').'. The plan is prepaid.', 'corporate_assigned');
     }
 
     public function shares(int $id, int $districtPaise, int $fleetPaise): void
@@ -241,7 +245,7 @@ class CorporateDeskService
         }
     }
 
-    public function timetable(int $id, string $time, string $startsOn, string $endsOn): void
+    public function timetable(int $id, string $time, string $startsOn, string $endsOn, ?string $returnTime = null): void
     {
         $this->ensure();
         $row = $this->must($id);
@@ -249,8 +253,10 @@ class CorporateDeskService
         $start = Carbon::parse($startsOn)->startOfDay();
         $end = Carbon::parse($endsOn)->startOfDay();
         abort_if($end->lt($start), 422, 'The plan end date is before the start date.');
+        $return = $returnTime !== null && trim($returnTime) !== '' ? substr($returnTime, 0, 5) : null;
         $this->db()->table('corporate_travel_bookings')->where('id', $id)->update($this->only('corporate_travel_bookings', [
             'pickup_time' => substr($time, 0, 5),
+            'return_time' => $return,
             'starts_on' => $start->toDateString(),
             'ends_on' => $end->toDateString(),
             'travel_date' => $start->toDateString(),
@@ -304,6 +310,7 @@ class CorporateDeskService
             'ends_on' => $end->toDateString(),
             'duration_days' => $days,
             'pickup_time' => $row->pickup_time,
+            'return_time' => $row->return_time ?? null,
             'passengers' => $row->passengers,
             'stops_json' => $row->stops_json ?? null,
             'payment_status' => $comped ? 'paid' : 'unpaid',
@@ -464,6 +471,7 @@ class CorporateDeskService
             if ((string) $trip->status === 'scheduled') {
                 $this->db()->table('corporate_daily_trips')->where('id', $trip->id)->update([
                     'pickup_time' => substr((string) $plan->pickup_time, 0, 5),
+                    'return_time' => ! empty($plan->return_time) ? substr((string) $plan->return_time, 0, 5) : null,
                     'driver_id' => $plan->driver_id,
                     'updated_at' => now(),
                 ]);
@@ -477,6 +485,7 @@ class CorporateDeskService
                 'corporate_booking_id' => $plan->id,
                 'trip_date' => $date,
                 'pickup_time' => substr((string) $plan->pickup_time, 0, 5),
+                'return_time' => ! empty($plan->return_time) ? substr((string) $plan->return_time, 0, 5) : null,
                 'status' => 'scheduled',
                 'phase' => 'idle',
                 'driver_id' => $plan->driver_id,
