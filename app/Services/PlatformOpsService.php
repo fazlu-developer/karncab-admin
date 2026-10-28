@@ -982,8 +982,48 @@ class PlatformOpsService
             return [];
         }
         $rows = $this->scheduledAssignments($operator)['remaining'] ?? [];
+        $desk = $this->deskAssignAlerts($operator);
+        $merged = [];
+        $seen = [];
+        foreach (array_merge($desk, $rows) as $row) {
+            $key = (string) ($row['publicRef'] ?? $row['id'] ?? '');
+            if ($key === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $merged[] = $row;
+        }
 
-        return array_slice($rows, 0, 6);
+        return array_slice($merged, 0, 8);
+    }
+
+    /**
+     * Travel, corporate, bulk, and ambulance rows that still need a driver.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function deskAssignAlerts(?User $operator): array
+    {
+        if ($operator === null || ! Schema::connection('platform')->hasTable('bookings')) {
+            return [];
+        }
+        $rows = $this->bookingsQuery($operator)
+            ->whereNull('bookings.driver_id')
+            ->whereIn('bookings.product', ['AMBULANCE', 'TRAVEL', 'CORPORATE', 'BULK'])
+            ->whereNotIn('bookings.status', ['COMPLETED', 'CUSTOMER_CANCELLED', 'DRIVER_CANCELLED', 'EXPIRED', 'CANCELLED', 'REJECTED'])
+            ->orderByDesc('bookings.id')
+            ->limit(12)
+            ->get(['bookings.id', 'bookings.public_ref', 'bookings.product', 'bookings.status', 'bookings.pickup_text', 'bookings.scheduled_at']);
+
+        return $this->map($rows, fn ($row) => [
+            'id' => (int) $row->id,
+            'publicRef' => $row->public_ref,
+            'product' => $row->product,
+            'status' => $row->status,
+            'pickupText' => $row->pickup_text,
+            'scheduledAt' => \App\Support\IndiaTime::format($row->scheduled_at),
+            'driverId' => null,
+        ]);
     }
 
     /**

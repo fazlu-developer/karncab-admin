@@ -8,6 +8,12 @@
             <p class="muted">Free emergency trips. The customer waits here until you assign an ambulance driver. There is no nearby offer and no fare.</p>
         </div>
     </div>
+    @php $waiting = collect($rows)->where('canAssign', true)->count(); @endphp
+    @if ($waiting > 0)
+        <div class="flash" style="background:#fde8e8;color:#7f1d1d">
+            {{ $waiting }} ambulance booking{{ $waiting === 1 ? '' : 's' }} waiting. Assign an ambulance driver now. Fare is ₹0.
+        </div>
+    @endif
     @if (session('status'))
         <p class="muted">{{ session('status') }}</p>
     @endif
@@ -48,7 +54,11 @@
                             {{ $row['contactName'] ?: 'Patient' }}<br>
                             <span class="muted">{{ $row['contactPhone'] }}</span>
                             @if ($row['photo'])
-                                <div><a href="{{ $row['photo'] }}" target="_blank" rel="noopener">Patient photo</a></div>
+                                <div>
+                                    <a href="{{ $row['photo'] }}" target="_blank" rel="noopener">
+                                        <img src="{{ $row['photo'] }}" alt="Patient" style="width:72px;height:72px;object-fit:cover;border-radius:8px">
+                                    </a>
+                                </div>
                             @endif
                         </td>
                         <td>{{ $row['pickup'] ?: '—' }}</td>
