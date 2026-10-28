@@ -125,7 +125,13 @@ class CorporateDeskService
                 (string) ($vehicle->registration_no ?? ''),
             ])));
 
-            return ['id' => (int) $row->id, 'label' => $label, 'category' => $category];
+            return [
+                'id' => (int) $row->id,
+                'label' => $label,
+                'category' => $category,
+                'phone' => (string) ($row->phone ?? ''),
+                'vehicle' => trim($category.' '.(string) ($vehicle->registration_no ?? '')),
+            ];
         })->all();
     }
 

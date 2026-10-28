@@ -15,7 +15,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="layers"></i> Bulk bookings</h1>
-            <p class="muted">One customer books many cabs for one pickup and one drop. Confirm the request, wait for the 10% advance, then assign every cab. The job stays off the map until all drivers are assigned.</p>
+            <p class="muted">One customer books many cabs for one pickup and one drop. Confirm the request, wait for the {{ \App\Support\AdvancePayment::percent('BULK') }}% advance, then assign every cab. Search drivers by name, phone, or vehicle. The job stays off the map until all drivers are assigned.</p>
         </div>
     </div>
     <section class="card">
@@ -62,21 +62,17 @@
                                         <button class="btn ghost" type="submit">Reject</button>
                                     </form>
                                 @elseif ($row['status'] === 'CONFIRMED_UNPAID')
-                                    <span class="muted">Waiting for the customer to pay 10%. Driver assignment stays locked.</span>
+                                    <span class="muted">Waiting for the customer to pay {{ \App\Support\AdvancePayment::percent('BULK') }}%. Driver assignment stays locked.</span>
                                 @elseif ($row['assignRemaining'])
-                                    <div class="muted" style="margin-bottom:6px">Assign remaining drivers. Pick exactly {{ $row['vehicleCount'] }} different drivers.</div>
+                                    <div class="muted" style="margin-bottom:6px">Assign remaining drivers. Pick exactly {{ $row['vehicleCount'] }} different drivers. Search by name, phone, or plate.</div>
                                     <form method="POST" action="{{ route('ops.bulk-bookings.assign', $row['id']) }}">
                                         @csrf
                                         @foreach ($row['cabs'] as $index => $cab)
                                             <label>Cab {{ $cab['cabNo'] }} · {{ $cab['category'] }}</label>
-                                            <input type="search" placeholder="Search name or phone" oninput="filterBulkDrivers(this)" style="margin-bottom:4px">
-                                            <select name="driver_ids[]" required>
-                                                <option value="">Search driver name or phone</option>
-                                                @foreach ($drivers as $driver)
-                                                    @continue($bulkFamily($driver['category']) === '' || $bulkFamily($driver['category']) !== $bulkFamily($cab['category']))
-                                                    <option value="{{ $driver['id'] }}">{{ $driver['label'] }}</option>
-                                                @endforeach
-                                            </select>
+                                            @php
+                                                $cabDrivers = array_values(array_filter($drivers, fn ($driver) => $bulkFamily($driver['category'] ?? '') !== '' && $bulkFamily($driver['category'] ?? '') === $bulkFamily($cab['category'] ?? '')));
+                                            @endphp
+                                            @include('partials.name-picker', ['name' => 'driver_ids[]', 'options' => $cabDrivers, 'required' => true, 'empty' => 'Search name, phone, or vehicle'])
                                         @endforeach
                                         <button class="btn" type="submit">Assign all drivers</button>
                                     </form>
@@ -94,15 +90,4 @@
             </table>
         </div>
     </section>
-    <script>
-        function filterBulkDrivers(input) {
-            const q = input.value.toLowerCase();
-            const select = input.nextElementSibling;
-            if (!select) return;
-            for (const opt of select.options) {
-                if (!opt.value) continue;
-                opt.hidden = q !== '' && !opt.text.toLowerCase().includes(q);
-            }
-        }
-    </script>
 @endsection

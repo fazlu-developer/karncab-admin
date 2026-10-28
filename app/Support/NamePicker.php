@@ -44,15 +44,38 @@ class NamePicker
         $q = DB::connection('platform')->table('drivers')
             ->join('users', 'users.id', '=', 'drivers.user_id')
             ->select('drivers.id', 'users.name', 'users.phone');
+        if (Schema::connection('platform')->hasTable('vehicles')) {
+            $q->leftJoin('vehicles', 'vehicles.driver_id', '=', 'drivers.id')
+                ->addSelect('vehicles.registration_no', 'vehicles.category', 'vehicles.brand', 'vehicles.model');
+        }
         if ($actor) {
             TerritoryScope::applyUsers($q, $actor, 'users');
         }
 
-        return $q->orderBy('users.name')->orderByDesc('drivers.id')->limit($limit)->get()
-            ->map(fn ($row) => [
-                'id' => (int) $row->id,
-                'label' => self::personLabel($row->name, $row->phone, 'DRIVER', (int) $row->id),
-            ])->all();
+        $seen = [];
+        foreach ($q->orderBy('users.name')->orderByDesc('drivers.id')->limit($limit * 3)->get() as $row) {
+            $id = (int) $row->id;
+            if (isset($seen[$id])) {
+                continue;
+            }
+            $vehicle = trim(implode(' ', array_filter([
+                $row->brand ?? null,
+                $row->model ?? null,
+                $row->category ?? null,
+                $row->registration_no ?? null,
+            ])));
+            $seen[$id] = [
+                'id' => $id,
+                'label' => self::personLabel($row->name, $row->phone, $vehicle !== '' ? $vehicle : 'DRIVER', $id),
+                'phone' => $row->phone ?? '',
+                'vehicle' => $vehicle,
+            ];
+            if (count($seen) >= $limit) {
+                break;
+            }
+        }
+
+        return array_values($seen);
     }
 
     /**

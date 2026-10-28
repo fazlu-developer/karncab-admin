@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="briefcase"></i> Corporate travel plans</h1>
-            <p class="muted">One corporate plan is one car for every day in the period. Approve it, then the customer pays 10% and the remaining 90% to KarnaRide. Assign one driver after the plan is paid in full. That driver is credited on this plan id and withdraws later.</p>
+            <p class="muted">One corporate plan is one car for every day in the period. Approve it, then the customer pays {{ \App\Support\AdvancePayment::percent('CORPORATE') }}% and the remaining balance to KarnaRide. Assign one driver after the plan is paid in full. Search drivers by name, phone, or vehicle.</p>
         </div>
     </div>
     @can('corporate.edit')
@@ -115,7 +115,7 @@
                 <label>Status</label>
                 <select name="status" onchange="this.form.submit()">
                     <option value="">All</option>
-                    @foreach (['REQUESTED' => 'Waiting for approval', 'APPROVED' => 'Pay 10%', 'APPROVED_10' => 'Pay 90%', 'PAID_100' => 'Paid in full', 'ASSIGNED' => 'Driver assigned', 'LIVE' => 'Live today', 'EXPIRED' => 'Expired', 'COMPLETED' => 'Completed', 'REJECTED' => 'Rejected'] as $key => $label)
+                    @foreach (['REQUESTED' => 'Waiting for approval', 'APPROVED' => 'Pay '.\App\Support\AdvancePayment::percent('CORPORATE').'%', 'APPROVED_10' => 'Pay balance', 'PAID_100' => 'Paid in full', 'ASSIGNED' => 'Driver assigned', 'LIVE' => 'Live today', 'EXPIRED' => 'Expired', 'COMPLETED' => 'Completed', 'REJECTED' => 'Rejected'] as $key => $label)
                         <option value="{{ $key }}" @selected($status === $key)>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -132,7 +132,7 @@
                         <td>{{ $row['pickup'] }}<br><span class="muted">{{ $row['drop'] }}</span><br><span class="muted">{{ $row['contactName'] }} {{ $row['contactPhone'] }}</span></td>
                         <td>
                             ₹{{ number_format($row['totalRupees'], 0) }} total<br>
-                            <span class="muted">10% ₹{{ number_format($row['pay10Rupees'], 0) }} · 90% ₹{{ number_format($row['pay90Rupees'], 0) }} · paid ₹{{ number_format($row['paidRupees'], 0) }}</span><br>
+                            <span class="muted">{{ \App\Support\AdvancePayment::percent('CORPORATE') }}% ₹{{ number_format($row['pay10Rupees'], 0) }} · balance ₹{{ number_format($row['pay90Rupees'], 0) }} · paid ₹{{ number_format($row['paidRupees'], 0) }}</span><br>
                             <span class="muted">Driver ₹{{ number_format($row['driverShareRupees'], 0) }} · commission ₹{{ number_format($row['commissionRupees'], 0) }}</span>
                             @if ($row['fleetOwnerName'])
                                 <br><span class="muted">Fleet {{ $row['fleetOwnerName'] }}</span>
@@ -145,19 +145,13 @@
                                     <form method="POST" action="{{ route('ops.corporate-plans.approve', $row['id']) }}">@csrf<button class="btn" type="submit">Approve</button></form>
                                     <form method="POST" action="{{ route('ops.corporate-plans.reject', $row['id']) }}" style="margin-top:8px">@csrf<input name="reason" required placeholder="Reject reason" maxlength="240"><button class="btn ghost" type="submit">Reject</button></form>
                                 @elseif ($row['status'] === 'APPROVED')
-                                    <span class="muted">Waiting for the customer to pay 10%.</span>
+                                    <span class="muted">Waiting for the customer to pay {{ \App\Support\AdvancePayment::percent('CORPORATE') }}%.</span>
                                 @elseif ($row['status'] === 'APPROVED_10')
                                     <span class="muted">Waiting for the remaining 90%.</span>
                                 @elseif ($row['status'] === 'PAID_100')
                                     <form method="POST" action="{{ route('ops.corporate-plans.assign', $row['id']) }}">
                                         @csrf
-                                        <input type="search" placeholder="Search name or phone" oninput="filterCorporateDrivers(this)" style="margin-bottom:4px">
-                                        <select name="driver_id" required>
-                                            <option value="">Search driver name or phone</option>
-                                            @foreach ($drivers as $driver)
-                                                <option value="{{ $driver['id'] }}">{{ $driver['label'] }}</option>
-                                            @endforeach
-                                        </select>
+                                        @include('partials.name-picker', ['name' => 'driver_id', 'options' => $drivers, 'required' => true, 'empty' => 'Search name, phone, or vehicle'])
                                         <button class="btn" type="submit">Assign driver</button>
                                     </form>
                                 @endif

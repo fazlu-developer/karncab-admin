@@ -265,6 +265,8 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::delete('/ops/services/offers/{offer}', [WorkspaceController::class, 'destroyOffer'])->name('ops.services.offers.destroy')->whereNumber('offer');
     Route::get('/ops/travel', [WorkspaceController::class, 'travel'])->name('ops.travel');
     Route::get('/ops/tour-bookings', [WorkspaceController::class, 'tourBookings'])->name('ops.tour-bookings');
+    Route::get('/ops/ambulance', [WorkspaceController::class, 'ambulanceBookings'])->name('ops.ambulance');
+    Route::post('/ops/ambulance/{booking}/assign', [WorkspaceController::class, 'assignAmbulance'])->name('ops.ambulance.assign')->whereNumber('booking');
     Route::post('/ops/travel', [WorkspaceController::class, 'storeTravel'])->name('ops.travel.store');
     Route::put('/ops/travel/{package}', [WorkspaceController::class, 'updateTravel'])->name('ops.travel.update')->whereNumber('package');
     Route::post('/ops/travel/bookings/{booking}/approve', [WorkspaceController::class, 'approveTour'])->name('ops.travel.approve')->whereNumber('booking');

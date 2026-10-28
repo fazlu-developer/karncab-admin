@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="map"></i> Travel &amp; tour packages</h1>
-            <p class="muted">Publish tour packages for the customer Travel &amp; Tour service. A request stays pending until you approve it. The customer then pays a 30% advance. Assign a driver only after that payment. This is not a city ride and has no live map.</p>
+            <p class="muted">Publish tour packages for the customer Travel &amp; Tour service. A request stays pending until you approve it. The customer then pays a {{ \App\Support\AdvancePayment::percent('TRAVEL') }}% advance. Assign a driver only after that payment. Search drivers by name, phone, or vehicle. This is not a city ride and has no live map.</p>
         </div>
     </div>
     @can('travel.edit')
@@ -143,13 +143,13 @@
     </section>
     <section class="card">
         <h2>Tour bookings</h2>
-        <p class="muted">30% advance splits as 10% platform and 20% driver (credited when you assign). The other 70% is collected by the driver at the end. No second commission.</p>
+        <p class="muted">{{ \App\Support\AdvancePayment::percent('TRAVEL') }}% advance: platform keeps 10% of the package (capped by the advance) and the rest of the advance is credited to the driver when you assign. The remaining balance is collected by the driver at the end. No second commission.</p>
         <form method="GET" class="filters" style="margin-bottom:12px">
             <div>
                 <label>Status</label>
                 <select name="bucket" onchange="this.form.submit()">
                     <option value="">All</option>
-                    @foreach (['pending' => 'Pending', 'approved' => 'Approved, unpaid', 'paid' => '30% paid', 'assigned' => 'Assigned / on tour', 'completed' => 'Completed', 'rejected' => 'Rejected / cancelled'] as $key => $label)
+                    @foreach (['pending' => 'Pending', 'approved' => 'Approved, unpaid', 'paid' => \App\Support\AdvancePayment::percent('TRAVEL').'% paid', 'assigned' => 'Assigned / on tour', 'completed' => 'Completed', 'rejected' => 'Rejected / cancelled'] as $key => $label)
                         <option value="{{ $key }}" @selected(($bucket ?? '') === $key)>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -182,7 +182,7 @@
                         <td>{{ $row['pickup'] ?: '—' }}<br><span class="muted">{{ $row['contactName'] }} {{ $row['contactPhone'] }}</span></td>
                         <td>
                             ₹{{ number_format($row['totalRupees'], 0) }} total<br>
-                            <span class="muted">30% ₹{{ number_format($row['advanceRupees'], 0) }} · platform ₹{{ number_format($row['platformRupees'], 0) }} · driver ₹{{ number_format($row['driverRupees'], 0) }} · due ₹{{ number_format($row['balanceRupees'], 0) }}</span>
+                            <span class="muted">{{ \App\Support\AdvancePayment::percent('TRAVEL') }}% ₹{{ number_format($row['advanceRupees'], 0) }} · platform ₹{{ number_format($row['platformRupees'], 0) }} · driver ₹{{ number_format($row['driverRupees'], 0) }} · due ₹{{ number_format($row['balanceRupees'], 0) }}</span>
                             @if ($row['ticketNo'])
                                 <div class="muted">Ticket {{ $row['ticketNo'] }} · Invoice {{ $row['invoiceNo'] }}</div>
                             @endif
@@ -211,11 +211,11 @@
                                 @elseif ($row['status'] === 'CONFIRMED')
                                     <form method="POST" action="{{ route('ops.travel.assign', $row['id']) }}">
                                         @csrf
-                                        @include('partials.name-picker', ['name' => 'driver_id', 'options' => $drivers, 'required' => true, 'empty' => 'Search driver name or phone'])
+                                        @include('partials.name-picker', ['name' => 'driver_id', 'options' => $drivers, 'required' => true, 'empty' => 'Search name, phone, or vehicle'])
                                         <button class="btn" type="submit">Assign</button>
                                     </form>
                                 @elseif ($row['status'] === 'APPROVED_UNPAID')
-                                    <span class="muted">Waiting for the customer to pay 30%. Driver assignment stays locked.</span>
+                                    <span class="muted">Waiting for the customer to pay {{ \App\Support\AdvancePayment::percent('TRAVEL') }}%. Driver assignment stays locked.</span>
                                 @endif
                             @endcan
                         </td>

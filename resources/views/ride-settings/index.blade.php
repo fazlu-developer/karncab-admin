@@ -37,13 +37,14 @@
 
     <section class="card">
         <h2>Advance payment</h2>
-        <p class="muted">Turn this on to collect 10% from the customer when the booking is placed. Admin keeps that 10%. The driver receives the other 90% when the trip is completed. Turn it off and the customer pays the full fare after the ride.</p>
+        <p class="muted">Set the advance percent the customer pays before the trip. 0 means no advance. Ambulance stays free. Nearby scheduled products collect this after a driver accepts. Travel default is 30%. Bulk and corporate default is 10%.</p>
         <form method="POST" action="{{ route('ride-settings.update') }}">
             @csrf
             @method('PUT')
             <input type="hidden" name="advance_payment_form" value="1">
             <input type="hidden" name="driver_search_radius_km" value="{{ $radiusKm }}">
             <input type="hidden" name="ride_request_timeout_seconds" value="{{ $timeoutSeconds }}">
+            <div class="filters" style="align-items:end;flex-wrap:wrap">
             @foreach ([
                 'LOCAL_CAB' => 'City ride',
                 'ONE_WAY' => 'One way',
@@ -54,13 +55,17 @@
                 'RENTAL' => 'Cab rental',
                 'MULTI_STOP' => 'Multi stop',
                 'PARCEL' => 'Parcel',
+                'TRAVEL' => 'Tour & Travel',
+                'BULK' => 'Bulk booking',
+                'CORPORATE' => 'Corporate',
             ] as $key => $label)
-                <label style="display:flex;align-items:center;gap:8px;margin:8px 0">
-                    <input type="checkbox" name="advance_{{ $key }}" value="1" @checked($advancePayment[$key] ?? false)>
-                    {{ $label }} — receive 10% advance
-                </label>
+                <div>
+                    <label>{{ $label }} (%)</label>
+                    <input name="advance_pct_{{ $key }}" type="number" min="0" max="100" value="{{ $advancePercents[$key] ?? 0 }}" required>
+                </div>
             @endforeach
-            <button class="btn" type="submit">Save advance payment</button>
+            </div>
+            <button class="btn" type="submit" style="margin-top:12px">Save advance payment</button>
         </form>
     </section>
 

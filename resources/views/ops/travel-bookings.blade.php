@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="tickets"></i> Travel bookings</h1>
-            <p class="muted">Pending requests, the 30% payment, and driver assignment. Approve a request, wait for the advance, then assign a driver. The same travel booking record is used here and in the customer app.</p>
+            <p class="muted">Pending requests, the {{ \App\Support\AdvancePayment::percent('TRAVEL') }}% payment, and driver assignment. Approve a request, wait for the advance, then assign a driver. Search drivers by name, phone, or vehicle.</p>
         </div>
     </div>
     <section class="card">
@@ -18,7 +18,7 @@
                 <label>Status</label>
                 <select name="bucket" onchange="this.form.submit()">
                     <option value="">All</option>
-                    @foreach (['pending' => 'Pending', 'approved' => 'Approved, unpaid', 'paid' => '30% paid', 'assigned' => 'Assigned / on tour', 'completed' => 'Completed', 'rejected' => 'Rejected / cancelled'] as $key => $label)
+                    @foreach (['pending' => 'Pending', 'approved' => 'Approved, unpaid', 'paid' => \App\Support\AdvancePayment::percent('TRAVEL').'% paid', 'assigned' => 'Assigned / on tour', 'completed' => 'Completed', 'rejected' => 'Rejected / cancelled'] as $key => $label)
                         <option value="{{ $key }}" @selected(($bucket ?? '') === $key)>{{ $label }}</option>
                     @endforeach
                 </select>
@@ -52,7 +52,7 @@
                         <td>{{ $row['pickup'] ?: '—' }}<br><span class="muted">{{ $row['contactName'] }} {{ $row['contactPhone'] }}</span></td>
                         <td>
                             ₹{{ number_format($row['totalRupees'], 0) }} total<br>
-                            <span class="muted">30% ₹{{ number_format($row['advanceRupees'], 0) }} · platform ₹{{ number_format($row['platformRupees'], 0) }} · driver ₹{{ number_format($row['driverRupees'], 0) }}</span>
+                            <span class="muted">{{ \App\Support\AdvancePayment::percent('TRAVEL') }}% ₹{{ number_format($row['advanceRupees'], 0) }} · platform ₹{{ number_format($row['platformRupees'], 0) }} · driver ₹{{ number_format($row['driverRupees'], 0) }}</span>
                         </td>
                         <td>{{ $row['status'] }}@if ($row['driverName'])<div class="muted">{{ $row['driverName'] }}</div>@endif</td>
                         <td>
@@ -67,11 +67,11 @@
                                 @elseif ($row['status'] === 'CONFIRMED')
                                     <form method="POST" action="{{ route('ops.travel.assign', $row['id']) }}">
                                         @csrf
-                                        @include('partials.name-picker', ['name' => 'driver_id', 'options' => $drivers, 'required' => true, 'empty' => 'Search driver name or phone'])
+                                        @include('partials.name-picker', ['name' => 'driver_id', 'options' => $drivers, 'required' => true, 'empty' => 'Search name, phone, or vehicle'])
                                         <button class="btn" type="submit">Assign</button>
                                     </form>
                                 @elseif ($row['status'] === 'APPROVED_UNPAID')
-                                    <span class="muted">Waiting for the customer to pay 30%.</span>
+                                    <span class="muted">Waiting for the customer to pay {{ \App\Support\AdvancePayment::percent('TRAVEL') }}%.</span>
                                 @endif
                             @endcan
                         </td>

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\AdvancePayment;
+use App\Support\TourMoney;
 use App\Support\TravelPackageSchema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -94,8 +96,13 @@ class TourDeskService
             'approved_at' => now(),
             'updated_at' => now(),
         ]));
-        $this->writeInvoice($row, $invoice);
-        $this->notify((int) $row->customer_id, 'Tour approved', 'Pay the 30% advance to confirm your seat on '.$row->public_ref.'.', 'tour_approved');
+        try {
+            $this->writeInvoice($this->must($id), $invoice);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('tour.approve_invoice_failed', ['id' => $id, 'error' => $e->getMessage()]);
+        }
+        $pct = AdvancePayment::percent('TRAVEL');
+        $this->notify((int) $row->customer_id, 'Tour approved', 'Pay the '.$pct.'% advance to confirm your seat on '.$row->public_ref.'.', 'tour_approved');
     }
 
     public function reject(int $id, string $reason): void
@@ -117,14 +124,18 @@ class TourDeskService
     {
         TravelPackageSchema::ensure('platform');
         $row = $this->must($id);
-        abort_unless($row->status === 'CONFIRMED', 422, 'Assign a driver only after the 30% advance is paid.');
+        abort_unless($row->status === 'CONFIRMED', 422, 'Assign a driver only after the '.AdvancePayment::percent('TRAVEL').'% advance is paid.');
         $driver = $this->db()->table('drivers')->where('id', $driverId)->first();
         abort_unless($driver, 422, 'Choose a driver from the list.');
         $userId = (int) ($driver->user_id ?? 0);
         abort_if($userId < 1, 422, 'That driver has no login.');
         $total = (int) $row->quote_paise;
-        $driverShare = intdiv($total * 20, 100);
-        $this->releaseDriver($userId, $id, $driverShare, $total);
+        $driverShare = (int) TourMoney::split($total, AdvancePayment::percent('TRAVEL'))['driverAdvancePaise'];
+        try {
+            $this->releaseDriver($userId, $id, $driverShare, $total);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('tour.assign_wallet_failed', ['id' => $id, 'error' => $e->getMessage()]);
+        }
         $this->db()->table('travel_bookings')->where('id', $id)->update($this->only('travel_bookings', [
             'status' => 'ASSIGNED',
             'driver_id' => $driverId,
@@ -198,18 +209,24 @@ class TourDeskService
         if ($this->db()->table('invoices')->where('public_ref', $invoiceNo)->exists()) {
             return;
         }
-        $this->db()->table('invoices')->insert($this->only('invoices', [
+        $payload = [
             'public_ref' => $invoiceNo,
             'customer_id' => $row->customer_id,
             'kind' => 'tour',
             'product' => 'TRAVEL',
             'status' => 'issued',
+            'subtotal_paise' => (int) $row->quote_paise,
+            'tax_paise' => 0,
             'total_paise' => (int) $row->quote_paise,
+            'paid_paise' => 0,
+            'refunded_paise' => 0,
             'currency' => 'INR',
             'issued_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
-        ]));
+        ];
+        $this->stampInvoiceBookingId($payload);
+        $this->db()->table('invoices')->insert($this->only('invoices', $payload));
     }
 
     private function notify(int $userId, string $title, string $body, string $event): void
@@ -290,6 +307,23 @@ class TourDeskService
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function stampInvoiceBookingId(array &$payload): void
+    {
+        if (! Schema::connection('platform')->hasColumn('invoices', 'booking_id')) {
+            return;
+        }
+        $nullable = true;
+        try {
+            $col = $this->db()->selectOne("SHOW COLUMNS FROM invoices LIKE 'booking_id'");
+            $nullable = strtoupper((string) ($col->Null ?? 'YES')) !== 'NO';
+        } catch (\Throwable) {
+        }
+        $payload['booking_id'] = $nullable ? null : 0;
+    }
+
     private function only(string $table, array $row): array
     {
         $schema = Schema::connection('platform');

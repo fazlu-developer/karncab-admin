@@ -48,6 +48,9 @@
             @if (session('status'))
                 <div class="flash">{{ session('status') }}</div>
             @endif
+            @if (session('error'))
+                <div class="flash" style="background:#fde8e8;color:#7f1d1d">{{ session('error') }}</div>
+            @endif
             @if ($errors->any())
                 <div class="flash" style="background:#fde8e8;color:#7f1d1d">{{ $errors->first() }}</div>
             @endif

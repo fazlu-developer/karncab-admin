@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\AdvancePayment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -92,6 +93,8 @@ class BulkDeskService
                 'id' => (int) $row->id,
                 'label' => $label,
                 'category' => $category,
+                'phone' => (string) ($row->phone ?? ''),
+                'vehicle' => trim($category.' '.$plate),
             ];
         })->all();
     }
@@ -107,7 +110,7 @@ class BulkDeskService
             'confirmed_at' => now(),
             'updated_at' => now(),
         ]));
-        $this->notify((int) $row->customer_id, 'Bulk booking confirmed', 'Pay the 10% advance on '.$row->public_ref.' so drivers can be assigned.', 'bulk_confirmed');
+        $this->notify((int) $row->customer_id, 'Bulk booking confirmed', 'Pay the '.AdvancePayment::percent('BULK').'% advance on '.$row->public_ref.' so drivers can be assigned.', 'bulk_confirmed');
     }
 
     public function reject(int $id, string $reason): void

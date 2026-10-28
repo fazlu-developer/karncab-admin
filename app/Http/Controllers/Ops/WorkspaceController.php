@@ -368,6 +368,27 @@ class WorkspaceController extends Controller
         return view('ops.travel-bookings', compact('tours', 'drivers', 'bucket', 'q'));
     }
 
+    public function ambulanceBookings(Request $request): View
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        $bucket = $request->query('bucket');
+        $q = $request->query('q');
+        $desk = app(\App\Services\AmbulanceDeskService::class);
+        $rows = $desk->rows(is_string($bucket) ? $bucket : null, is_string($q) ? $q : null);
+        $drivers = $desk->ambulanceDrivers();
+
+        return view('ops.ambulance-bookings', compact('rows', 'drivers', 'bucket', 'q'));
+    }
+
+    public function assignAmbulance(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        $data = $request->validate(['driver_id' => ['required', 'integer']]);
+        app(\App\Services\AmbulanceDeskService::class)->assign($booking, (int) $data['driver_id']);
+
+        return back()->with('status', 'Ambulance driver assigned. The driver and customer are notified.');
+    }
+
     public function storeTravel(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
@@ -408,9 +429,17 @@ class WorkspaceController extends Controller
     public function approveTour(Request $request, int $booking): RedirectResponse
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
-        app(\App\Services\TourDeskService::class)->approve($booking);
+        try {
+            app(\App\Services\TourDeskService::class)->approve($booking);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
 
-        return back()->with('status', 'Tour approved. The customer can see the ticket and pay the 30% advance.');
+            return back()->with('error', 'Could not approve this tour: '.$e->getMessage());
+        }
+
+        return back()->with('status', 'Tour approved. The customer can see the ticket and pay the '.\App\Support\AdvancePayment::percent('TRAVEL').'% advance.');
     }
 
     public function rejectTour(Request $request, int $booking): RedirectResponse
@@ -426,7 +455,15 @@ class WorkspaceController extends Controller
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);
         $data = $request->validate(['driver_id' => ['required', 'integer', 'min:1']]);
-        app(\App\Services\TourDeskService::class)->assign($booking, (int) $data['driver_id']);
+        try {
+            app(\App\Services\TourDeskService::class)->assign($booking, (int) $data['driver_id']);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Could not assign this driver: '.$e->getMessage());
+        }
 
         return back()->with('status', 'Driver assigned. The customer and driver have been notified.');
     }
@@ -447,7 +484,7 @@ class WorkspaceController extends Controller
         abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
         app(\App\Services\BulkDeskService::class)->confirm($booking);
 
-        return back()->with('status', 'Bulk booking confirmed. The customer can pay the 10% advance.');
+        return back()->with('status', 'Bulk booking confirmed. The customer can pay the '.\App\Support\AdvancePayment::percent('BULK').'% advance.');
     }
 
     public function rejectBulk(Request $request, int $booking): RedirectResponse
@@ -466,7 +503,15 @@ class WorkspaceController extends Controller
             'driver_ids' => ['required', 'array', 'min:2'],
             'driver_ids.*' => ['required', 'integer', 'min:1'],
         ]);
-        app(\App\Services\BulkDeskService::class)->assign($booking, $data['driver_ids']);
+        try {
+            app(\App\Services\BulkDeskService::class)->assign($booking, $data['driver_ids']);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Could not assign these drivers: '.$e->getMessage());
+        }
 
         return back()->with('status', 'All drivers assigned. Each driver and the customer were notified.');
     }
@@ -598,7 +643,15 @@ class WorkspaceController extends Controller
     {
         $this->corporateMoney($request);
         $data = $request->validate(['driver_id' => ['required', 'integer', 'min:1']]);
-        app(CorporateDeskService::class)->assign($booking, (int) $data['driver_id']);
+        try {
+            app(CorporateDeskService::class)->assign($booking, (int) $data['driver_id']);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Could not assign this driver: '.$e->getMessage());
+        }
 
         return back()->with('status', 'Driver assigned. Their wallet is credited for this plan.');
     }
@@ -1135,6 +1188,7 @@ class WorkspaceController extends Controller
             ['title' => 'Travel & Tours', 'slug' => 'travel-tours', 'group' => 'RIDE', 'key' => 'TRAVEL', 'sort' => 100, 'subtitle' => 'Holiday packages'],
             ['title' => 'Bulk Booking', 'slug' => 'bulk-booking', 'group' => 'RIDE', 'key' => 'BULK', 'sort' => 110, 'subtitle' => 'Many cabs at once'],
             ['title' => 'Corporate Travel', 'slug' => 'corporate-travel', 'group' => 'RIDE', 'key' => 'CORPORATE', 'sort' => 120, 'subtitle' => 'Company accounts'],
+            ['title' => 'Ambulance', 'slug' => 'ambulance', 'group' => 'RIDE', 'key' => 'AMBULANCE', 'sort' => 15, 'subtitle' => 'Free emergency ambulance'],
         ];
     }
 

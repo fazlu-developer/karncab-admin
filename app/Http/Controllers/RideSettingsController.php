@@ -51,6 +51,7 @@ class RideSettingsController extends Controller
                 ? $db->table('incentives')->orderByDesc('id')->limit(80)->get()
                 : collect(),
             'advancePayment' => $this->advancePayment($db),
+            'advancePercents' => $this->advancePercents($db),
             'driverReferrals' => $this->driverReferrals($db),
             'incentiveTotals' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? [
@@ -69,25 +70,53 @@ class RideSettingsController extends Controller
      */
     private function advancePayment($db): array
     {
+        $out = [];
+        foreach ($this->advancePercents($db) as $key => $pct) {
+            $out[$key] = $pct > 0;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  \Illuminate\Database\Connection  $db
+     * @return array<string, int>
+     */
+    private function advancePercents($db): array
+    {
         $defaults = [
-            'LOCAL_CAB' => false,
-            'ONE_WAY' => true,
-            'ROUND_WAY' => true,
-            'SCHEDULE' => true,
-            'AIRPORT' => true,
-            'RAILWAY' => true,
-            'RENTAL' => true,
-            'MULTI_STOP' => true,
-            'PARCEL' => true,
+            'LOCAL_CAB' => 0,
+            'ONE_WAY' => 10,
+            'ROUND_WAY' => 10,
+            'SCHEDULE' => 10,
+            'AIRPORT' => 10,
+            'RAILWAY' => 10,
+            'RENTAL' => 10,
+            'MULTI_STOP' => 10,
+            'PARCEL' => 10,
+            'TRAVEL' => 30,
+            'BULK' => 10,
+            'CORPORATE' => 10,
         ];
-        $raw = $db->table('system_settings')->where('key', 'advance_payment_products')->value('value');
+        $raw = $db->table('system_settings')->where('key', 'advance_payment_percents')->value('value');
         $decoded = is_string($raw) ? json_decode($raw, true) : null;
-        if (! is_array($decoded)) {
+        if (is_array($decoded)) {
+            foreach ($defaults as $key => $fallback) {
+                if (array_key_exists($key, $decoded) && is_numeric($decoded[$key])) {
+                    $defaults[$key] = max(0, min(100, (int) round((float) $decoded[$key])));
+                }
+            }
+
             return $defaults;
         }
-        foreach ($defaults as $key => $fallback) {
-            if (array_key_exists($key, $decoded)) {
-                $defaults[$key] = in_array(strtolower((string) $decoded[$key]), ['1', 'true', 'yes', 'on'], true) || $decoded[$key] === true;
+        $flagsRaw = $db->table('system_settings')->where('key', 'advance_payment_products')->value('value');
+        $flags = is_string($flagsRaw) ? json_decode($flagsRaw, true) : null;
+        if (is_array($flags)) {
+            foreach ($defaults as $key => $fallback) {
+                if (array_key_exists($key, $flags)) {
+                    $on = in_array(strtolower((string) $flags[$key]), ['1', 'true', 'yes', 'on'], true) || $flags[$key] === true;
+                    $defaults[$key] = $on ? $fallback : 0;
+                }
             }
         }
 
@@ -168,10 +197,14 @@ class RideSettingsController extends Controller
             }
         }
         if ($request->has('advance_payment_form')) {
+            $percents = [];
             $flags = [];
-            foreach (['LOCAL_CAB', 'ONE_WAY', 'ROUND_WAY', 'SCHEDULE', 'AIRPORT', 'RAILWAY', 'RENTAL', 'MULTI_STOP', 'PARCEL'] as $product) {
-                $flags[$product] = $request->boolean('advance_'.$product);
+            foreach (['LOCAL_CAB', 'ONE_WAY', 'ROUND_WAY', 'SCHEDULE', 'AIRPORT', 'RAILWAY', 'RENTAL', 'MULTI_STOP', 'PARCEL', 'TRAVEL', 'BULK', 'CORPORATE'] as $product) {
+                $pct = (int) $request->input('advance_pct_'.$product, 0);
+                $percents[$product] = max(0, min(100, $pct));
+                $flags[$product] = $percents[$product] > 0;
             }
+            $settings['advance_payment_percents'] = json_encode($percents);
             $settings['advance_payment_products'] = json_encode($flags);
         }
         if ($request->has('fleet_owner_commission_percent')) {
