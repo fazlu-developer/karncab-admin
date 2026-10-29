@@ -30,18 +30,43 @@ class AdvertisingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $row = $this->ads->create($request->user(), $this->campaignPayload($request, true));
-        if ($request->hasFile('banner')) {
+        $request->validate([
+            'title' => ['nullable', 'string', 'max:160'],
+            'banner_1' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'banner_2' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'banner_3' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+        ]);
+        $files = [];
+        foreach (['banner_1', 'banner_2', 'banner_3'] as $key) {
+            if ($request->hasFile($key)) {
+                $files[] = $request->file($key);
+            }
+        }
+        $base = trim((string) $request->input('title', ''));
+        $published = 0;
+        foreach ($files as $index => $file) {
+            $title = $base;
+            if ($title !== '' && count($files) > 1) {
+                $title .= ' '.($index + 1);
+            }
+            $row = $this->ads->create($request->user(), [
+                'title' => $title,
+                'placement' => 'home',
+            ]);
             try {
-                $this->ads->uploadBanner($request->user(), $row['id'], $request->file('banner'));
+                $this->ads->uploadBanner($request->user(), $row['id'], $file);
+                $published++;
             } catch (\Throwable $e) {
                 report($e);
 
-                return redirect()->route('ads.show', $row['id'])->withErrors(['banner' => $e->getMessage() ?: 'Could not upload this banner. Use JPEG, PNG, WebP, or GIF under 4 MB.']);
+                return redirect()->route('ads.index')->withErrors([
+                    'banner_'.($index + 1) => $e->getMessage() ?: 'Could not upload banner '.($index + 1).'. Use JPEG, PNG, WebP, or GIF under 4 MB.',
+                ]);
             }
         }
+        $label = $published === 1 ? '1 home banner is' : $published.' home banners are';
 
-        return redirect()->route('ads.show', $row['id'])->with('status', 'Banner published on the home screen.');
+        return redirect()->route('ads.index')->with('status', $label.' live. The customer home shows the latest 3 and rotates them. Pull to refresh in the app.');
     }
 
     public function update(Request $request, int $ad): RedirectResponse

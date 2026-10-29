@@ -112,6 +112,9 @@ final class AdPolicy
         if ($end && $now->gt($end)) {
             return false;
         }
+        if ($budgetPaise <= 0) {
+            return true;
+        }
 
         return $budgetUsedPaise < $budgetPaise;
     }
@@ -142,7 +145,7 @@ final class AdPolicy
             'placements' => [
                 'allowed' => self::ALLOWED_PLACEMENTS,
                 'blocked' => self::BLOCKED_PLACEMENTS,
-                'note' => 'Upload a banner for home, the driver app, or a service. A service banner replaces that service top graphic. Home and driver banners stay off live trips, SOS, payment, and OTP.',
+                'note' => 'Publish 1, 2, or 3 banners. The customer home shows the latest 3 and rotates them. They stay off live trips, SOS, payment, and OTP.',
             ],
             'metrics' => ['impressions', 'clicks', 'ctr', 'revenuePaise'],
         ];

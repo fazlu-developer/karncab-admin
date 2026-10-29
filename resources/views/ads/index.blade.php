@@ -11,20 +11,57 @@
         </div>
     </div>
 
+    @php
+        $homeLive = array_values(array_filter(
+            $campaigns,
+            fn (array $row) => $row['status'] === 'published' && ($row['placement'] ?? 'home') === 'home' && ! empty($row['bannerUrl']),
+        ));
+        $homeLive = array_slice($homeLive, 0, 3);
+        $homeLive = array_reverse($homeLive);
+    @endphp
+    @if ($homeLive !== [])
+        <section class="card">
+            <h2>On the customer home now</h2>
+            <p class="muted">These are the latest 3 published banners. The app rotates them. Pause one to take it off the home.</p>
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+                @foreach ($homeLive as $index => $row)
+                    <div>
+                        <img src="{{ str_starts_with($row['bannerUrl'], 'http') ? $row['bannerUrl'] : url($row['bannerUrl']) }}" alt="" style="width:220px;height:110px;object-fit:cover;border-radius:12px">
+                        <p class="muted" style="margin:6px 0">{{ $index + 1 }}. {{ $row['campaign'] }}</p>
+                        @if ($canReview)
+                            <form method="POST" action="{{ route('ads.pause', $row['id']) }}">
+                                @csrf
+                                <button class="btn ghost" type="submit">Pause</button>
+                            </form>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     @can('advertising.edit')
         <section class="card">
-            <h2>Publish home banner</h2>
+            <h2>Publish home advertisements</h2>
             <form method="POST" action="{{ route('ads.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
-                    <div><label>Title (optional)</label><input name="title" value="{{ old('title') }}"></div>
+                    <div><label>Title (optional)</label><input name="title" value="{{ old('title') }}" placeholder="Shown only in this list"></div>
                     <div>
-                        <label>Banner image</label>
-                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview required>
+                        <label>Banner 1</label>
+                        <input type="file" name="banner_1" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview required>
+                    </div>
+                    <div>
+                        <label>Banner 2 (optional)</label>
+                        <input type="file" name="banner_2" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
+                    </div>
+                    <div>
+                        <label>Banner 3 (optional)</label>
+                        <input type="file" name="banner_3" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
                     </div>
                 </div>
-                <p class="muted">JPEG / PNG / WebP / GIF, max 4 MB. Publishing puts this banner on the customer and driver home screens immediately.</p>
-                <button class="btn" type="submit"><i data-lucide="send"></i> Publish</button>
+                <p class="muted">Add one banner, or two or three together. JPEG / PNG / WebP / GIF, max 4 MB each. Publish puts them on the customer and driver home immediately. The home keeps the latest 3.</p>
+                <button class="btn" type="submit"><i data-lucide="send"></i> Publish on home</button>
             </form>
         </section>
     @endcan
