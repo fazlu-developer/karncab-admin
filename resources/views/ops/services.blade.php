@@ -22,7 +22,19 @@
 
     <section class="card">
         <h2>1. Customer services</h2>
-        <p class="muted">Customer home fetches this list live. <b>On app</b> = show the tile, untick = hide it. <b>Under maintenance</b> keeps the tile, and a tap in the chosen state or district shows “We are working”. The same service stays open everywhere you do not tick. Leave both lists empty to pause it in every area. <b>Sort</b> is the home-page order (smaller number first). Pull to refresh in the customer app after you Save.</p>
+        <p class="muted">Customer home fetches this list live. <b>On app</b> = show the tile, untick = hide it. <b>Under maintenance</b> keeps the tile, and a tap in the chosen state or district shows “We are working”. The same service stays open everywhere you do not tick. Leave both lists empty to pause it in every area.</p>
+        <form method="POST" action="{{ route('ops.services.order') }}" style="margin:12px 0 18px">
+            @csrf
+            <p class="muted"><b>Home position.</b> Smaller number shows first on the customer home. Change any numbers, then save once. Pull to refresh in the app.</p>
+            <div class="catalog-grid">
+                @foreach ($rows as $row)
+                    <label>Sort {{ $row->title }}
+                        <input name="order[{{ $row->id }}]" type="number" min="0" max="9999" value="{{ $row->sort_order }}">
+                    </label>
+                @endforeach
+            </div>
+            <button class="btn" type="submit">Save home order</button>
+        </form>
         <div class="catalog-grid">
             @foreach ($rows as $row)
                 @php

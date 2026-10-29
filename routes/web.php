@@ -254,6 +254,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/ops/branding', [WorkspaceController::class, 'branding'])->name('ops.branding');
     Route::post('/ops/branding', [WorkspaceController::class, 'saveBranding'])->name('ops.branding.save');
     Route::get('/ops/services', [WorkspaceController::class, 'services'])->name('ops.services');
+    Route::post('/ops/services/order', [WorkspaceController::class, 'reorderServices'])->name('ops.services.order');
     Route::post('/ops/services', [WorkspaceController::class, 'storeService'])->name('ops.services.store');
     Route::put('/ops/services/{service}', [WorkspaceController::class, 'updateService'])->name('ops.services.update')->whereNumber('service');
     Route::delete('/ops/services/{service}', [WorkspaceController::class, 'destroyService'])->name('ops.services.destroy')->whereNumber('service');

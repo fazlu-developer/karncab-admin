@@ -176,7 +176,26 @@ class WorkspaceController extends Controller
         DB::connection('platform')->table('catalog_services')->where('id', $service)->update($payload);
         $this->saveServiceMaintenance($request, $service);
 
-        return back()->with('status', 'Service updated.');
+        return back()->with('status', 'Service updated. The customer app uses this order on the next home refresh.');
+    }
+
+    public function reorderServices(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('platform.admin'), 403);
+        $data = $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['nullable', 'integer', 'min:0', 'max:9999'],
+        ]);
+        $db = DB::connection('platform');
+        $now = now();
+        foreach ($data['order'] as $id => $sort) {
+            $db->table('catalog_services')->where('id', (int) $id)->update([
+                'sort_order' => (int) $sort,
+                'updated_at' => $now,
+            ]);
+        }
+
+        return back()->with('status', 'Home order saved. Smaller numbers show first in the customer app.');
     }
 
     public function destroyService(Request $request, int $service): RedirectResponse
@@ -1204,12 +1223,12 @@ class WorkspaceController extends Controller
             ['title' => 'Airport Transfer', 'slug' => 'airport-transfer', 'group' => 'RIDE', 'key' => 'AIRPORT', 'sort' => 50, 'subtitle' => 'To and from the airport'],
             ['title' => 'Railway Transfer', 'slug' => 'railway-transfer', 'group' => 'RIDE', 'key' => 'RAILWAY', 'sort' => 60, 'subtitle' => 'To and from the station'],
             ['title' => 'Cab Rental', 'slug' => 'cab-rental', 'group' => 'RIDE', 'key' => 'RENTAL', 'sort' => 70, 'subtitle' => 'Hourly packages'],
-            ['title' => 'Schedule Ride', 'slug' => 'schedule-ride', 'group' => 'RIDE', 'key' => 'SCHEDULE', 'sort' => 80, 'subtitle' => 'Book for later'],
+            ['title' => 'Schedule Ride', 'slug' => 'schedule-ride', 'group' => 'RIDE', 'key' => 'SCHEDULE', 'sort' => 130, 'subtitle' => 'Book for later'],
             ['title' => 'Multi Stop Ride', 'slug' => 'multi-stop-ride', 'group' => 'RIDE', 'key' => 'MULTI_STOP', 'sort' => 90, 'subtitle' => 'Several stops, one fare'],
             ['title' => 'Travel & Tours', 'slug' => 'travel-tours', 'group' => 'RIDE', 'key' => 'TRAVEL', 'sort' => 100, 'subtitle' => 'Holiday packages'],
             ['title' => 'Bulk Booking', 'slug' => 'bulk-booking', 'group' => 'RIDE', 'key' => 'BULK', 'sort' => 110, 'subtitle' => 'Many cabs at once'],
             ['title' => 'Corporate Travel', 'slug' => 'corporate-travel', 'group' => 'RIDE', 'key' => 'CORPORATE', 'sort' => 120, 'subtitle' => 'Company accounts'],
-            ['title' => 'Ambulance', 'slug' => 'ambulance', 'group' => 'RIDE', 'key' => 'AMBULANCE', 'sort' => 15, 'subtitle' => 'Free emergency ambulance'],
+            ['title' => 'Ambulance', 'slug' => 'ambulance', 'group' => 'RIDE', 'key' => 'AMBULANCE', 'sort' => 80, 'subtitle' => 'Free emergency ambulance'],
         ];
     }
 
