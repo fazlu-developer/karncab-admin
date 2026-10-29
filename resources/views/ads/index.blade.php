@@ -13,59 +13,18 @@
 
     @can('advertising.edit')
         <section class="card">
-            <h2>Submit campaign</h2>
+            <h2>Publish home banner</h2>
             <form method="POST" action="{{ route('ads.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
-                    <div><label>Campaign name</label><input name="title" required></div>
-                    <div><label>Business name</label><input name="business_name" required></div>
+                    <div><label>Title (optional)</label><input name="title" value="{{ old('title') }}"></div>
                     <div>
-                        <label>Category</label>
-                        <select name="category" required>
-                            @foreach ($catalog['categories'] as $item)
-                                <option value="{{ $item['key'] }}">{{ $item['title'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>Campaign type</label>
-                        <select name="campaign_type" required>
-                            @foreach ($catalog['campaignTypes'] as $item)
-                                <option value="{{ $item['key'] }}">{{ $item['title'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>App placement</label>
-                        <select name="placement">
-                            @foreach ($catalog['placements']['allowed'] as $place)
-                                <option value="{{ $place }}" @selected($place === 'home')>{{ ['home' => 'Home', 'driver' => 'Driver app', 'city' => 'City ride', 'one_way' => 'One Way', 'airport' => 'Airport', 'railway' => 'Railway', 'round_trip' => 'Round trip', 'parcel' => 'Parcel', 'rental' => 'Cab rental', 'multi_stop' => 'Multi stop', 'travel' => 'Travel', 'discovery' => 'Discovery', 'catalog' => 'Catalog'][$place] ?? ucfirst($place) }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @include('partials.geo-fields', [
-                        'stateLabel' => 'Target state',
-                        'districtLabel' => 'Target district',
-                        'emptyState' => 'All states',
-                        'emptyDistrict' => 'All districts',
-                    ])
-                    <div><label>Target city</label><input name="target_city"></div>
-                    <div><label>Start date</label><input name="starts_on" type="date" required></div>
-                    <div><label>End date</label><input name="ends_on" type="date" required></div>
-                    <div><label>Budget (₹)</label><input name="budget_rupees" type="number" min="1" required></div>
-                    <div><label>CTA URL</label><input name="cta_url" placeholder="https://"></div>
-                    <div>
-                        <label>Banner image URL</label>
-                        <input name="image_url" type="url" data-image-preview placeholder="https://admin.karnaride.in/uploads/ads/banner.jpg">
-                    </div>
-                    <div>
-                        <label>Upload banner</label>
-                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
+                        <label>Banner image</label>
+                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview required>
                     </div>
                 </div>
-                <div><label>Business information</label><textarea name="business_info" rows="2"></textarea></div>
-                <p class="muted">JPEG / PNG / WebP / GIF, 1600×740 recommended, max 4 MB. Upload a file or paste a public HTTPS URL. The apps load this URL after approval.</p>
-                <button class="btn" type="submit"><i data-lucide="send"></i> Submit for review</button>
+                <p class="muted">JPEG / PNG / WebP / GIF, max 4 MB. Publishing puts this banner on the customer and driver home screens immediately.</p>
+                <button class="btn" type="submit"><i data-lucide="send"></i> Publish</button>
             </form>
         </section>
     @endcan

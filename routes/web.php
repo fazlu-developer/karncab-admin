@@ -277,6 +277,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::post('/ops/bulk-bookings/{booking}/reject', [WorkspaceController::class, 'rejectBulk'])->name('ops.bulk-bookings.reject')->whereNumber('booking');
     Route::post('/ops/bulk-bookings/{booking}/assign', [WorkspaceController::class, 'assignBulk'])->name('ops.bulk-bookings.assign')->whereNumber('booking');
     Route::get('/ops/corporate-plans', [WorkspaceController::class, 'corporatePlans'])->name('ops.corporate-plans');
+    Route::get('/ops/corporate-bookings', [WorkspaceController::class, 'corporateBookings'])->name('ops.corporate-bookings');
     Route::post('/ops/corporate-plans', [WorkspaceController::class, 'storeCorporatePlan'])->name('ops.corporate-plans.store');
     Route::put('/ops/corporate-plans/{plan}', [WorkspaceController::class, 'updateCorporatePlan'])->name('ops.corporate-plans.update')->whereNumber('plan');
     Route::post('/ops/corporate-plans/bookings/{booking}/approve', [WorkspaceController::class, 'approveCorporate'])->name('ops.corporate-plans.approve')->whereNumber('booking');

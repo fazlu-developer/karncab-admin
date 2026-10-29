@@ -115,30 +115,34 @@ class AdvertisingService
             403,
             'Advertiser account required',
         );
-        $this->assertWindow($data['starts_on'], $data['ends_on']);
-        $ids = $this->assertTerritory($data['state_id'] ?? null, $data['district_id'] ?? null);
         $now = now();
-        $id = $this->db()->table('ad_campaigns')->insertGetId([
+        $title = trim((string) ($data['title'] ?? ''));
+        $row = [
             'advertiser_user_id' => $this->actorId($operator),
-            'business_name' => trim((string) $data['business_name']),
-            'business_info' => isset($data['business_info']) ? trim((string) $data['business_info']) : null,
-            'title' => trim((string) $data['title']),
-            'category' => $data['category'],
-            'campaign_type' => $data['campaign_type'] ?? 'banner',
-            'target_city' => isset($data['target_city']) ? (trim((string) $data['target_city']) ?: null) : null,
-            'state_id' => $ids['state_id'],
-            'district_id' => $ids['district_id'],
-            'starts_on' => Carbon::parse($data['starts_on'])->startOfDay(),
-            'ends_on' => Carbon::parse($data['ends_on'])->endOfDay(),
-            'budget_paise' => $this->budgetPaise($data),
+            'business_name' => 'KarnaRide',
+            'business_info' => null,
+            'title' => $title !== '' ? $title : 'Home banner',
+            'category' => 'local_businesses',
+            'campaign_type' => 'banner',
+            'target_city' => null,
+            'state_id' => null,
+            'district_id' => null,
+            'starts_on' => null,
+            'ends_on' => null,
+            'budget_paise' => 0,
             'budget_used_paise' => 0,
-            'status' => 'pending',
+            'status' => 'published',
             'impressions' => 0,
             'clicks' => 0,
-            'cta_url' => isset($data['cta_url']) ? (trim((string) $data['cta_url']) ?: null) : null,
+            'cta_url' => null,
             'created_at' => $now,
             'updated_at' => $now,
-        ]);
+        ];
+        if ($this->hasColumn('published_at')) {
+            $row['published_at'] = $now;
+        }
+        $id = $this->db()->table('ad_campaigns')->insertGetId($row);
+        $data['placement'] = 'home';
         $this->persistCreative($id, $data);
 
         return $this->one($operator, $id);
@@ -160,12 +164,6 @@ class AdvertisingService
         if (! $this->owns($operator, $row) && ! $operator->isPrivilegedOperator()) {
             abort(403, 'Cannot edit this campaign');
         }
-        $starts = $data['starts_on'] ?? $row->starts_on;
-        $ends = $data['ends_on'] ?? $row->ends_on;
-        $this->assertWindow($starts, $ends);
-        $stateId = array_key_exists('state_id', $data) ? $data['state_id'] : $row->state_id;
-        $districtId = array_key_exists('district_id', $data) ? $data['district_id'] : $row->district_id;
-        $ids = $this->assertTerritory($stateId, $districtId);
         $patch = [
             'updated_at' => now(),
         ];
@@ -181,17 +179,6 @@ class AdvertisingService
             if (array_key_exists($field, $data)) {
                 $patch[$field] = $cast($data[$field]);
             }
-        }
-        $patch['state_id'] = $ids['state_id'];
-        $patch['district_id'] = $ids['district_id'];
-        if (isset($data['starts_on'])) {
-            $patch['starts_on'] = Carbon::parse($data['starts_on'])->startOfDay();
-        }
-        if (isset($data['ends_on'])) {
-            $patch['ends_on'] = Carbon::parse($data['ends_on'])->endOfDay();
-        }
-        if (isset($data['budget_rupees']) || isset($data['budget_paise'])) {
-            $patch['budget_paise'] = $this->budgetPaise($data);
         }
         if ($operator->isPrivilegedOperator() && isset($data['status']) && in_array($data['status'], AdPolicy::STATUSES, true)) {
             $patch['status'] = $data['status'];

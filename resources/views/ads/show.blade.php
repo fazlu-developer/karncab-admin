@@ -31,65 +31,18 @@
 
     @can('advertising.edit')
         <section class="card">
-            <h2>{{ $canReview ? 'Edit & targeting' : 'Update campaign' }}</h2>
+            <h2>Banner</h2>
             <form method="POST" action="{{ route('ads.update', $campaign['id']) }}" enctype="multipart/form-data">
                 @csrf
                 @method('PATCH')
                 <div class="filters">
-                    <div><label>Campaign name</label><input name="title" value="{{ $campaign['campaign'] }}"></div>
-                    <div><label>Business name</label><input name="business_name" value="{{ $campaign['business'] }}"></div>
+                    <div><label>Title (optional)</label><input name="title" value="{{ $campaign['campaign'] }}"></div>
                     <div>
-                        <label>Category</label>
-                        <select name="category">
-                            @foreach ($catalog['categories'] as $item)
-                                <option value="{{ $item['key'] }}" @selected($campaign['category'] === $item['key'])>{{ $item['title'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>Campaign type</label>
-                        <select name="campaign_type">
-                            @foreach ($catalog['campaignTypes'] as $item)
-                                <option value="{{ $item['key'] }}" @selected($campaign['campaignType'] === $item['key'])>{{ $item['title'] }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @include('partials.geo-fields', [
-                        'stateLabel' => 'Target state',
-                        'districtLabel' => 'Target district',
-                        'emptyState' => 'All states',
-                        'emptyDistrict' => 'All districts',
-                        'stateValue' => (string) ($campaign['targetState']['id'] ?? ''),
-                        'districtValue' => (string) ($campaign['targetDistrict']['id'] ?? ''),
-                    ])
-                    <div><label>Target city</label><input name="target_city" value="{{ $campaign['targetCity'] }}"></div>
-                    <div><label>Start date</label><input name="starts_on" type="date" value="{{ $campaign['startDate'] }}"></div>
-                    <div><label>End date</label><input name="ends_on" type="date" value="{{ $campaign['endDate'] }}"></div>
-                    <div><label>Budget (₹)</label><input name="budget_rupees" type="number" min="1" value="{{ (int) $campaign['budgetRupees'] }}"></div>
-                    <div><label>CTA URL</label><input name="cta_url" value="{{ $campaign['ctaUrl'] }}"></div>
-                    <div>
-                        <label>App placement</label>
-                        <select name="placement">
-                            @foreach ($catalog['placements']['allowed'] as $place)
-                                <option value="{{ $place }}" @selected(($campaign['placement'] ?? 'home') === $place)>{{ ['home' => 'Home', 'driver' => 'Driver app', 'city' => 'City ride', 'one_way' => 'One Way', 'airport' => 'Airport', 'railway' => 'Railway', 'round_trip' => 'Round trip', 'parcel' => 'Parcel', 'rental' => 'Cab rental', 'multi_stop' => 'Multi stop', 'travel' => 'Travel', 'discovery' => 'Discovery', 'catalog' => 'Catalog'][$place] ?? ucfirst($place) }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div>
-                        <label>Banner image URL</label>
-                        <input name="image_url" type="url" value="{{ $campaign['imageUrl'] }}" placeholder="https://" data-image-preview>
-                    </div>
-                    <div>
-                        <label>Replace banner file</label>
+                        <label>Replace banner</label>
                         <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
-                        @if ($campaign['bannerUrl'])
-                            <label><input type="checkbox" name="remove_banner" value="1"> Remove image</label>
-                        @endif
                     </div>
                 </div>
-                <div><label>Business information</label><textarea name="business_info" rows="2">{{ $campaign['businessInfo'] }}</textarea></div>
-                <p class="muted">JPEG / PNG / WebP / GIF, 1600×740 recommended, max 4 MB. Public HTTPS URL is what the customer app loads.</p>
-                <button class="btn" type="submit">Save</button>
+                <button class="btn" type="submit">Publish</button>
             </form>
         </section>
     @endcan

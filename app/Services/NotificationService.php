@@ -203,7 +203,7 @@ class NotificationService
             $q->whereIn('user_id', $ids->pluck('id'));
         }
 
-        return $q->orderByDesc('id')->limit(120)->get()->map(fn ($row) => [
+        $rows = $q->orderByDesc('id')->limit(120)->get()->map(fn ($row) => [
             'id' => (int) $row->id,
             'userId' => $row->user_id ? (int) $row->user_id : null,
             'event' => $row->event,
@@ -214,6 +214,40 @@ class NotificationService
             'note' => $row->provider_note,
             'createdAt' => $row->created_at,
         ])->all();
+
+        if (Schema::connection('platform')->hasTable('user_notifications')) {
+            $inbox = $this->db()->table('user_notifications')
+                ->whereIn('kind', ['corporate', 'bulk', 'tour', 'corporate_requested', 'corporate_paid', 'bulk_requested', 'bulk_paid', 'tour_requested', 'tour_paid', 'info'])
+                ->orderByDesc('id')
+                ->limit(80)
+                ->get();
+            foreach ($inbox as $note) {
+                $kind = (string) ($note->kind ?? '');
+                $title = (string) ($note->title ?? '');
+                $ops = in_array($kind, ['corporate', 'bulk', 'tour'], true)
+                    || str_contains(strtolower($title), 'corporate')
+                    || str_contains(strtolower($title), 'bulk')
+                    || str_contains(strtolower($title), 'tour');
+                if (! $ops) {
+                    continue;
+                }
+                $rows[] = [
+                    'id' => (int) $note->id,
+                    'userId' => isset($note->user_id) ? (int) $note->user_id : null,
+                    'event' => $kind,
+                    'channel' => 'inbox',
+                    'title' => $title,
+                    'body' => (string) ($note->body ?? ''),
+                    'status' => 'sent',
+                    'note' => 'Ops alert',
+                    'createdAt' => $note->created_at ?? null,
+                ];
+            }
+        }
+
+        usort($rows, fn ($a, $b) => strcmp((string) ($b['createdAt'] ?? ''), (string) ($a['createdAt'] ?? '')));
+
+        return array_slice($rows, 0, 160);
     }
 
     /**

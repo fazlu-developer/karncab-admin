@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Platform\AdPolicy;
 use App\Services\AdvertisingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,7 +41,7 @@ class AdvertisingController extends Controller
             }
         }
 
-        return redirect()->route('ads.show', $row['id'])->with('status', 'Campaign submitted as pending. Admin approval is required before it can run.');
+        return redirect()->route('ads.show', $row['id'])->with('status', 'Banner published on the home screen.');
     }
 
     public function update(Request $request, int $ad): RedirectResponse
@@ -117,24 +116,14 @@ class AdvertisingController extends Controller
     private function campaignPayload(Request $request, bool $creating): array
     {
         $rules = [
-            'title' => [$creating ? 'required' : 'nullable', 'string', 'min:2', 'max:160'],
-            'business_name' => [$creating ? 'required' : 'nullable', 'string', 'min:2', 'max:160'],
-            'business_info' => ['nullable', 'string', 'max:2000'],
-            'category' => [$creating ? 'required' : 'nullable', 'in:'.implode(',', array_keys(AdPolicy::CATEGORIES))],
-            'campaign_type' => [$creating ? 'required' : 'nullable', 'in:'.implode(',', array_keys(AdPolicy::TYPES))],
-            'state_id' => ['nullable', 'integer'],
-            'district_id' => ['nullable', 'integer'],
-            'target_city' => ['nullable', 'string', 'max:80'],
-            'starts_on' => [$creating ? 'required' : 'nullable', 'date'],
-            'ends_on' => [$creating ? 'required' : 'nullable', 'date'],
-            'budget_rupees' => [$creating ? 'required' : 'nullable', 'integer', 'min:1'],
-            'cta_url' => ['nullable', 'string', 'max:500'],
+            'title' => ['nullable', 'string', 'max:160'],
             'image_url' => ['nullable', 'string', 'max:500'],
+            'banner' => [$creating ? 'required_without:image_url' : 'nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'remove_banner' => ['nullable'],
-            'placement' => ['nullable', 'in:'.implode(',', AdPolicy::ALLOWED_PLACEMENTS)],
-            'status' => ['prohibited'],
         ];
+        $data = $request->validate($rules);
+        $data['placement'] = 'home';
 
-        return $request->validate($rules);
+        return $data;
     }
 }

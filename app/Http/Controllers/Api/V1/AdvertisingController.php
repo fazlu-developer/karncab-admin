@@ -31,20 +31,10 @@ class AdvertisingController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'min:2', 'max:160'],
-            'business_name' => ['required', 'string', 'min:2', 'max:160'],
-            'business_info' => ['nullable', 'string', 'max:2000'],
-            'category' => ['required', 'in:'.implode(',', array_keys(AdPolicy::CATEGORIES))],
-            'campaign_type' => ['required', 'in:'.implode(',', array_keys(AdPolicy::TYPES))],
-            'state_id' => ['nullable', 'integer'],
-            'district_id' => ['nullable', 'integer'],
-            'target_city' => ['nullable', 'string', 'max:80'],
-            'starts_on' => ['required', 'date'],
-            'ends_on' => ['required', 'date'],
-            'budget_rupees' => ['required', 'integer', 'min:1'],
-            'cta_url' => ['nullable', 'string', 'max:500'],
-            'status' => ['prohibited'],
+            'title' => ['nullable', 'string', 'max:160'],
+            'image_url' => ['nullable', 'string', 'max:500'],
         ]);
+        $data['placement'] = 'home';
 
         return response()->json($this->ads->create($request->user(), $data), 201);
     }
@@ -52,19 +42,8 @@ class AdvertisingController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $data = $request->validate([
-            'title' => ['nullable', 'string', 'min:2', 'max:160'],
-            'business_name' => ['nullable', 'string', 'min:2', 'max:160'],
-            'business_info' => ['nullable', 'string', 'max:2000'],
-            'category' => ['nullable', 'in:'.implode(',', array_keys(AdPolicy::CATEGORIES))],
-            'campaign_type' => ['nullable', 'in:'.implode(',', array_keys(AdPolicy::TYPES))],
-            'state_id' => ['nullable', 'integer'],
-            'district_id' => ['nullable', 'integer'],
-            'target_city' => ['nullable', 'string', 'max:80'],
-            'starts_on' => ['nullable', 'date'],
-            'ends_on' => ['nullable', 'date'],
-            'budget_rupees' => ['nullable', 'integer', 'min:1'],
-            'cta_url' => ['nullable', 'string', 'max:500'],
-            'status' => ['prohibited'],
+            'title' => ['nullable', 'string', 'max:160'],
+            'image_url' => ['nullable', 'string', 'max:500'],
         ]);
 
         return response()->json($this->ads->update($request->user(), $id, $data));

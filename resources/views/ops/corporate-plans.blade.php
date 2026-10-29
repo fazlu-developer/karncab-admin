@@ -1,7 +1,8 @@
 @extends('layouts.app')
-@section('title', 'Corporate Plans')
-@section('heading', 'Corporate Plans')
+@section('title', empty($bookingsOnly) ? 'Corporate Plans' : 'Corporate Booking')
+@section('heading', empty($bookingsOnly) ? 'Corporate Plans' : 'Corporate Booking')
 @section('content')
+    @if (empty($bookingsOnly))
     <div class="hero">
         <div>
             <h1><i data-lucide="briefcase"></i> Corporate travel plans</h1>
@@ -107,8 +108,9 @@
             </table>
         </div>
     </section>
+    @endif
     <section class="card">
-        <h2>Corporate plan bookings</h2>
+        <h2>{{ empty($bookingsOnly) ? 'Corporate plan bookings' : 'Corporate bookings' }}</h2>
         <p class="muted">{{ $totals['plans'] }} plans · ₹{{ number_format($totals['totalRupees'], 0) }} collected target · commission ₹{{ number_format($totals['commissionRupees'], 0) }} · district share ₹{{ number_format($totals['districtShareRupees'], 0) }}</p>
         <form method="GET" class="filters" style="margin-bottom:12px">
             <div>

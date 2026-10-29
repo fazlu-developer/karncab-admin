@@ -44,6 +44,27 @@ class VehicleCatalogAdmin
         if ($this->db()->table(self::TABLE)->count() === 0) {
             $this->seed();
         }
+        $this->ensureAmbulanceType();
+    }
+
+    private function ensureAmbulanceType(): void
+    {
+        $exists = $this->db()->table(self::TABLE)->where('key', 'AMBULANCE')->exists();
+        if ($exists) {
+            return;
+        }
+        $now = now();
+        $this->db()->table(self::TABLE)->insert([
+            'family_key' => 'AMBULANCE',
+            'family_label' => 'Ambulance',
+            'key' => 'AMBULANCE',
+            'label' => 'Ambulance',
+            'seats' => 2,
+            'sort_order' => 100,
+            'active' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
     }
 
     /**
@@ -251,6 +272,7 @@ class VehicleCatalogAdmin
             ['LOADING', 'Loading', 'PICKUP', 'Pickup', 2, 70],
             ['LOADING', 'Loading', 'VAN', 'Van', 2, 80],
             ['LOADING', 'Loading', 'TRUCK', 'Truck', 0, 90],
+            ['AMBULANCE', 'Ambulance', 'AMBULANCE', 'Ambulance', 2, 100],
         ];
         foreach ($rows as [$familyKey, $familyLabel, $key, $label, $seats, $sort]) {
             $this->db()->table(self::TABLE)->insert([

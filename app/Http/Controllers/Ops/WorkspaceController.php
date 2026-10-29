@@ -615,6 +615,26 @@ class WorkspaceController extends Controller
 
         return view('ops.corporate-plans', [
             'plans' => $plans,
+            'bookingsOnly' => false,
+            'bookings' => $bookings,
+            'drivers' => $desk->drivers($request->user()),
+            'totals' => $desk->totals($bookings),
+            'status' => $status,
+            'canMoney' => $request->user()?->can('corporate.edit') || $request->user()?->can('platform.admin'),
+        ]);
+    }
+
+    public function corporateBookings(Request $request): View
+    {
+        abort_unless($request->user()?->can('corporate.view') || $request->user()?->can('platform.admin'), 403);
+        CorporatePlanSchema::ensure('platform');
+        $desk = app(CorporateDeskService::class);
+        $status = $request->string('status')->toString();
+        $bookings = $desk->rows($request->user(), $status !== '' ? $status : null);
+
+        return view('ops.corporate-plans', [
+            'plans' => collect(),
+            'bookingsOnly' => true,
             'bookings' => $bookings,
             'drivers' => $desk->drivers($request->user()),
             'totals' => $desk->totals($bookings),
@@ -1247,9 +1267,6 @@ class WorkspaceController extends Controller
             $patch = ['updated_at' => $now];
             if ($schema->hasColumn('catalog_services', 'category_key')) {
                 $patch['category_key'] = $item['key'];
-            }
-            if ($schema->hasColumn('catalog_services', 'sort_order')) {
-                $patch['sort_order'] = $item['sort'];
             }
             if ($schema->hasColumn('catalog_services', 'service_group')) {
                 $patch['service_group'] = $item['group'];

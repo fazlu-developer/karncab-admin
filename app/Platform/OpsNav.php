@@ -49,6 +49,7 @@ final class OpsNav
             ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.tour-bookings'],
             ['key' => 'ambulance', 'label' => 'Ambulance', 'icon' => 'ambulance', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.ambulance'],
             ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-plans'],
+            ['key' => 'corporate-bookings', 'label' => 'Corporate Booking', 'icon' => 'calendar-range', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-bookings'],
             ['key' => 'corporate', 'label' => 'Corporate accounts', 'icon' => 'building-2', 'group' => 'Operations', 'ability' => 'corporate.view'],
             ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
             ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.index'],
@@ -257,6 +258,9 @@ final class OpsNav
         }
         if (($item['route'] ?? '') === 'ops.corporate-plans') {
             return request()->routeIs('ops.corporate-plans*') || request()->route('module') === 'corporate-plans';
+        }
+        if (($item['route'] ?? '') === 'ops.corporate-bookings') {
+            return request()->routeIs('ops.corporate-bookings*');
         }
         if (($item['route'] ?? '') === 'coupons.index') {
             return request()->routeIs('coupons.*');
