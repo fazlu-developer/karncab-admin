@@ -94,6 +94,11 @@ class OrganizationController extends Controller
         abort_if($request->user()?->isStateHead() || $request->user()?->isDistrictHead(), 403);
         abort_unless($request->user()?->can('district.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
         $this->ensurePhotoColumn('districts');
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'state_id' => (string) $request->query('state_id', ''),
+            'status' => (string) $request->query('status', ''),
+        ];
         $q = DB::connection('platform')->table('districts')
             ->join('states', 'states.id', '=', 'districts.state_id')
             ->select('districts.*', 'states.name as state_name')
@@ -102,10 +107,29 @@ class OrganizationController extends Controller
         $actor = $request->user();
         if ($actor?->isStateHead() && $actor->state_id) {
             $q->where('districts.state_id', $actor->state_id);
+            $filters['state_id'] = (string) $actor->state_id;
+        }
+        if ($filters['q'] !== '') {
+            $term = '%'.$filters['q'].'%';
+            $q->where(function ($inner) use ($term) {
+                $inner->where('districts.name', 'like', $term)
+                    ->orWhere('districts.code', 'like', $term)
+                    ->orWhere('states.name', 'like', $term);
+            });
+        }
+        if ($filters['state_id'] !== '' && ctype_digit($filters['state_id'])) {
+            $q->where('districts.state_id', (int) $filters['state_id']);
+        }
+        if (in_array($filters['status'], ['ACTIVE', 'INACTIVE'], true)) {
+            $q->where('districts.status', $filters['status']);
         }
         $states = DB::connection('platform')->table('states')->orderBy('name')->get();
 
-        return view('organization.districts', ['districts' => $q->get(), 'states' => $states]);
+        return view('organization.districts', [
+            'districts' => $q->paginate(20)->withQueryString(),
+            'states' => $states,
+            'filters' => $filters,
+        ]);
     }
 
     public function storeDistrict(Request $request): RedirectResponse
