@@ -44,70 +44,6 @@ class VehicleCatalogAdmin
         if ($this->db()->table(self::TABLE)->count() === 0) {
             $this->seed();
         }
-        $this->ensureAmbulanceTypes();
-    }
-
-    /**
-     * Adds missing ambulance types. Existing rows, including the original Ambulance type, are left as they are.
-     */
-    private function ensureAmbulanceTypes(): void
-    {
-        $now = now();
-        $rows = [
-            ['AMBULANCE', 'Ambulance', 2, 100, 'Emergency ambulance', null],
-            ['BASIC', 'Basic Patient Transport', 2, 101, 'सामान्य मरीज ट्रांसफर', '/uploads/vehicles/ambulance_basic.png'],
-            ['BLS', 'BLS Ambulance', 2, 102, 'बेसिक लाइफ सपोर्ट', '/uploads/vehicles/ambulance_bls.png'],
-            ['ALS', 'ALS Ambulance', 2, 103, 'उन्नत चिकित्सा सहायता', '/uploads/vehicles/ambulance_als.png'],
-        ];
-        foreach ($rows as [$key, $label, $seats, $sort, $blurb, $image]) {
-            if ($this->db()->table(self::TABLE)->where('key', $key)->exists()) {
-                continue;
-            }
-            $this->db()->table(self::TABLE)->insert([
-                'family_key' => 'AMBULANCE',
-                'family_label' => 'Ambulance',
-                'key' => $key,
-                'label' => $label,
-                'seats' => $seats,
-                'sort_order' => $sort,
-                'active' => 1,
-                'blurb' => $blurb,
-                'image_url' => $image,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        }
-        $this->attachAmbulanceTypesToService();
-    }
-
-    private function attachAmbulanceTypesToService(): void
-    {
-        $schema = Schema::connection('platform');
-        if (! $schema->hasTable('catalog_services') || ! $schema->hasColumn('catalog_services', 'vehicle_categories')) {
-            return;
-        }
-        $service = $this->db()->table('catalog_services')
-            ->where(function ($query) {
-                $query->where('category_key', 'AMBULANCE')
-                    ->orWhere('slug', 'ambulance');
-            })
-            ->orderBy('id')
-            ->first();
-        if (! $service) {
-            return;
-        }
-        $current = json_decode((string) ($service->vehicle_categories ?? ''), true);
-        $keys = is_array($current) ? array_map(fn ($key) => strtoupper(trim((string) $key)), $current) : [];
-        $keys = array_values(array_filter($keys, fn ($key) => $key !== ''));
-        foreach (['AMBULANCE', 'BASIC', 'BLS', 'ALS'] as $key) {
-            if (! in_array($key, $keys, true)) {
-                $keys[] = $key;
-            }
-        }
-        $this->db()->table('catalog_services')->where('id', $service->id)->update([
-            'vehicle_categories' => json_encode($keys),
-            'updated_at' => now(),
-        ]);
     }
 
     /**
@@ -249,7 +185,30 @@ class VehicleCatalogAdmin
     public function destroy(int $id): void
     {
         $this->ensure();
+        $row = $this->db()->table(self::TABLE)->where('id', $id)->first();
         $this->db()->table(self::TABLE)->where('id', $id)->delete();
+        if (! $row) {
+            return;
+        }
+        $schema = Schema::connection('platform');
+        if (! $schema->hasTable('catalog_services') || ! $schema->hasColumn('catalog_services', 'vehicle_categories')) {
+            return;
+        }
+        $removed = strtoupper((string) $row->key);
+        foreach ($this->db()->table('catalog_services')->get(['id', 'vehicle_categories']) as $service) {
+            $current = json_decode((string) ($service->vehicle_categories ?? ''), true);
+            if (! is_array($current)) {
+                continue;
+            }
+            $keys = array_values(array_filter($current, fn ($key) => strtoupper(trim((string) $key)) !== $removed));
+            if (count($keys) === count($current)) {
+                continue;
+            }
+            $this->db()->table('catalog_services')->where('id', $service->id)->update([
+                'vehicle_categories' => json_encode($keys),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     public static function fareProduct(string $key, string $title = '', string $slug = ''): string
@@ -316,6 +275,9 @@ class VehicleCatalogAdmin
             ['LOADING', 'Loading', 'VAN', 'Van', 2, 80],
             ['LOADING', 'Loading', 'TRUCK', 'Truck', 0, 90],
             ['AMBULANCE', 'Ambulance', 'AMBULANCE', 'Ambulance', 2, 100],
+            ['AMBULANCE', 'Ambulance', 'BASIC', 'Basic Patient Transport', 2, 101],
+            ['AMBULANCE', 'Ambulance', 'BLS', 'BLS Ambulance', 2, 102],
+            ['AMBULANCE', 'Ambulance', 'ALS', 'ALS Ambulance', 2, 103],
         ];
         foreach ($rows as [$familyKey, $familyLabel, $key, $label, $seats, $sort]) {
             $this->db()->table(self::TABLE)->insert([
