@@ -34,6 +34,7 @@ class OrganizationController extends Controller
     {
         abort_if($request->user()?->isStateHead(), 403);
         abort_unless($request->user()?->can('state.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
+        $this->ensurePhotoColumn('states');
         $states = DB::connection('platform')->table('states')->orderBy('name')->get();
 
         return view('organization.states', compact('states'));
@@ -47,6 +48,7 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:80'],
             'code' => ['nullable', 'string', 'max:12'],
             'status' => ['nullable', 'in:ACTIVE,INACTIVE'],
+            'photo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ]);
         $payload = PlatformSettings::filter('states', [
             'name' => trim($data['name']),
@@ -56,6 +58,7 @@ class OrganizationController extends Controller
             'updated_at' => now(),
         ]);
         $id = DB::connection('platform')->table('states')->insertGetId($payload);
+        $this->saveTerritoryPhoto('states', $id, $request->file('photo'), null);
         OrganizationAudit::record($request->user(), 'state.create', 'state', $id, null, $payload);
 
         return back()->with('status', 'State added. KarnaRide can serve this territory after districts are added.');
@@ -69,6 +72,7 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:80'],
             'code' => ['nullable', 'string', 'max:12'],
             'status' => ['nullable', 'in:ACTIVE,INACTIVE'],
+            'photo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ]);
         $old = (array) DB::connection('platform')->table('states')->where('id', $state)->first();
         abort_if($old === [], 404);
@@ -79,6 +83,7 @@ class OrganizationController extends Controller
             'updated_at' => now(),
         ]);
         DB::connection('platform')->table('states')->where('id', $state)->update($payload);
+        $this->saveTerritoryPhoto('states', $state, $request->file('photo'), $old['photo_url'] ?? null);
         OrganizationAudit::record($request->user(), 'state.update', 'state', $state, $old, $payload);
 
         return back()->with('status', 'State updated.');
@@ -88,6 +93,7 @@ class OrganizationController extends Controller
     {
         abort_if($request->user()?->isStateHead() || $request->user()?->isDistrictHead(), 403);
         abort_unless($request->user()?->can('district.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
+        $this->ensurePhotoColumn('districts');
         $q = DB::connection('platform')->table('districts')
             ->join('states', 'states.id', '=', 'districts.state_id')
             ->select('districts.*', 'states.name as state_name')
@@ -111,6 +117,7 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:80'],
             'code' => ['nullable', 'string', 'max:32'],
             'status' => ['nullable', 'in:ACTIVE,INACTIVE'],
+            'photo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ]);
         abort_unless(DB::connection('platform')->table('states')->where('id', $data['state_id'])->exists(), 422, 'Select a valid state.');
         $payload = PlatformSettings::filter('districts', [
@@ -122,6 +129,7 @@ class OrganizationController extends Controller
             'updated_at' => now(),
         ]);
         $id = DB::connection('platform')->table('districts')->insertGetId($payload);
+        $this->saveTerritoryPhoto('districts', $id, $request->file('photo'), null);
         OrganizationAudit::record($request->user(), 'district.create', 'district', $id, null, $payload);
 
         return back()->with('status', 'District added to KarnaRide service coverage.');
@@ -136,6 +144,7 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:80'],
             'code' => ['nullable', 'string', 'max:32'],
             'status' => ['nullable', 'in:ACTIVE,INACTIVE'],
+            'photo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ]);
         $old = (array) DB::connection('platform')->table('districts')->where('id', $district)->first();
         abort_if($old === [], 404);
@@ -147,6 +156,7 @@ class OrganizationController extends Controller
             'updated_at' => now(),
         ]);
         DB::connection('platform')->table('districts')->where('id', $district)->update($payload);
+        $this->saveTerritoryPhoto('districts', $district, $request->file('photo'), $old['photo_url'] ?? null);
         OrganizationAudit::record($request->user(), 'district.update', 'district', $district, $old, $payload);
 
         return back()->with('status', 'District updated.');
@@ -357,5 +367,25 @@ class OrganizationController extends Controller
         DB::connection('platform')->table($table)->where('id', $id)->delete();
 
         return back()->with('status', 'KYC file deleted.');
+    }
+
+    private function ensurePhotoColumn(string $table): void
+    {
+        $schema = Schema::connection('platform');
+        if ($schema->hasTable($table) && ! $schema->hasColumn($table, 'photo_url')) {
+            $schema->table($table, function ($blueprint) {
+                $blueprint->string('photo_url', 255)->nullable();
+            });
+        }
+    }
+
+    private function saveTerritoryPhoto(string $table, int $id, $file, mixed $current): void
+    {
+        if (! $file) {
+            return;
+        }
+        $this->ensurePhotoColumn($table);
+        $path = \App\Support\PublicMedia::storagePath(\App\Support\StoredUpload::replace($file, 'territory', is_string($current) ? $current : null, 'territory'));
+        DB::connection('platform')->table($table)->where('id', $id)->update(['photo_url' => $path, 'updated_at' => now()]);
     }
 }

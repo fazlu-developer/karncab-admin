@@ -11,7 +11,7 @@
     @can('district.create')
         <section class="card">
             <h2>Add district</h2>
-            <form method="POST" action="{{ route('organization.districts.store') }}">
+            <form method="POST" action="{{ route('organization.districts.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
                     <div>
@@ -25,6 +25,7 @@
                     </div>
                     <div><label>District name</label><input name="name" required placeholder="Patna"></div>
                     <div><label>Code</label><input name="code" placeholder="PAT"></div>
+                    <div><label>Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></div>
                     <div>
                         <label>Status</label>
                         <select name="status">
@@ -39,18 +40,19 @@
     @endcan
     <section class="card">
         <table class="data">
-            <thead><tr><th>ID</th><th>District</th><th>State</th><th>Code</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Photo</th><th>District</th><th>State</th><th>Code</th><th>Status</th><th></th></tr></thead>
             <tbody>
             @forelse ($districts as $row)
                 <tr>
                     <td>{{ $row->id }}</td>
+                    <td>@if(!empty($row->photo_url))<img src="{{ $row->photo_url }}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px">@else — @endif</td>
                     <td>{{ $row->name }}</td>
                     <td>{{ $row->state_name }}</td>
                     <td>{{ $row->code ?? '—' }}</td>
                     <td>{{ $row->status ?? 'ACTIVE' }}</td>
                     <td>
                         @can('district.update')
-                            <form method="POST" action="{{ route('organization.districts.update', $row->id) }}" class="filters" style="margin:0">
+                            <form method="POST" action="{{ route('organization.districts.update', $row->id) }}" class="filters" style="margin:0" enctype="multipart/form-data">
                                 @csrf
                                 @method('PUT')
                                 <select name="state_id" required>
@@ -59,6 +61,7 @@
                                     @endforeach
                                 </select>
                                 <input name="name" value="{{ $row->name }}" required>
+                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
                                 <input name="code" value="{{ $row->code ?? '' }}" style="max-width:90px">
                                 <select name="status">
                                     <option value="ACTIVE" @selected(($row->status ?? 'ACTIVE') === 'ACTIVE')>ACTIVE</option>
@@ -70,7 +73,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="muted">No districts in scope. Add one after the parent state exists.</td></tr>
+                <tr><td colspan="7" class="muted">No districts in scope. Add one after the parent state exists.</td></tr>
             @endforelse
             </tbody>
         </table>

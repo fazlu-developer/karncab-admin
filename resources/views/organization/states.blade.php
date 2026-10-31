@@ -11,11 +11,12 @@
     @can('state.create')
         <section class="card">
             <h2>Add state</h2>
-            <form method="POST" action="{{ route('organization.states.store') }}">
+            <form method="POST" action="{{ route('organization.states.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
                     <div><label>State name</label><input name="name" required placeholder="Bihar"></div>
                     <div><label>Code</label><input name="code" placeholder="BR" maxlength="12"></div>
+                    <div><label>Photo</label><input type="file" name="photo" accept="image/jpeg,image/png,image/webp"></div>
                     <div>
                         <label>Status</label>
                         <select name="status">
@@ -30,20 +31,22 @@
     @endcan
     <section class="card">
         <table class="data">
-            <thead><tr><th>ID</th><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Photo</th><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
             <tbody>
             @forelse ($states as $state)
                 <tr>
                     <td>{{ $state->id }}</td>
+                    <td>@if(!empty($state->photo_url))<img src="{{ $state->photo_url }}" alt="" style="width:42px;height:42px;object-fit:cover;border-radius:8px">@else — @endif</td>
                     <td>{{ $state->name }}</td>
                     <td>{{ $state->code ?? '—' }}</td>
                     <td>{{ $state->status ?? 'ACTIVE' }}</td>
                     <td>
                         @can('state.update')
-                            <form method="POST" action="{{ route('organization.states.update', $state->id) }}" class="filters" style="margin:0">
+                            <form method="POST" action="{{ route('organization.states.update', $state->id) }}" class="filters" style="margin:0" enctype="multipart/form-data">
                                 @csrf
                                 @method('PUT')
                                 <input name="name" value="{{ $state->name }}" required>
+                                <input type="file" name="photo" accept="image/jpeg,image/png,image/webp">
                                 <input name="code" value="{{ $state->code ?? '' }}" placeholder="Code" style="max-width:90px">
                                 <select name="status">
                                     <option value="ACTIVE" @selected(($state->status ?? 'ACTIVE') === 'ACTIVE')>ACTIVE</option>
@@ -55,7 +58,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="muted">No states yet. Add the first service state above.</td></tr>
+                <tr><td colspan="6" class="muted">No states yet. Add the first service state above.</td></tr>
             @endforelse
             </tbody>
         </table>
