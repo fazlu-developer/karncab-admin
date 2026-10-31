@@ -7,6 +7,7 @@ use App\Services\StateHeadKycStore;
 use App\Services\OrganizationAudit;
 use App\Services\TerritoryDirectory;
 use App\Support\PlatformSettings;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -139,7 +140,7 @@ class OrganizationController extends Controller
         $data = $request->validate([
             'state_id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:80'],
-            'code' => ['nullable', 'string', 'max:32'],
+            'code' => ['nullable', 'string', 'max:16'],
             'status' => ['nullable', 'in:ACTIVE,INACTIVE'],
             'photo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ]);
@@ -152,7 +153,11 @@ class OrganizationController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $id = DB::connection('platform')->table('districts')->insertGetId($payload);
+        try {
+            $id = DB::connection('platform')->table('districts')->insertGetId($payload);
+        } catch (QueryException $exception) {
+            return $this->districtSaveError($exception);
+        }
         $this->saveTerritoryPhoto('districts', $id, $request->file('photo'), null);
         OrganizationAudit::record($request->user(), 'district.create', 'district', $id, null, $payload);
 
@@ -166,20 +171,28 @@ class OrganizationController extends Controller
         $data = $request->validate([
             'state_id' => ['required', 'integer'],
             'name' => ['required', 'string', 'max:80'],
-            'code' => ['nullable', 'string', 'max:32'],
+            'code' => ['nullable', 'string', 'max:16'],
             'status' => ['nullable', 'in:ACTIVE,INACTIVE'],
             'photo' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:4096'],
         ]);
         $old = (array) DB::connection('platform')->table('districts')->where('id', $district)->first();
         abort_if($old === [], 404);
+        $code = strtoupper(trim((string) ($data['code'] ?? '')));
+        if ($code === '') {
+            $code = strtoupper(trim((string) ($old['code'] ?? '')));
+        }
         $payload = PlatformSettings::filter('districts', [
             'state_id' => $data['state_id'],
             'name' => trim($data['name']),
-            'code' => strtoupper(trim((string) ($data['code'] ?? ''))),
+            'code' => $code,
             'status' => $data['status'] ?? 'ACTIVE',
             'updated_at' => now(),
         ]);
-        DB::connection('platform')->table('districts')->where('id', $district)->update($payload);
+        try {
+            DB::connection('platform')->table('districts')->where('id', $district)->update($payload);
+        } catch (QueryException $exception) {
+            return $this->districtSaveError($exception);
+        }
         $this->saveTerritoryPhoto('districts', $district, $request->file('photo'), $old['photo_url'] ?? null);
         OrganizationAudit::record($request->user(), 'district.update', 'district', $district, $old, $payload);
 
@@ -410,6 +423,23 @@ class OrganizationController extends Controller
         }
         $this->ensurePhotoColumn($table);
         $path = \App\Support\PublicMedia::storagePath(\App\Support\StoredUpload::replace($file, 'territory', is_string($current) ? $current : null, 'territory'));
-        DB::connection('platform')->table($table)->where('id', $id)->update(['photo_url' => $path, 'updated_at' => now()]);
+        DB::connection('platform')->table($table)->where('id', $id)->update(PlatformSettings::filter($table, [
+            'photo_url' => $path,
+            'updated_at' => now(),
+        ]));
+    }
+
+    private function districtSaveError(QueryException $exception): RedirectResponse
+    {
+        report($exception);
+        $message = $exception->getMessage();
+        if (str_contains($message, 'Duplicate') || str_contains($message, 'districts_code')) {
+            return back()->withErrors(['code' => 'That district code is already used. Choose a different code.'])->withInput();
+        }
+        if (str_contains($message, 'Data too long') || str_contains($message, '1406')) {
+            return back()->withErrors(['code' => 'The code must be 16 characters or fewer.'])->withInput();
+        }
+
+        return back()->withErrors(['name' => 'Could not save this district. Check the code and try again.'])->withInput();
     }
 }
