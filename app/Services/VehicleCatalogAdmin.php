@@ -44,26 +44,69 @@ class VehicleCatalogAdmin
         if ($this->db()->table(self::TABLE)->count() === 0) {
             $this->seed();
         }
-        $this->ensureAmbulanceType();
+        $this->ensureAmbulanceTypes();
     }
 
-    private function ensureAmbulanceType(): void
+    /**
+     * Adds missing ambulance types. Existing rows, including the original Ambulance type, are left as they are.
+     */
+    private function ensureAmbulanceTypes(): void
     {
-        $exists = $this->db()->table(self::TABLE)->where('key', 'AMBULANCE')->exists();
-        if ($exists) {
+        $now = now();
+        $rows = [
+            ['AMBULANCE', 'Ambulance', 2, 100, 'Emergency ambulance', null],
+            ['BASIC', 'Basic Patient Transport', 2, 101, 'सामान्य मरीज ट्रांसफर', '/uploads/vehicles/ambulance_basic.png'],
+            ['BLS', 'BLS Ambulance', 2, 102, 'बेसिक लाइफ सपोर्ट', '/uploads/vehicles/ambulance_bls.png'],
+            ['ALS', 'ALS Ambulance', 2, 103, 'उन्नत चिकित्सा सहायता', '/uploads/vehicles/ambulance_als.png'],
+        ];
+        foreach ($rows as [$key, $label, $seats, $sort, $blurb, $image]) {
+            if ($this->db()->table(self::TABLE)->where('key', $key)->exists()) {
+                continue;
+            }
+            $this->db()->table(self::TABLE)->insert([
+                'family_key' => 'AMBULANCE',
+                'family_label' => 'Ambulance',
+                'key' => $key,
+                'label' => $label,
+                'seats' => $seats,
+                'sort_order' => $sort,
+                'active' => 1,
+                'blurb' => $blurb,
+                'image_url' => $image,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+        $this->attachAmbulanceTypesToService();
+    }
+
+    private function attachAmbulanceTypesToService(): void
+    {
+        $schema = Schema::connection('platform');
+        if (! $schema->hasTable('catalog_services') || ! $schema->hasColumn('catalog_services', 'vehicle_categories')) {
             return;
         }
-        $now = now();
-        $this->db()->table(self::TABLE)->insert([
-            'family_key' => 'AMBULANCE',
-            'family_label' => 'Ambulance',
-            'key' => 'AMBULANCE',
-            'label' => 'Ambulance',
-            'seats' => 2,
-            'sort_order' => 100,
-            'active' => 1,
-            'created_at' => $now,
-            'updated_at' => $now,
+        $service = $this->db()->table('catalog_services')
+            ->where(function ($query) {
+                $query->where('category_key', 'AMBULANCE')
+                    ->orWhere('slug', 'ambulance');
+            })
+            ->orderBy('id')
+            ->first();
+        if (! $service) {
+            return;
+        }
+        $current = json_decode((string) ($service->vehicle_categories ?? ''), true);
+        $keys = is_array($current) ? array_map(fn ($key) => strtoupper(trim((string) $key)), $current) : [];
+        $keys = array_values(array_filter($keys, fn ($key) => $key !== ''));
+        foreach (['AMBULANCE', 'BASIC', 'BLS', 'ALS'] as $key) {
+            if (! in_array($key, $keys, true)) {
+                $keys[] = $key;
+            }
+        }
+        $this->db()->table('catalog_services')->where('id', $service->id)->update([
+            'vehicle_categories' => json_encode($keys),
+            'updated_at' => now(),
         ]);
     }
 
