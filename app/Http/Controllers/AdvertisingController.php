@@ -31,30 +31,35 @@ class AdvertisingController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'title' => ['nullable', 'string', 'max:160'],
+            'name_1' => ['nullable', 'string', 'max:160'],
+            'name_2' => ['nullable', 'string', 'max:160'],
+            'name_3' => ['nullable', 'string', 'max:160'],
+            'link_1' => ['nullable', 'string', 'max:500'],
+            'link_2' => ['nullable', 'string', 'max:500'],
+            'link_3' => ['nullable', 'string', 'max:500'],
             'banner_1' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'banner_2' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
             'banner_3' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
         ]);
-        $files = [];
-        foreach (['banner_1', 'banner_2', 'banner_3'] as $key) {
-            if ($request->hasFile($key)) {
-                $files[] = $request->file($key);
+        $slots = [];
+        foreach ([1, 2, 3] as $n) {
+            if ($request->hasFile('banner_'.$n)) {
+                $slots[] = [
+                    'file' => $request->file('banner_'.$n),
+                    'title' => trim((string) $request->input('name_'.$n, '')),
+                    'link' => trim((string) $request->input('link_'.$n, '')),
+                ];
             }
         }
-        $base = trim((string) $request->input('title', ''));
         $published = 0;
-        foreach ($files as $index => $file) {
-            $title = $base;
-            if ($title !== '' && count($files) > 1) {
-                $title .= ' '.($index + 1);
-            }
+        foreach ($slots as $index => $slot) {
             $row = $this->ads->create($request->user(), [
-                'title' => $title,
+                'title' => $slot['title'],
+                'cta_url' => $slot['link'],
                 'placement' => 'home',
             ]);
             try {
-                $this->ads->uploadBanner($request->user(), $row['id'], $file);
+                $this->ads->uploadBanner($request->user(), $row['id'], $slot['file']);
                 $published++;
             } catch (\Throwable $e) {
                 report($e);

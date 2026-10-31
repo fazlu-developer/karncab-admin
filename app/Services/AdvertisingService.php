@@ -134,7 +134,7 @@ class AdvertisingService
             'status' => 'published',
             'impressions' => 0,
             'clicks' => 0,
-            'cta_url' => null,
+            'cta_url' => $this->cleanLink($data['cta_url'] ?? $data['link'] ?? null),
             'created_at' => $now,
             'updated_at' => $now,
         ];
@@ -726,6 +726,19 @@ class AdvertisingService
         }
 
         return $mime !== '' ? $mime : $fromExt;
+    }
+
+    private function cleanLink(mixed $value): ?string
+    {
+        $link = trim((string) $value);
+        if ($link === '') {
+            return null;
+        }
+        if (! str_starts_with($link, 'http://') && ! str_starts_with($link, 'https://')) {
+            $link = 'https://'.$link;
+        }
+
+        return filter_var($link, FILTER_VALIDATE_URL) ? $link : null;
     }
 
     private function hasColumn(string $column): bool

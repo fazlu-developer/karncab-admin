@@ -46,21 +46,26 @@
             <form method="POST" action="{{ route('ads.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
-                    <div><label>Title (optional)</label><input name="title" value="{{ old('title') }}" placeholder="Shown only in this list"></div>
+                    <div><label>Banner 1 name</label><input name="name_1" value="{{ old('name_1') }}" placeholder="Banner name"></div>
+                    <div><label>Banner 1 link</label><input name="link_1" value="{{ old('link_1') }}" placeholder="https://"></div>
                     <div>
-                        <label>Banner 1</label>
+                        <label>Banner 1 picture</label>
                         <input type="file" name="banner_1" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview required>
                     </div>
+                    <div><label>Banner 2 name</label><input name="name_2" value="{{ old('name_2') }}" placeholder="Optional"></div>
+                    <div><label>Banner 2 link</label><input name="link_2" value="{{ old('link_2') }}" placeholder="https://"></div>
                     <div>
-                        <label>Banner 2 (optional)</label>
+                        <label>Banner 2 picture</label>
                         <input type="file" name="banner_2" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
                     </div>
+                    <div><label>Banner 3 name</label><input name="name_3" value="{{ old('name_3') }}" placeholder="Optional"></div>
+                    <div><label>Banner 3 link</label><input name="link_3" value="{{ old('link_3') }}" placeholder="https://"></div>
                     <div>
-                        <label>Banner 3 (optional)</label>
+                        <label>Banner 3 picture</label>
                         <input type="file" name="banner_3" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
                     </div>
                 </div>
-                <p class="muted">Add one banner, or two or three together. JPEG / PNG / WebP / GIF, max 4 MB each. Publish puts them on the customer and driver home immediately. The home keeps the latest 3.</p>
+                <p class="muted">Each banner has a name, a link, and a picture. If the link starts with http, tapping the picture in the customer or driver app opens it. JPEG / PNG / WebP / GIF, max 4 MB. The home keeps the latest 3.</p>
                 <button class="btn" type="submit"><i data-lucide="send"></i> Publish on home</button>
             </form>
         </section>
