@@ -14,7 +14,7 @@ class TerritoryContactsController extends Controller
 
     public function index(Request $request): View
     {
-        abort_unless($request->user()?->can('platform.admin'), 403);
+        abort_unless($request->user()?->can('territory_contacts.view') || $request->user()?->can('platform.admin'), 403);
 
         return view('territory-contacts.index', [
             'rows' => $this->heads->page(),

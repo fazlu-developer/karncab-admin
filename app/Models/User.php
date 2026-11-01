@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Platform\MenuAccess;
 use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
 use Database\Factories\UserFactory;
@@ -122,11 +123,24 @@ class User extends Authenticatable
         if ($this->isSuperAdmin()) {
             return true;
         }
-        if ($ability === 'platform.admin' && ($this->isStateHead() || $this->isDistrictHead())) {
-            return false;
+        if ($ability === 'platform.admin') {
+            $screen = MenuAccess::forRequest((string) (request()->route()?->getName() ?? ''));
+            if ($screen !== null && $screen !== 'platform.admin' && $this->hasPlatformAbility($screen)) {
+                return true;
+            }
+            if ($this->isStateHead() || $this->isDistrictHead()) {
+                return false;
+            }
         }
         $granted = PlatformPermission::forRole((string) $this->role);
-        $granted = array_values(array_unique(array_merge($granted, $this->assignedAbilities())));
+        if (! in_array($this->role, [
+            OperatorRole::ADMIN,
+            OperatorRole::MANAGER,
+            OperatorRole::STATE_HEAD,
+            OperatorRole::DISTRICT_HEAD,
+        ], true)) {
+            $granted = array_values(array_unique(array_merge($granted, $this->assignedAbilities())));
+        }
         if (in_array($ability, $granted, true)) {
             return true;
         }

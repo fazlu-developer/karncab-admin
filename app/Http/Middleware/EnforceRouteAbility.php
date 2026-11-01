@@ -28,13 +28,8 @@ class EnforceRouteAbility
             return $next($request);
         }
         $module = PrivilegedModules::keyForRequest($request);
-        if ($module !== null) {
-            if (PrivilegedModules::denied($user, $module)) {
-                abort(403);
-            }
-            if (in_array($user->role, [OperatorRole::ADMIN, OperatorRole::MANAGER], true)) {
-                return $next($request);
-            }
+        if ($module !== null && PrivilegedModules::denied($user, $module)) {
+            abort(403);
         }
         $abilities = RouteAbility::anyOf($request);
         if ($abilities === null) {

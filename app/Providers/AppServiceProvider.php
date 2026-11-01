@@ -6,6 +6,7 @@ use App\Events\OperatorRegistered;
 use App\Listeners\HandleOperatorRegistered;
 use App\Models\User;
 use App\Platform\GeoCatalog;
+use App\Platform\PlatformPermission;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -33,6 +34,9 @@ class AppServiceProvider extends ServiceProvider
             }
             if ($user->hasPlatformAbility($ability)) {
                 return true;
+            }
+            if (in_array($ability, PlatformPermission::builtInCatalog(), true) || str_contains($ability, '.')) {
+                return false;
             }
 
             return null;

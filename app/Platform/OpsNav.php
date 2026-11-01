@@ -22,51 +22,51 @@ final class OpsNav
             ['key' => 'states', 'label' => 'States', 'icon' => 'globe', 'group' => 'Organization', 'ability' => 'state.view', 'route' => 'organization.states'],
             ['key' => 'districts', 'label' => 'Districts', 'icon' => 'map-pinned', 'group' => 'Organization', 'ability' => 'district.view', 'route' => 'organization.districts'],
             ['key' => 'users', 'label' => 'All users', 'icon' => 'users', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'users.index'],
-            ['key' => 'territory-heads', 'label' => 'State & district heads', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'organization.heads'],
-            ['key' => 'territory-contacts', 'label' => 'Territory contacts', 'icon' => 'phone', 'group' => 'Organization', 'ability' => 'platform.admin', 'route' => 'territory-contacts.index'],
-            ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.state-kyc'],
-            ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'organization.district-kyc'],
-            ['key' => 'fleet-kyc', 'label' => 'Fleet Owner KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'kyc.view', 'route' => 'fleet-owners.kyc'],
+            ['key' => 'territory-heads', 'label' => 'State & district heads', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'territory_heads.view', 'route' => 'organization.heads'],
+            ['key' => 'territory-contacts', 'label' => 'Territory contacts', 'icon' => 'phone', 'group' => 'Organization', 'ability' => 'territory_contacts.view', 'route' => 'territory-contacts.index'],
+            ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'state_kyc.view', 'route' => 'organization.state-kyc'],
+            ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'district_kyc.view', 'route' => 'organization.district-kyc'],
+            ['key' => 'fleet-kyc', 'label' => 'Fleet Owner KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'fleet_kyc.view', 'route' => 'fleet-owners.kyc'],
 
             // Fleet
             ['key' => 'fleet', 'label' => 'Fleet Owners', 'icon' => 'warehouse', 'group' => 'Fleet', 'ability' => 'fleet.view', 'route' => 'fleet-owners.index'],
             ['key' => 'drivers', 'label' => 'Drivers', 'icon' => 'id-card', 'group' => 'Fleet', 'ability' => 'drivers.view', 'route' => 'drivers.index'],
             ['key' => 'vehicles', 'label' => 'Vehicles', 'icon' => 'car', 'group' => 'Fleet', 'ability' => 'vehicles.view', 'route' => 'vehicles.index'],
-            ['key' => 'district-vehicles', 'label' => 'District vehicles', 'icon' => 'map', 'group' => 'Fleet', 'ability' => 'vehicles.view', 'route' => 'vehicles.districts'],
+            ['key' => 'district-vehicles', 'label' => 'District vehicles', 'icon' => 'map', 'group' => 'Fleet', 'ability' => 'district_vehicles.view', 'route' => 'vehicles.districts'],
 
             // KYC
             ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC', 'ability' => 'kyc.view'],
 
             // Operations
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
-            ['key' => 'assign-drivers', 'label' => 'Assign Drivers', 'icon' => 'user-plus', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.assign-drivers'],
+            ['key' => 'assign-drivers', 'label' => 'Assign Drivers', 'icon' => 'user-plus', 'group' => 'Operations', 'ability' => 'assign_drivers.view', 'route' => 'ops.assign-drivers'],
             ['key' => 'map', 'label' => 'Live Tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
-            ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.manual-bookings'],
-            ['key' => 'bulk-bookings', 'label' => 'Bulk Bookings', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.bulk-bookings'],
+            ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'manual_booking.view', 'route' => 'ops.manual-bookings'],
+            ['key' => 'bulk-bookings', 'label' => 'Bulk Bookings', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bulk_bookings.view', 'route' => 'ops.bulk-bookings'],
             ['key' => 'parcels', 'label' => 'Parcel', 'icon' => 'package', 'group' => 'Operations', 'ability' => 'parcels.view', 'route' => 'ops.parcels'],
             ['key' => 'travel', 'label' => 'Travel Packages', 'icon' => 'map', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.travel'],
-            ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel.view', 'route' => 'ops.tour-bookings'],
-            ['key' => 'ambulance', 'label' => 'Ambulance', 'icon' => 'ambulance', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.ambulance'],
-            ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-plans'],
-            ['key' => 'corporate-bookings', 'label' => 'Corporate Booking', 'icon' => 'calendar-range', 'group' => 'Operations', 'ability' => 'corporate.view', 'route' => 'ops.corporate-bookings'],
+            ['key' => 'travel-bookings', 'label' => 'Travel Bookings', 'icon' => 'tickets', 'group' => 'Operations', 'ability' => 'travel_bookings.view', 'route' => 'ops.tour-bookings'],
+            ['key' => 'ambulance', 'label' => 'Ambulance', 'icon' => 'ambulance', 'group' => 'Operations', 'ability' => 'ambulance.view', 'route' => 'ops.ambulance'],
+            ['key' => 'corporate-plans', 'label' => 'Corporate Plans', 'icon' => 'briefcase', 'group' => 'Operations', 'ability' => 'corporate_plans.view', 'route' => 'ops.corporate-plans'],
+            ['key' => 'corporate-bookings', 'label' => 'Corporate Booking', 'icon' => 'calendar-range', 'group' => 'Operations', 'ability' => 'corporate_bookings.view', 'route' => 'ops.corporate-bookings'],
             ['key' => 'corporate', 'label' => 'Corporate accounts', 'icon' => 'building-2', 'group' => 'Operations', 'ability' => 'corporate.view'],
             ['key' => 'safety', 'label' => 'Safety & SOS', 'icon' => 'shield-alert', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'safety.index'],
-            ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.index'],
-            ['key' => 'faqs', 'label' => 'FAQ & support copy', 'icon' => 'circle-help', 'group' => 'Operations', 'ability' => 'safety.view', 'route' => 'support.faqs'],
-            ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'bookings.view'],
+            ['key' => 'complaints', 'label' => 'Complaints', 'icon' => 'message-circle-warning', 'group' => 'Operations', 'ability' => 'complaints.view', 'route' => 'support.index'],
+            ['key' => 'faqs', 'label' => 'FAQ & support copy', 'icon' => 'circle-help', 'group' => 'Operations', 'ability' => 'faqs.view', 'route' => 'support.faqs'],
+            ['key' => 'ratings', 'label' => 'Ratings', 'icon' => 'star', 'group' => 'Operations', 'ability' => 'ratings.view'],
 
             // Offers
-            ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Offers', 'ability' => 'platform.admin', 'route' => 'coupons.index'],
+            ['key' => 'coupons', 'label' => 'Coupons', 'icon' => 'ticket-percent', 'group' => 'Offers', 'ability' => 'coupons.view', 'route' => 'coupons.index'],
             ['key' => 'advertising', 'label' => 'Advertising', 'icon' => 'megaphone', 'group' => 'Offers', 'ability' => 'advertising.view', 'route' => 'ads.index'],
-            ['key' => 'popular-routes', 'label' => 'Popular routes', 'icon' => 'route', 'group' => 'Offers', 'ability' => 'bookings.view', 'route' => 'routes.popular'],
-            ['key' => 'leads', 'label' => 'Website enquiries', 'icon' => 'inbox', 'group' => 'Offers', 'ability' => 'customers.view', 'route' => 'leads.index'],
+            ['key' => 'popular-routes', 'label' => 'Popular routes', 'icon' => 'route', 'group' => 'Offers', 'ability' => 'popular_routes.view', 'route' => 'routes.popular'],
+            ['key' => 'leads', 'label' => 'Website enquiries', 'icon' => 'inbox', 'group' => 'Offers', 'ability' => 'leads.view', 'route' => 'leads.index'],
 
             // Finance
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
             ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'revenue.view', 'route' => 'state.section'],
             ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
-            ['key' => 'settlements', 'label' => 'Commission settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'settlements.index'],
+            ['key' => 'settlements', 'label' => 'Commission settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'settlements.view', 'route' => 'settlements.index'],
             ['key' => 'payout', 'label' => 'Withdraw requests', 'icon' => 'hand-coins', 'group' => 'Finance', 'ability' => 'payout.view', 'route' => 'withdrawals.index'],
 
             // Reports
@@ -75,15 +75,15 @@ final class OpsNav
             // System (Super Admin / Admin / Manager)
             ['key' => 'notifications', 'label' => 'Notifications', 'icon' => 'bell', 'group' => 'System', 'ability' => 'notifications.view', 'route' => 'notifications.index'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
-            ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ride-settings.index'],
-            ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.services'],
-            ['key' => 'app-content', 'label' => 'App account pages', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.app-content'],
-            ['key' => 'website-pages', 'label' => 'Website CMS', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.website-pages'],
+            ['key' => 'ride-settings', 'label' => 'Ride Settings', 'icon' => 'radar', 'group' => 'System', 'ability' => 'ride_settings.view', 'route' => 'ride-settings.index'],
+            ['key' => 'services', 'label' => 'Service Management', 'icon' => 'settings-2', 'group' => 'System', 'ability' => 'services.view', 'route' => 'ops.services'],
+            ['key' => 'app-content', 'label' => 'App account pages', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'app_content.view', 'route' => 'ops.app-content'],
+            ['key' => 'website-pages', 'label' => 'Website CMS', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'website_pages.view', 'route' => 'ops.website-pages'],
             ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'branding.view', 'route' => 'ops.branding'],
             ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'roles.view', 'route' => 'ops.roles'],
             ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'settings.view', 'route' => 'ops.settings'],
-            ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.audit'],
-            ['key' => 'old-users', 'label' => 'Old users', 'icon' => 'history', 'group' => 'System', 'ability' => 'users.view', 'route' => 'old-users.index'],
+            ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'audit.view', 'route' => 'ops.audit'],
+            ['key' => 'old-users', 'label' => 'Old users', 'icon' => 'history', 'group' => 'System', 'ability' => 'old_users.view', 'route' => 'old-users.index'],
         ];
     }
 
@@ -365,33 +365,14 @@ final class OpsNav
     {
         $out = [];
         $seen = [];
-        $assigned = method_exists($user, 'assignedAbilities') ? $user->assignedAbilities() : [];
-        $stateHead = method_exists($user, 'isStateHead') && $user->isStateHead();
         $districtHead = method_exists($user, 'isDistrictHead') && $user->isDistrictHead();
-        $manager = method_exists($user, 'isManager') && $user->isManager();
-        $super = method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
         foreach (self::items() as $item) {
             $key = (string) ($item['key'] ?? '');
             if (isset($seen[$key]) || self::retired($key)) {
                 continue;
             }
-            if (in_array($key, ['state-kyc', 'district-kyc', 'fleet-kyc'], true) && ! $super) {
-                continue;
-            }
-            if ($stateHead && in_array($key, ['states', 'districts'], true)) {
-                continue;
-            }
-            if ($districtHead && $key === 'districts') {
-                continue;
-            }
             if (PrivilegedModules::denied($user, $key)) {
                 continue;
-            }
-            if (($stateHead || $districtHead) && in_array($key, PrivilegedModules::HEAD_HIDDEN, true)) {
-                $payoutGrant = $key === 'payout' && ($user->can('payout.view') || $user->can('payout.approve'));
-                if (! $payoutGrant) {
-                    continue;
-                }
             }
             if ($key === 'payout') {
                 $canPayout = $user->can('payout.view') || $user->can('payout.approve')
@@ -402,12 +383,6 @@ final class OpsNav
                 $seen[$key] = true;
                 $out[] = $item;
                 continue;
-            }
-            if ($manager && $assigned !== [] && $key !== 'dashboard') {
-                $ability = (string) ($item['ability'] ?? '');
-                if ($ability !== '' && ! in_array($ability, $assigned, true)) {
-                    continue;
-                }
             }
             $fleetHome = $key === 'dashboard'
                 && method_exists($user, 'isFleetOwner')
@@ -420,7 +395,7 @@ final class OpsNav
         }
         $privileged = method_exists($user, 'isPrivilegedOperator') && $user->isPrivilegedOperator();
         if (($districtHead || $privileged) && $user->can('fleet.manage') && ! isset($seen['fleet-cut'])) {
-            $out[] = ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet.manage', 'route' => 'district.settings'];
+            $out[] = ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet_commission.view', 'route' => 'district.settings'];
         }
 
         return $out;

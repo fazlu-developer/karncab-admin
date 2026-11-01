@@ -90,30 +90,43 @@
         @if ($locked)
             <p class="muted" style="margin-top:12px">Super Admin is locked to every permission. Pick another role to edit the matrix.</p>
         @endif
+        <p class="muted">Tick a module to show it in the menu and open its page. Clear it to hide the menu and block the URL. State Head data stays inside their state. District Head data stays inside their district.</p>
         <form method="POST" action="{{ route('ops.roles.matrix', $selectedRole) }}" style="margin-top:16px">
             @csrf
             @method('PUT')
-            @foreach ($modules as $module)
-                @continue(\App\Platform\OpsNav::retired((string) $module->key))
-                @php $abs = $abilitiesByModule[$module->id] ?? []; @endphp
-                @continue($abs === [])
-                <div class="acl-module">
-                    <strong>{{ $module->label }}</strong>
-                    <span class="muted">{{ $module->key }}</span>
-                    <div class="acl-actions">
-                        @foreach ($abs as $row)
-                            <label>
-                                <input type="checkbox" name="abilities[]" value="{{ $row->ability }}"
-                                    @checked(in_array($row->ability, $granted, true))
+            @foreach ($menuGroups as $group => $items)
+                <h3 class="acl-group">{{ $group }}</h3>
+                <div class="acl-grid">
+                    @foreach ($items as $item)
+                        <article class="acl-card">
+                            <header>
+                                <i data-lucide="{{ $item['icon'] }}"></i>
+                                <strong>{{ $item['label'] }}</strong>
+                            </header>
+                            <label class="acl-open">
+                                <input type="checkbox" name="abilities[]" value="{{ $item['ability'] }}"
+                                    @checked(in_array($item['ability'], $granted, true))
                                     @disabled($locked)>
-                                {{ $row->action }}
+                                Open
                             </label>
-                        @endforeach
-                    </div>
+                            @if ($item['related'] !== [])
+                                <div class="acl-actions">
+                                    @foreach ($item['related'] as $row)
+                                        <label>
+                                            <input type="checkbox" name="abilities[]" value="{{ $row->ability }}"
+                                                @checked(in_array($row->ability, $granted, true))
+                                                @disabled($locked)>
+                                            {{ $row->action }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </article>
+                    @endforeach
                 </div>
             @endforeach
             @unless ($locked)
-                <button class="btn" type="submit">Save {{ $selectedRole }} permissions</button>
+                <button class="btn" type="submit" style="margin-top:16px">Save permissions</button>
             @endunless
         </form>
     </section>

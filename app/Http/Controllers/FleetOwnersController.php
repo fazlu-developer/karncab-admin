@@ -46,7 +46,7 @@ class FleetOwnersController extends Controller
 
     public function kyc(Request $request): View
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('fleet_kyc.view'), 403);
 
         return view('fleet_owners.kyc', [
             'owners' => $this->fleets->list($request->user()),

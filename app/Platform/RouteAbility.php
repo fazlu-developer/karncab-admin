@@ -17,6 +17,10 @@ final class RouteAbility
         if ($name === '' || in_array($name, ['logout', 'platform.session'], true) || str_starts_with($name, 'customer.')) {
             return null;
         }
+        $screen = MenuAccess::forRequest($name);
+        if ($screen !== null) {
+            return [$screen];
+        }
         if (in_array($name, ['ops.module', 'ops.export', 'ops.bookings.show'], true)) {
             $module = $name === 'ops.bookings.show' ? 'bookings' : (string) $request->route('module');
             $ability = OpsNav::find($module)['ability'] ?? null;
@@ -59,7 +63,7 @@ final class RouteAbility
             ['managers.*', ['manager.view']],
             ['organization.states', ['state.view']],
             ['organization.districts', ['district.view']],
-            ['organization.heads', ['users.view', 'state.view', 'district.view']],
+            ['organization.heads', ['users.view']],
             ['territory-contacts.*', ['users.edit', 'platform.admin']],
             ['organization.district-kyc', ['kyc.view']],
             ['organization.state-kyc', ['kyc.view']],

@@ -20,23 +20,23 @@ class OrganizationController extends Controller
 {
     public function heads(Request $request, TerritoryDirectory $directory): View
     {
-        abort_unless(
-            $request->user()?->can('users.view')
-            || $request->user()?->can('state.view')
-            || $request->user()?->can('district.view')
-            || $request->user()?->can('platform.admin'),
-            403,
-        );
+        abort_unless($request->user()?->can('territory_heads.view'), 403);
 
         return view('organization.heads', $directory->heads($request->user()));
     }
 
     public function states(Request $request): View
     {
-        abort_if($request->user()?->isStateHead(), 403);
-        abort_unless($request->user()?->can('state.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
+        abort_unless($request->user()?->can('state.view'), 403);
         $this->ensurePhotoColumn('states');
-        $states = DB::connection('platform')->table('states')->orderBy('name')->get();
+        $states = DB::connection('platform')->table('states')->orderBy('name');
+        $actor = $request->user();
+        if ($actor?->isStateHead() && $actor->state_id) {
+            $states->where('id', $actor->state_id);
+        } elseif ($actor?->isDistrictHead() && $actor->state_id) {
+            $states->where('id', $actor->state_id);
+        }
+        $states = $states->get();
 
         return view('organization.states', compact('states'));
     }
@@ -92,8 +92,7 @@ class OrganizationController extends Controller
 
     public function districts(Request $request): View
     {
-        abort_if($request->user()?->isStateHead() || $request->user()?->isDistrictHead(), 403);
-        abort_unless($request->user()?->can('district.view') || $request->user()?->can('platform.admin') || $request->user()?->can('state.operate'), 403);
+        abort_unless($request->user()?->can('district.view'), 403);
         $this->ensurePhotoColumn('districts');
         $filters = [
             'q' => trim((string) $request->query('q', '')),
@@ -106,7 +105,10 @@ class OrganizationController extends Controller
             ->orderBy('states.name')
             ->orderBy('districts.name');
         $actor = $request->user();
-        if ($actor?->isStateHead() && $actor->state_id) {
+        if ($actor?->isDistrictHead() && $actor->district_id) {
+            $q->where('districts.id', $actor->district_id);
+            $filters['state_id'] = (string) ($actor->state_id ?? '');
+        } elseif ($actor?->isStateHead() && $actor->state_id) {
             $q->where('districts.state_id', $actor->state_id);
             $filters['state_id'] = (string) $actor->state_id;
         }
@@ -201,8 +203,7 @@ class OrganizationController extends Controller
 
     public function districtKyc(Request $request): View
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
-        abort_unless($request->user()?->can('kyc.view'), 403);
+        abort_unless($request->user()?->can('district_kyc.view'), 403);
         DistrictHeadKycStore::ensureTable();
         $actor = $request->user();
         $heads = DistrictHeadKycStore::headsFor($actor);
@@ -230,7 +231,7 @@ class OrganizationController extends Controller
 
     public function storeDistrictKyc(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('district_kyc.view'), 403);
         $actor = $request->user();
         $userId = (int) $request->input('user_id');
         if ($actor?->role === 'DISTRICT_HEAD') {
@@ -250,7 +251,7 @@ class OrganizationController extends Controller
 
     public function districtKycFile(Request $request, int $id): StreamedResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('district_kyc.view'), 403);
         DistrictHeadKycStore::ensureTable();
         $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
@@ -266,7 +267,7 @@ class OrganizationController extends Controller
 
     public function reviewDistrictKyc(Request $request, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('district_kyc.view'), 403);
         $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
         $row = DB::connection('platform')->table('district_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
@@ -287,7 +288,7 @@ class OrganizationController extends Controller
 
     public function stateKyc(Request $request): View
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('state_kyc.view'), 403);
         StateHeadKycStore::ensureTable();
         $heads = StateHeadKycStore::headsFor($request->user());
         $selectedUserId = (int) $request->query('user_id', 0);
@@ -301,6 +302,7 @@ class OrganizationController extends Controller
         $docs = DB::connection('platform')->table('state_head_kyc as k')
             ->leftJoin('users as u', 'u.id', '=', 'k.user_id')
             ->leftJoin('states as s', 's.id', '=', 'k.state_id')
+            ->when($request->user()?->isStateHead() && $request->user()->state_id, fn ($query) => $query->where('k.state_id', $request->user()->state_id))
             ->when($selectedUserId > 0, fn ($query) => $query->where('k.user_id', $selectedUserId))
             ->orderByDesc('k.id')
             ->select($columns)
@@ -312,7 +314,7 @@ class OrganizationController extends Controller
 
     public function storeStateKyc(Request $request): RedirectResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('state_kyc.view'), 403);
         $request->validate([
             'user_id' => ['required', 'integer'],
             'doc_type' => ['required', 'string', 'max:40'],
@@ -328,7 +330,7 @@ class OrganizationController extends Controller
 
     public function stateKycFile(Request $request, int $id): StreamedResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('state_kyc.view'), 403);
         StateHeadKycStore::ensureTable();
         $row = DB::connection('platform')->table('state_head_kyc')->where('id', $id)->first();
         abort_if(! $row, 404);
@@ -339,7 +341,7 @@ class OrganizationController extends Controller
 
     public function reviewStateKyc(Request $request, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can('state_kyc.view'), 403);
         $status = $request->validate(['status' => ['required', 'in:verified,rejected,submitted']])['status'];
         DB::connection('platform')->table('state_head_kyc')->where('id', $id)->update([
             'status' => $status,
@@ -371,7 +373,7 @@ class OrganizationController extends Controller
 
     private function replaceKyc(Request $request, string $table, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can($table === 'state_head_kyc' ? 'state_kyc.view' : 'district_kyc.view'), 403);
         $row = DB::connection('platform')->table($table)->where('id', $id)->first();
         abort_if(! $row, 404);
         $request->merge([
@@ -395,7 +397,7 @@ class OrganizationController extends Controller
 
     private function destroyKyc(Request $request, string $table, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($request->user()?->can($table === 'state_head_kyc' ? 'state_kyc.view' : 'district_kyc.view'), 403);
         $row = DB::connection('platform')->table($table)->where('id', $id)->first();
         abort_if(! $row, 404);
         if (is_string($row->path) && $row->path !== '' && Storage::disk('public')->exists($row->path)) {

@@ -45,6 +45,27 @@ class RoleBasedAccessTest extends TestCase
         $this->assertFalse($advertiser->can('bookings.view'));
     }
 
+    public function test_state_head_personal_ticks_do_not_reopen_users(): void
+    {
+        $roleAbilities = array_values(array_filter(
+            \App\Platform\PlatformPermission::builtInForRole(OperatorRole::STATE_HEAD),
+            fn (string $ability) => ! in_array($ability, ['users.view', 'users.create', 'users.edit', 'users.delete'], true),
+        ));
+        \App\Services\AclCatalog::saveRole(OperatorRole::STATE_HEAD, $roleAbilities);
+
+        $head = User::factory()->create([
+            'role' => OperatorRole::STATE_HEAD,
+            'state_id' => 1,
+        ]);
+        $head->syncAbilities(['users.view', 'users.create']);
+
+        $this->assertFalse($head->fresh()->can('users.view'));
+        $keys = collect(\App\Platform\OpsNav::visibleFor($head->fresh()))->pluck('key');
+        $this->assertFalse($keys->contains('users'));
+        $this->assertFalse($keys->contains('territory-heads'));
+        $this->actingAs($head)->get('/users')->assertForbidden();
+    }
+
     public function test_district_head_cannot_see_or_export_another_district_booking(): void
     {
         $this->seedTerritory();
@@ -129,8 +150,8 @@ class RoleBasedAccessTest extends TestCase
         $this->assertFalse($stateKeys->contains('roles'));
         $this->assertFalse($stateKeys->contains('settings'));
         $this->assertFalse($stateKeys->contains('branding'));
-        $this->assertFalse($stateKeys->contains('wallets'));
-        $this->assertFalse($stateKeys->contains('complaints'));
+        $this->assertTrue($stateKeys->contains('wallets'));
+        $this->assertTrue($stateKeys->contains('complaints'));
 
         $district = User::factory()->create(['role' => OperatorRole::DISTRICT_HEAD]);
         $districtKeys = collect(\App\Platform\DistrictHeadNav::grouped($district))->flatten(1)->pluck('key');
@@ -140,9 +161,9 @@ class RoleBasedAccessTest extends TestCase
 
         $plainAdmin = User::factory()->create(['role' => OperatorRole::ADMIN]);
         $adminKeys = collect(\App\Platform\OpsNav::visibleFor($plainAdmin))->pluck('key');
-        $this->assertFalse($adminKeys->contains('reports'));
-        $this->assertFalse($adminKeys->contains('roles'));
-        $plainAdmin->syncAbilities(['reports.view', 'roles.view']);
+        $this->assertTrue($adminKeys->contains('reports'));
+        $this->assertTrue($adminKeys->contains('roles'));
+        $plainAdmin->syncAbilities([]);
         $grantedKeys = collect(\App\Platform\OpsNav::visibleFor($plainAdmin->fresh()))->pluck('key');
         $this->assertTrue($grantedKeys->contains('reports'));
         $this->assertTrue($grantedKeys->contains('roles'));

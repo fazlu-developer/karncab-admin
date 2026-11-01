@@ -6,9 +6,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 
 /**
- * Revenue, Commission, Reports, Notifications, Roles, Settings, and Website & branding.
- * Super Admin always has them. Admin and Manager see a module only after it is ticked
- * on their user. State Head and District Head never see them.
+ * These screens follow the role matrix. A ticked view permission shows the menu and opens the URL.
+ * An unticked one hides the menu and blocks the URL for Admin, Manager, State Head, and District Head.
  */
 final class PrivilegedModules
 {
@@ -47,26 +46,19 @@ final class PrivilegedModules
         if (! $user instanceof User) {
             return false;
         }
-        if ($key === 'payout' && in_array($user->role, [OperatorRole::STATE_HEAD, OperatorRole::DISTRICT_HEAD], true)) {
-            return ! $user->can('payout.view') && ! $user->can('payout.approve');
-        }
-        if (in_array($key, self::HEAD_HIDDEN, true) && in_array($user->role, [OperatorRole::STATE_HEAD, OperatorRole::DISTRICT_HEAD], true)) {
-            return true;
-        }
-        if (! isset(self::ABILITIES[$key])) {
-            return false;
-        }
         if ($user->isSuperAdmin()) {
             return false;
         }
-        if (in_array($user->role, [OperatorRole::STATE_HEAD, OperatorRole::DISTRICT_HEAD], true)) {
-            return true;
+        if ($key === 'payout') {
+            return ! $user->can('payout.view') && ! $user->can('payout.approve');
         }
-        if (in_array($user->role, [OperatorRole::ADMIN, OperatorRole::MANAGER], true)) {
-            return ! in_array(self::ABILITIES[$key], $user->assignedAbilities(), true);
+        if (isset(self::ABILITIES[$key])) {
+            return ! $user->can(self::ABILITIES[$key]);
         }
+        $item = OpsNav::find($key);
+        $ability = is_array($item) ? ($item['ability'] ?? null) : null;
 
-        return false;
+        return is_string($ability) && $ability !== '' && ! $user->can($ability);
     }
 
     public static function keyForRequest(Request $request): ?string

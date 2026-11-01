@@ -198,8 +198,14 @@ table.data tr:hover td { background: #f7faf8; }
 .avatar { width: 36px; height: 36px; border-radius: 10px; background: #dce8e1; color: var(--forest); display: flex; align-items: center; justify-content: center; font-weight: 700; }
 .acl-module { padding: 12px 0; border-bottom: 1px solid #eef2ef; }
 .acl-module > strong { margin-right: 8px; }
-.acl-actions { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 8px; }
-.acl-actions label { display: flex; gap: 6px; align-items: center; margin: 0; color: var(--ink); font-size: 14px; }
+.acl-group { margin: 22px 0 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted, #5d6b64); }
+.acl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.acl-card { border: 1px solid #e4ece7; border-radius: 14px; padding: 12px 14px; background: #fff; }
+.acl-card header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.acl-card header i { width: 16px; height: 16px; }
+.acl-open { display: flex; gap: 8px; align-items: center; font-weight: 600; margin: 0; }
+.acl-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
+.acl-actions label { display: flex; gap: 6px; align-items: center; margin: 0; color: var(--ink); font-size: 13px; }
 .card h2 { margin: 0 0 14px; font-size: 18px; }
 .dl { display: grid; gap: 10px; margin: 0; }
 .dl div { display: grid; grid-template-columns: 140px 1fr; gap: 8px; font-size: 14px; }
