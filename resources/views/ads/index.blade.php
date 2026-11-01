@@ -49,31 +49,29 @@
 
     @can('advertising.edit')
         <section class="card">
-            <h2>Publish home advertisements</h2>
+            <h2>Add one home banner</h2>
             <form method="POST" action="{{ route('ads.store') }}" enctype="multipart/form-data">
                 @csrf
                 <div class="filters">
-                    <div><label>Banner 1 name</label><input name="name_1" value="{{ old('name_1') }}" placeholder="Banner name"></div>
-                    <div><label>Banner 1 link</label><input name="link_1" value="{{ old('link_1') }}" placeholder="https://"></div>
+                    <div><label>Name</label><input name="name" value="{{ old('name') }}" placeholder="Banner name"></div>
+                    <div><label>Link</label><input name="link" value="{{ old('link') }}" placeholder="https://"></div>
                     <div>
-                        <label>Banner 1 picture</label>
-                        <input type="file" name="banner_1" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview required>
+                        <label>Picture</label>
+                        <input type="file" name="banner" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview required>
                     </div>
-                    <div><label>Banner 2 name</label><input name="name_2" value="{{ old('name_2') }}" placeholder="Optional"></div>
-                    <div><label>Banner 2 link</label><input name="link_2" value="{{ old('link_2') }}" placeholder="https://"></div>
                     <div>
-                        <label>Banner 2 picture</label>
-                        <input type="file" name="banner_2" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
+                        <label>Budget ₹</label>
+                        <input name="budget_rupees" type="number" min="0" step="1" value="{{ old('budget_rupees') }}" placeholder="Required only for a second banner">
                     </div>
-                    <div><label>Banner 3 name</label><input name="name_3" value="{{ old('name_3') }}" placeholder="Optional"></div>
-                    <div><label>Banner 3 link</label><input name="link_3" value="{{ old('link_3') }}" placeholder="https://"></div>
                     <div>
-                        <label>Banner 3 picture</label>
-                        <input type="file" name="banner_3" accept="image/jpeg,image/png,image/webp,image/gif" data-image-preview>
+                        <label>Publish</label>
+                        <label class="remember"><input type="checkbox" name="publish" value="1" @checked(old('publish', '1'))> Show on the website and in the apps</label>
                     </div>
                 </div>
-                <p class="muted">Each banner has a name, a link, and a picture. If the link starts with http, tapping the picture in the customer or driver app opens it. JPEG / PNG / WebP / GIF, max 4 MB. The home keeps the latest 3.</p>
-                <button class="btn" type="submit"><i data-lucide="send"></i> Publish on home</button>
+                @error('budget_rupees') <p class="error">{{ $message }}</p> @enderror
+                @error('banner') <p class="error">{{ $message }}</p> @enderror
+                <p class="muted">Add one banner at a time. The first published banner needs no budget. Another published banner needs a rupee budget. Clicks are counted in the table. JPEG / PNG / WebP / GIF, max 4 MB.</p>
+                <button class="btn" type="submit"><i data-lucide="send"></i> Save banner</button>
             </form>
         </section>
     @endcan
@@ -116,7 +114,8 @@
                             <th>Target</th>
                             <th>Impressions</th>
                             <th>Clicks</th>
-                            <th>Revenue</th>
+                            <th>Budget</th>
+                            <th>Publish</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -133,10 +132,25 @@
                                 <td>{{ $row['campaign'] }}</td>
                                 <td>{{ $row['business'] }}</td>
                                 <td>{{ $row['status'] }}</td>
-                                <td>{{ $row['targetState']['name'] ?? '—' }} / {{ $row['targetDistrict']['name'] ?? '—' }} / {{ $row['targetCity'] ?? '—' }}</td>
+                                <td>{{ data_get($row, 'targetState.name') ?: '—' }} / {{ data_get($row, 'targetDistrict.name') ?: '—' }} / {{ $row['targetCity'] ?: '—' }}</td>
                                 <td>{{ $row['impressions'] }}</td>
-                                <td>{{ $row['clicks'] }}</td>
-                                <td>₹{{ number_format($row['revenueRupees'], 2) }}</td>
+                                <td>{{ number_format($row['clicks']) }}</td>
+                                <td>₹{{ number_format($row['budgetRupees'], 0) }}</td>
+                                <td>
+                                    @if ($row['status'] === 'published')
+                                        <form method="POST" action="{{ route('ads.pause', $row['id']) }}">
+                                            @csrf
+                                            <button class="btn ghost" type="submit">Published</button>
+                                        </form>
+                                    @elseif ($row['status'] === 'paused')
+                                        <form method="POST" action="{{ route('ads.resume', $row['id']) }}">
+                                            @csrf
+                                            <button class="btn ghost" type="submit">Off</button>
+                                        </form>
+                                    @else
+                                        {{ $row['status'] }}
+                                    @endif
+                                </td>
                                 <td>
                                     <a class="icon-btn" href="{{ route('ads.show', $row['id']) }}"><i data-lucide="eye"></i></a>
                                     @can('advertising.edit')

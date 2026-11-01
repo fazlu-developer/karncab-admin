@@ -18,8 +18,8 @@ final class DistrictHeadNav
             ['key' => 'franchises', 'label' => 'Franchises', 'icon' => 'store', 'group' => 'Network', 'ability' => 'franchise.view', 'route' => 'franchises.index'],
             ['key' => 'map', 'label' => 'Live tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'wallets', 'label' => 'Wallets', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'settlements', 'label' => 'Earning settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'settlements.index'],
-            ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet.manage', 'route' => 'district.settings'],
+            ['key' => 'settlements', 'label' => 'Earning settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'settlements.view', 'route' => 'settlements.index'],
+            ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet_commission.view', 'route' => 'district.settings'],
             ['key' => 'fare', 'label' => 'Fare Management', 'icon' => 'banknote', 'group' => 'System', 'ability' => 'fare.manage', 'route' => 'fare.index'],
         ];
     }

@@ -117,6 +117,11 @@ class AdvertisingService
         );
         $now = now();
         $title = trim((string) ($data['title'] ?? ''));
+        $publish = ! array_key_exists('publish', $data) || filter_var($data['publish'], FILTER_VALIDATE_BOOLEAN);
+        $budget = 0;
+        if (isset($data['budget_rupees']) && $data['budget_rupees'] !== '' && is_numeric($data['budget_rupees'])) {
+            $budget = max(0, (int) round(((float) $data['budget_rupees']) * 100));
+        }
         $row = [
             'advertiser_user_id' => $this->actorId($operator),
             'business_name' => 'KarnaRide',
@@ -127,11 +132,11 @@ class AdvertisingService
             'target_city' => null,
             'state_id' => null,
             'district_id' => null,
-            'starts_on' => null,
-            'ends_on' => null,
-            'budget_paise' => 0,
+            'starts_on' => $now,
+            'ends_on' => $now->copy()->addYears(5),
+            'budget_paise' => $budget,
             'budget_used_paise' => 0,
-            'status' => 'published',
+            'status' => $publish ? 'published' : 'paused',
             'impressions' => 0,
             'clicks' => 0,
             'cta_url' => $this->cleanLink($data['cta_url'] ?? $data['link'] ?? null),
@@ -139,8 +144,13 @@ class AdvertisingService
             'updated_at' => $now,
         ];
         if ($this->hasColumn('published_at')) {
-            $row['published_at'] = $now;
+            $row['published_at'] = $publish ? $now : null;
         }
+        $row = array_filter(
+            $row,
+            fn (string $column) => $this->hasColumn($column),
+            ARRAY_FILTER_USE_KEY,
+        );
         $id = $this->db()->table('ad_campaigns')->insertGetId($row);
         $data['placement'] = 'home';
         $this->persistCreative($id, $data);

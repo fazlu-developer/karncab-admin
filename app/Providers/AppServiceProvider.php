@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Events\OperatorRegistered;
+use App\Support\IndiaCarbon;
 use App\Listeners\HandleOperatorRegistered;
 use App\Models\User;
 use App\Platform\GeoCatalog;
 use App\Platform\PlatformPermission;
+use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Date::use(IndiaCarbon::class);
+
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }

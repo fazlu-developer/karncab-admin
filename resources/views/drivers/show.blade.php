@@ -81,7 +81,7 @@
                     @php $submittedMail = $mailLog->firstWhere('event', 'kyc_submitted'); @endphp
                     @if ($submittedMail)
                         {{ $submittedMail->status === 'sent' ? 'Successfully sent' : ucfirst($submittedMail->status) }}
-                        · {{ $submittedMail->created_at }}
+                        · {{ \App\Support\IndiaTime::format($submittedMail->created_at) }}
                     @elseif ($driver->application_submitted_at)
                         Waiting to send
                     @else

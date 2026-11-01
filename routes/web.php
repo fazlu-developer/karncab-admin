@@ -16,6 +16,7 @@ use App\Http\Controllers\Ops\ModuleController;
 use App\Http\Controllers\Ops\WorkspaceController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\RevenueController;
 use App\Http\Controllers\State\StateAssignmentController;
 use App\Http\Controllers\State\StateWorkspaceController;
 use App\Http\Controllers\ManagersController;
@@ -52,8 +53,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');
     Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
     Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('password.update');
-    Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
-    Route::post('/register', [RegisteredUserController::class, 'store']);
+    // Outside registration is closed. Operators are created by a Super Admin.
+    // Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
+    // Route::post('/register', [RegisteredUserController::class, 'store']);
 });
 
 Route::middleware(['auth', 'ability'])->group(function () {
@@ -210,6 +212,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::post('/wallets/credit', [WalletsController::class, 'credit'])->name('wallets.credit');
     Route::post('/wallets/post', [WalletsController::class, 'post'])->name('wallets.post');
     Route::post('/wallets/settle', [WalletsController::class, 'settle'])->name('wallets.settle');
+    Route::get('/revenue', [RevenueController::class, 'index'])->name('revenue.index');
     Route::get('/settlements', [SettlementsController::class, 'index'])->name('settlements.index');
     Route::get('/settlements/statement', [SettlementsController::class, 'statement'])->name('settlements.statement');
     Route::post('/settlements/weekly/district/{user}', [SettlementsController::class, 'settleDistrictWeek'])->name('settlements.weekly.district');

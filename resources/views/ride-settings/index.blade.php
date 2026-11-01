@@ -268,7 +268,7 @@
                         <td>{{ $row->kind }}</td>
                         <td>{{ number_format(((int) $row->amount_paise) / 100, 0) }}</td>
                         <td>{{ $row->status }}</td>
-                        <td>{{ $row->created_at }}</td>
+                        <td>{{ \App\Support\IndiaTime::format($row->created_at) }}</td>
                     </tr>
                 @empty
                     <tr><td colspan="6" class="muted">No incentives posted yet.</td></tr>

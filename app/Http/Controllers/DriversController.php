@@ -40,10 +40,22 @@ class DriversController extends Controller
 
     public function index(Request $request): View
     {
-        abort_unless($request->user()?->can('drivers.view'), 403);
+        abort_unless($request->user()?->can('drivers.view') || $request->user()?->can('kyc.view'), 403);
 
         $query = PlatformDriver::query()->with('user')->orderByDesc('id');
         TerritoryScope::applyDrivers($query, $request->user());
+        $name = trim((string) $request->get('name', ''));
+        $phone = preg_replace('/\D+/', '', (string) $request->get('phone', '')) ?? '';
+        $email = trim((string) $request->get('email', ''));
+        if ($name !== '') {
+            $query->whereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', '%'.$name.'%'));
+        }
+        if ($phone !== '') {
+            $query->whereHas('user', fn ($userQuery) => $userQuery->where('phone', 'like', '%'.$phone.'%'));
+        }
+        if ($email !== '') {
+            $query->whereHas('user', fn ($userQuery) => $userQuery->where('email', 'like', '%'.$email.'%'));
+        }
         if ($search = trim((string) $request->get('q', ''))) {
             $query->where(function ($inner) use ($search) {
                 $inner->whereHas('user', function ($userQuery) use ($search) {
@@ -66,7 +78,7 @@ class DriversController extends Controller
 
         return view('drivers.index', [
             'drivers' => $query->paginate(12)->withQueryString(),
-            'filters' => $request->only(['q', 'kyc', 'online']),
+            'filters' => $request->only(['q', 'name', 'phone', 'email', 'kyc', 'online']),
         ]);
     }
 

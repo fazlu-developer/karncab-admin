@@ -121,7 +121,7 @@
             <tbody>
             @forelse ($deliveries as $row)
                 <tr>
-                    <td>{{ $row['createdAt'] ?? $row['created_at'] ?? '—' }}</td>
+                    <td>{{ \App\Support\IndiaTime::format($row['createdAt'] ?? $row['created_at'] ?? null) ?: '—' }}</td>
                     <td>{{ $row['event'] ?? '—' }}</td>
                     <td>{{ $row['channel'] ?? '—' }}</td>
                     <td>{{ $row['status'] ?? '—' }}</td>

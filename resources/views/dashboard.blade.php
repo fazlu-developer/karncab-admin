@@ -6,7 +6,7 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1>Good {{ now()->format('A') === 'AM' ? 'morning' : 'afternoon' }}, {{ auth()->user()->name }}</h1>
+            <h1>Good {{ now()->timezone('Asia/Kolkata')->format('A') === 'AM' ? 'morning' : (now()->timezone('Asia/Kolkata')->hour < 17 ? 'afternoon' : 'evening') }}, {{ auth()->user()->name }}</h1>
             <p class="muted">Live snapshot from the platform database — users, drivers, rides and revenue.</p>
         </div>
         @can('platform.admin')

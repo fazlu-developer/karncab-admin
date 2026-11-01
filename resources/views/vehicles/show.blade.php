@@ -45,8 +45,8 @@
                 </dd>
             </div>
             <div><dt>Trips</dt><dd>{{ $trips }} total · {{ $monthTrips }} this month</dd></div>
-            <div><dt>Added</dt><dd>{{ $vehicle->created_at ?: '—' }}</dd></div>
-            <div><dt>Updated</dt><dd>{{ $vehicle->updated_at ?: '—' }}</dd></div>
+            <div><dt>Added</dt><dd>{{ \App\Support\IndiaTime::format($vehicle->created_at) ?: '—' }}</dd></div>
+            <div><dt>Updated</dt><dd>{{ \App\Support\IndiaTime::format($vehicle->updated_at) ?: '—' }}</dd></div>
         </dl>
     </section>
 

@@ -17,6 +17,9 @@ final class RouteAbility
         if ($name === '' || in_array($name, ['logout', 'platform.session'], true) || str_starts_with($name, 'customer.')) {
             return null;
         }
+        if (str_starts_with($name, 'drivers.')) {
+            return ['drivers.view', 'kyc.view'];
+        }
         $screen = MenuAccess::forRequest($name);
         if ($screen !== null) {
             return [$screen];

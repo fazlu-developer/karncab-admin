@@ -15,7 +15,7 @@
     <section class="card">
         <h2>Delivery</h2>
         <p>Impressions {{ $campaign['impressions'] }} · Clicks {{ $campaign['clicks'] }} · CTR {{ $campaign['ctr'] }}% · Revenue ₹{{ number_format($campaign['revenueRupees'], 2) }} · Budget ₹{{ number_format($campaign['budgetRupees'], 2) }}</p>
-        <p class="muted">Target {{ $campaign['targetState']['name'] ?? 'all states' }} / {{ $campaign['targetDistrict']['name'] ?? 'all districts' }} / {{ $campaign['targetCity'] ?: 'all cities' }} · {{ $campaign['startDate'] }} → {{ $campaign['endDate'] }}</p>
+        <p class="muted">Target {{ data_get($campaign, 'targetState.name') ?: 'all states' }} / {{ data_get($campaign, 'targetDistrict.name') ?: 'all districts' }} / {{ ($campaign['targetCity'] ?? '') ?: 'all cities' }} · {{ $campaign['startDate'] ?: '—' }} → {{ $campaign['endDate'] ?: '—' }}</p>
         @if ($campaign['rejectedReason'])
             <p class="muted">Rejected: {{ $campaign['rejectedReason'] }}</p>
         @endif

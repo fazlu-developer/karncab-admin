@@ -145,7 +145,7 @@ final class AdPolicy
             'placements' => [
                 'allowed' => self::ALLOWED_PLACEMENTS,
                 'blocked' => self::BLOCKED_PLACEMENTS,
-                'note' => 'Publish 1, 2, or 3 banners. The customer home shows the latest 3 and rotates them. They stay off live trips, SOS, payment, and OTP.',
+                'note' => 'Add one banner at a time. Published banners rotate on the website home. They stay off live trips, SOS, payment, and OTP.',
             ],
             'metrics' => ['impressions', 'clicks', 'ctr', 'revenuePaise'],
         ];

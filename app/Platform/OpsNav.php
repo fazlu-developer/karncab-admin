@@ -35,7 +35,7 @@ final class OpsNav
             ['key' => 'district-vehicles', 'label' => 'District vehicles', 'icon' => 'map', 'group' => 'Fleet', 'ability' => 'district_vehicles.view', 'route' => 'vehicles.districts'],
 
             // KYC
-            ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC', 'ability' => 'kyc.view'],
+            ['key' => 'kyc', 'label' => 'Driver KYC', 'icon' => 'badge-check', 'group' => 'KYC', 'ability' => 'kyc.view', 'route' => 'drivers.index'],
 
             // Operations
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
@@ -64,10 +64,11 @@ final class OpsNav
             // Finance
             ['key' => 'payments', 'label' => 'Payments', 'icon' => 'credit-card', 'group' => 'Finance', 'ability' => 'payments.view', 'route' => 'payments.index'],
             ['key' => 'wallets', 'label' => 'Wallet', 'icon' => 'wallet', 'group' => 'Finance', 'ability' => 'wallet.view', 'route' => 'wallets.index'],
-            ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'revenue.view', 'route' => 'state.section'],
+            ['key' => 'revenue', 'label' => 'Revenue', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'revenue.view', 'route' => 'revenue.index'],
             ['key' => 'commission', 'label' => 'Commission', 'icon' => 'percent', 'group' => 'Finance', 'ability' => 'commission.view', 'route' => 'wallets.commission'],
             ['key' => 'settlements', 'label' => 'Commission settlement', 'icon' => 'banknote', 'group' => 'Finance', 'ability' => 'settlements.view', 'route' => 'settlements.index'],
             ['key' => 'payout', 'label' => 'Withdraw requests', 'icon' => 'hand-coins', 'group' => 'Finance', 'ability' => 'payout.view', 'route' => 'withdrawals.index'],
+            ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet_commission.view', 'route' => 'district.settings'],
 
             // Reports
             ['key' => 'reports', 'label' => 'Reports', 'icon' => 'chart-column', 'group' => 'Reports', 'ability' => 'reports.view', 'route' => 'reports.index'],
@@ -170,7 +171,7 @@ final class OpsNav
             return route('ops.roles');
         }
         if ($key === 'revenue') {
-            return route('state.section', 'revenue');
+            return route('revenue.index');
         }
         if (! empty($item['route'])) {
             return route($item['route']);
@@ -190,8 +191,8 @@ final class OpsNav
         if (($item['route'] ?? '') === 'state.assignments') {
             return request()->routeIs('state.assignments*');
         }
-        if (($item['route'] ?? '') === 'state.section') {
-            return request()->routeIs('state.section') && request()->route('section') === 'revenue';
+        if (($item['route'] ?? '') === 'revenue.index') {
+            return request()->routeIs('revenue.*');
         }
         if (($item['route'] ?? '') === 'organization.states') {
             return request()->routeIs('organization.states*');
@@ -365,37 +366,17 @@ final class OpsNav
     {
         $out = [];
         $seen = [];
-        $districtHead = method_exists($user, 'isDistrictHead') && $user->isDistrictHead();
         foreach (self::items() as $item) {
             $key = (string) ($item['key'] ?? '');
+            $ability = $item['ability'] ?? null;
             if (isset($seen[$key]) || self::retired($key)) {
                 continue;
             }
-            if (PrivilegedModules::denied($user, $key)) {
-                continue;
-            }
-            if ($key === 'payout') {
-                $canPayout = $user->can('payout.view') || $user->can('payout.approve')
-                    || (method_exists($user, 'isPrivilegedOperator') && $user->isPrivilegedOperator());
-                if (! $canPayout) {
-                    continue;
-                }
-                $seen[$key] = true;
-                $out[] = $item;
-                continue;
-            }
-            $fleetHome = $key === 'dashboard'
-                && method_exists($user, 'isFleetOwner')
-                && $user->isFleetOwner();
-            if (! $fleetHome && ! NavAccess::allowed($user, $item['ability'] ?? null)) {
+            if (! is_string($ability) || $ability === '' || ! NavAccess::allowed($user, $ability)) {
                 continue;
             }
             $seen[$key] = true;
             $out[] = $item;
-        }
-        $privileged = method_exists($user, 'isPrivilegedOperator') && $user->isPrivilegedOperator();
-        if (($districtHead || $privileged) && $user->can('fleet.manage') && ! isset($seen['fleet-cut'])) {
-            $out[] = ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet_commission.view', 'route' => 'district.settings'];
         }
 
         return $out;

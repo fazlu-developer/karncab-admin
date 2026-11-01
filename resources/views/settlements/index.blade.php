@@ -31,7 +31,7 @@
                 <a class="btn ghost" href="{{ route('settlements.statement', ['week' => $weeklyPay['period']['key']]) }}">Download statement</a>
             </div>
         </form>
-        @if ($weeklyPay['canPayDistrict'])
+        @if ($weeklyPay['districts'] !== [])
             <h3>District Heads</h3>
             <div class="table-wrap">
                 <table class="data">
@@ -46,7 +46,7 @@
                             <td>
                                 @if ($row['settled'])
                                     <span class="muted">Settled</span>
-                                @else
+                                @elseif ($weeklyPay['canPayDistrict'])
                                     <form method="POST" action="{{ route('settlements.weekly.district', $row['userId']) }}">
                                         @csrf
                                         <input type="hidden" name="week" value="{{ $weeklyPay['period']['key'] }}">
@@ -62,7 +62,7 @@
                 </table>
             </div>
         @endif
-        @if ($weeklyPay['canPayFleet'])
+        @if ($weeklyPay['fleets'] !== [] || $weeklyPay['canPayFleet'])
             <h3>Fleet owners</h3>
             <div class="table-wrap">
                 <table class="data">
@@ -78,7 +78,7 @@
                             <td>
                                 @if ($row['settled'])
                                     <span class="muted">Settled</span>
-                                @else
+                                @elseif ($weeklyPay['canPayFleet'])
                                     <form method="POST" action="{{ route('settlements.weekly.fleet', $row['fleetId']) }}">
                                         @csrf
                                         <input type="hidden" name="week" value="{{ $weeklyPay['period']['key'] }}">
@@ -261,7 +261,7 @@
             <tbody>
             @forelse ($recent as $row)
                 <tr>
-                    <td class="muted">{{ $row->created_at }}</td>
+                    <td class="muted">{{ \App\Support\IndiaTime::format($row->created_at) }}</td>
                     <td>{{ $row->owner_name ?: '—' }}<div class="muted">{{ $row->owner_phone }}</div></td>
                     <td>{{ str_replace('_', ' ', $row->kind) }} · {{ $row->direction }}</td>
                     <td>₹{{ number_format(((int) $row->amount_paise) / 100, 0) }}</td>

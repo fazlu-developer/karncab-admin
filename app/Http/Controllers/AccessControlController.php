@@ -131,7 +131,6 @@ class AccessControlController extends Controller
         }
         $groups = [];
         $items = OpsNav::coreItems();
-        $items[] = ['key' => 'fleet-cut', 'label' => 'Fleet commission', 'icon' => 'sliders-horizontal', 'group' => 'Finance', 'ability' => 'fleet_commission.view'];
         $seen = [];
         foreach ($items as $item) {
             $ability = (string) ($item['ability'] ?? '');

@@ -6,8 +6,8 @@
 @section('content')
     <div class="hero">
         <div>
-            <h1>Drivers</h1>
-            <p class="muted">Search by name, phone, license or KYC. Open a driver to review the full profile and attachments.</p>
+            <h1>Driver KYC</h1>
+            <p class="muted">Filter by name, mobile, email, or KYC status. The list stays inside this state or district.</p>
         </div>
         @can('drivers.create')
             <a class="btn" href="{{ route('drivers.create') }}"><i data-lucide="plus"></i> Add driver</a>
@@ -15,11 +15,14 @@
     </div>
     <section class="card">
         <form class="filters" method="GET">
-            <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search driver, license, KYC">
+            <input name="name" value="{{ $filters['name'] ?? '' }}" placeholder="Driver name">
+            <input name="phone" value="{{ $filters['phone'] ?? '' }}" placeholder="Mobile">
+            <input name="email" value="{{ $filters['email'] ?? '' }}" placeholder="Email">
+            <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="License or any detail">
             <select name="kyc">
                 <option value="">All KYC</option>
-                @foreach (['pending','under_review','verified','rejected'] as $kyc)
-                    <option value="{{ $kyc }}" @selected(($filters['kyc'] ?? '') === $kyc)>{{ $kyc }}</option>
+                @foreach (['pending','under_review','verified','approved','rejected','left_fleet'] as $kyc)
+                    <option value="{{ $kyc }}" @selected(($filters['kyc'] ?? '') === $kyc)>{{ str_replace('_', ' ', $kyc) }}</option>
                 @endforeach
             </select>
             <select name="online">
@@ -34,6 +37,8 @@
                 <thead>
                     <tr>
                         <th>Driver</th>
+                        <th>Mobile</th>
+                        <th>Email</th>
                         <th>License</th>
                         <th>KYC</th>
                         <th>Duty</th>
@@ -48,10 +53,11 @@
                                 <div class="avatar">{{ strtoupper(substr($row->user->name ?? 'D', 0, 1)) }}</div>
                                 <div>
                                     <strong>{{ $row->user->name ?? '—' }}</strong>
-                                    <div class="muted">{{ $row->user->phone ?? $row->user->email }}</div>
                                 </div>
                             </div>
                         </td>
+                        <td>{{ $row->user->phone ?? '—' }}</td>
+                        <td>{{ $row->user->email ?? '—' }}</td>
                         <td>{{ $row->license_no ?? '—' }}</td>
                         <td><span class="pill {{ $row->kyc_status === 'verified' ? 'ok' : ($row->kyc_status === 'rejected' ? 'bad' : 'warn') }}">{{ $row->kyc_status }}</span></td>
                         <td>
@@ -73,7 +79,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="muted">No drivers match those filters.</td></tr>
+                    <tr><td colspan="7" class="muted">No drivers match those filters.</td></tr>
                 @endforelse
                 </tbody>
             </table>

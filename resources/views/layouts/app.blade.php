@@ -58,6 +58,17 @@
         </div>
     </div>
 </div>
+<nav class="phone-nav" aria-label="Phone menu">
+    @foreach ($navGroups as $group => $items)
+        @continue($items === [])
+        @foreach ($items as $item)
+            <a class="{{ \App\Platform\ConsoleNav::active($user, $item) ? 'active' : '' }}" href="{{ \App\Platform\ConsoleNav::href($user, $item) }}">
+                <i data-lucide="{{ $item['icon'] }}"></i>
+                <span>{{ $item['label'] }}</span>
+            </a>
+        @endforeach
+    @endforeach
+</nav>
 <script src="https://unpkg.com/lucide@0.469.0"></script>
 <script>window.lucide && lucide.createIcons();</script>
 <script>window.KarnaRideGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>

@@ -83,6 +83,6 @@
                 @endforeach
             </ul>
         @endif
-        <p class="muted">Created {{ $user->created_at }}</p>
+        <p class="muted">Created {{ \App\Support\IndiaTime::format($user->created_at) }}</p>
     </section>
 @endsection

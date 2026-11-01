@@ -223,7 +223,7 @@
         <ul>
             @foreach ($row['events'] as $event)
                 @php $event = (array) $event; @endphp
-                <li>{{ $event['created_at'] ?? '' }} · {{ $event['action'] }} {{ $event['from_status'] }} → {{ $event['to_status'] }} {{ $event['note'] }}</li>
+                <li>{{ \App\Support\IndiaTime::format($event['created_at'] ?? null) }} · {{ $event['action'] }} {{ $event['from_status'] }} → {{ $event['to_status'] }} {{ $event['note'] }}</li>
             @endforeach
         </ul>
     </section>

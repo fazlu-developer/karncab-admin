@@ -21,7 +21,7 @@
             <tbody>
             @forelse ($rows as $row)
                 <tr>
-                    <td>{{ $row->created_at }}</td>
+                    <td>{{ \App\Support\IndiaTime::format($row->created_at) }}</td>
                     <td>{{ $row->actor_user_id ?? '—' }} · {{ $row->actor_role ?? '' }}</td>
                     <td>{{ $row->domain }}</td>
                     <td>{{ $row->action }}</td>

@@ -18,7 +18,7 @@ class SettlementsController extends Controller
 
     public function index(Request $request): View
     {
-        abort_unless($request->user()?->can('payments.view') || $request->user()?->can('wallet.view') || $request->user()?->can('platform.admin'), 403);
+        abort_unless($request->user()?->can('settlements.view') || $request->user()?->can('payments.view') || $request->user()?->can('wallet.view') || $request->user()?->can('platform.admin'), 403);
         $week = $request->query('week');
 
         return view('settlements.index', array_merge(

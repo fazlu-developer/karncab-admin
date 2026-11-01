@@ -158,6 +158,12 @@ class RoleBasedAccessTest extends TestCase
         foreach (['revenue', 'commission', 'reports', 'notifications', 'roles', 'settings', 'branding'] as $hidden) {
             $this->assertFalse($districtKeys->contains($hidden));
         }
+        $opsKeys = collect(\App\Platform\OpsNav::visibleFor($district))->pluck('key');
+        foreach (['states', 'revenue', 'settlements', 'payout', 'fleet-cut', 'notifications', 'fare', 'roles', 'settings', 'branding'] as $hidden) {
+            $this->assertFalse($opsKeys->contains($hidden), $hidden);
+        }
+        $this->assertTrue($opsKeys->contains('users'));
+        $this->assertTrue($opsKeys->contains('payments'));
 
         $plainAdmin = User::factory()->create(['role' => OperatorRole::ADMIN]);
         $adminKeys = collect(\App\Platform\OpsNav::visibleFor($plainAdmin))->pluck('key');

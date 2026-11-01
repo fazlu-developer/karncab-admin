@@ -71,6 +71,7 @@ final class MenuAccess
             'routes.popular' => 'popular_routes.view',
             'coupons.' => 'coupons.view',
             'leads.' => 'leads.view',
+            'revenue.' => 'revenue.view',
             'settlements.' => 'settlements.view',
             'withdrawals.' => 'payout.view',
             'wallets.commission' => 'commission.view',

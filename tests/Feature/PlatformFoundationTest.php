@@ -13,17 +13,13 @@ class PlatformFoundationTest extends TestCase
 
     public function test_first_operator_becomes_admin(): void
     {
+        $this->get('/register')->assertNotFound();
         $this->post('/register', [
             'name' => 'Ops Admin',
             'email' => 'ops@karnacab.local',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-        ])->assertRedirect('/dashboard');
-
-        $this->assertDatabaseHas('users', [
-            'email' => 'ops@karnacab.local',
-            'role' => OperatorRole::ADMIN,
-        ]);
+        ])->assertNotFound();
     }
 
     public function test_later_operators_are_pending_without_domain_write(): void
@@ -38,12 +34,8 @@ class PlatformFoundationTest extends TestCase
             'email' => 'head@karnacab.local',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-        ])->assertRedirect('/dashboard');
-
-        $user = User::query()->where('email', 'head@karnacab.local')->first();
-        $this->assertSame(OperatorRole::PENDING, $user->role);
-        $this->assertFalse($user->can('bookings.read'));
-        $this->assertFalse($user->can('franchise.write'));
+        ])->assertNotFound();
+        $this->assertNull(User::query()->where('email', 'head@karnacab.local')->first());
     }
 
     public function test_district_head_can_read_bookings_and_write_franchise(): void

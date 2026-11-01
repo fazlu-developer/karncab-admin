@@ -26,7 +26,7 @@
                 @endif
                 <div class="kyc-meta-line">
                     <span class="pill muted">{{ $row->status }}</span>
-                    <span class="muted">{{ $row->created_at }}</span>
+                    <span class="muted">{{ \App\Support\IndiaTime::format($row->created_at) }}</span>
                 </div>
             </div>
             <div class="kyc-actions">

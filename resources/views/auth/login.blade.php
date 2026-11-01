@@ -20,5 +20,5 @@
         <button class="btn" type="submit" style="width:100%;justify-content:center"><i data-lucide="log-in"></i> Continue</button>
     </form>
     <p style="margin-top:16px"><a href="{{ route('password.request') }}"><i data-lucide="key-round"></i> Forgot password?</a></p>
-    <p class="muted">New operator? <a href="{{ route('register') }}">Request access</a>. Tell us who you are and why you need the console. An admin approves the account before it can manage rides.</p>
+    {{-- New operator registration is closed. Ask a Super Admin to create the account. --}}
 @endsection

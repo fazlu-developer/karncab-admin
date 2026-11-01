@@ -20,7 +20,9 @@ class CommissionSettlementService
         $schema = Schema::connection('platform');
         $commissionPaise = 0;
         if ($schema->hasTable('bookings') && $schema->hasColumn('bookings', 'commission_paise')) {
-            $commissionPaise = (int) $db->table('bookings')->where('status', 'COMPLETED')->sum('commission_paise');
+            $bookingSum = $db->table('bookings')->where('status', 'COMPLETED');
+            TerritoryScope::applyBookings($bookingSum, $operator);
+            $commissionPaise = (int) $bookingSum->sum('commission_paise');
         }
         $fleetCredited = 0;
         $fleetPaid = 0;
@@ -98,9 +100,13 @@ class CommissionSettlementService
         }
         $recent = [];
         if ($schema->hasTable('wallet_ledger')) {
-            $recent = $db->table('wallet_ledger')
+            $recentQuery = $db->table('wallet_ledger')
                 ->leftJoin('users', 'users.id', '=', 'wallet_ledger.owner_user_id')
-                ->whereIn('wallet_ledger.kind', ['fleet_commission', 'platform_commission', 'settlement_payout'])
+                ->whereIn('wallet_ledger.kind', ['fleet_commission', 'platform_commission', 'settlement_payout', 'district_week_settlement', 'fleet_week_settlement']);
+            if ($operator && ! TerritoryScope::isUnrestricted($operator)) {
+                TerritoryScope::applyUsers($recentQuery, $operator, 'users');
+            }
+            $recent = $recentQuery
                 ->orderByDesc('wallet_ledger.id')
                 ->limit(40)
                 ->get([

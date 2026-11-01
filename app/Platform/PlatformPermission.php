@@ -249,6 +249,9 @@ final class PlatformPermission
         if (in_array($ability, $granted, true)) {
             return true;
         }
+        if (in_array($ability, self::builtInCatalog(), true)) {
+            return false;
+        }
 
         foreach (self::expand($ability) as $canonical) {
             if (in_array($canonical, $granted, true)) {

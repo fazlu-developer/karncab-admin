@@ -439,12 +439,51 @@ final class TerritoryScope
             return;
         }
 
-        if (in_array(self::effectiveRole($operator), [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE, OperatorRole::STATE_HEAD], true)) {
-            $query->whereExists(function ($sub) use ($table, $operator) {
-                $sub->selectRaw('1')
-                    ->from('users')
-                    ->whereColumn('users.id', $table.'.user_id');
-                self::applyUsers($sub, $operator, 'users');
+        $role = self::effectiveRole($operator);
+        if (in_array($role, [OperatorRole::DISTRICT_HEAD, OperatorRole::FRANCHISE], true)) {
+            if (! $operator->district_id) {
+                $query->whereRaw('0 = 1');
+
+                return;
+            }
+            $districtId = (int) $operator->district_id;
+            $query->where(function ($inner) use ($table, $districtId) {
+                $inner->where($table.'.district_id', $districtId)
+                    ->orWhereExists(function ($sub) use ($table, $districtId) {
+                        $sub->selectRaw('1')
+                            ->from('users')
+                            ->whereColumn('users.id', $table.'.user_id')
+                            ->where('users.district_id', $districtId);
+                    });
+            });
+
+            return;
+        }
+
+        if ($role === OperatorRole::STATE_HEAD) {
+            if (! $operator->state_id) {
+                $query->whereRaw('0 = 1');
+
+                return;
+            }
+            $stateId = (int) $operator->state_id;
+            $districtIds = self::districtIdsForState($stateId);
+            $query->where(function ($inner) use ($table, $stateId, $districtIds) {
+                $inner->where($table.'.state_id', $stateId);
+                if ($districtIds !== []) {
+                    $inner->orWhereIn($table.'.district_id', $districtIds);
+                }
+                $inner->orWhereExists(function ($sub) use ($table, $stateId, $districtIds) {
+                    $sub->selectRaw('1')
+                        ->from('users')
+                        ->whereColumn('users.id', $table.'.user_id')
+                        ->where(function ($user) use ($stateId, $districtIds) {
+                            $user->where('users.state_id', $stateId);
+                            if ($districtIds !== []) {
+                                $user->orWhereIn('users.district_id', $districtIds);
+                            }
+                        });
+                });
             });
 
             return;

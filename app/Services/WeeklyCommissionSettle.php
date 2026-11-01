@@ -27,8 +27,8 @@ class WeeklyCommissionSettle
             'period' => $period,
             'canPayDistrict' => $this->canPayDistrict($operator),
             'canPayFleet' => $this->canPayFleet($operator),
-            'districts' => $this->canPayDistrict($operator) ? $this->districtRows($operator, $period) : [],
-            'fleets' => $this->canPayFleet($operator) ? $this->fleetRows($operator, $period) : [],
+            'districts' => ($this->canPayDistrict($operator) || $operator->isDistrictHead()) ? $this->districtRows($operator, $period) : [],
+            'fleets' => ($this->canPayFleet($operator) || $operator->isStateHead()) ? $this->fleetRows($operator, $period) : [],
         ];
     }
 
@@ -163,7 +163,13 @@ class WeeklyCommissionSettle
             return [];
         }
         $q = $db->table('users')->where('role', OperatorRole::DISTRICT_HEAD)->orderBy('name');
-        if ($operator->isStateHead() && $operator->state_id) {
+        if ($operator->isDistrictHead()) {
+            $ownId = (int) ($operator->nest_user_id ?: 0);
+            if ($ownId < 1) {
+                return [];
+            }
+            $q->where('id', $ownId);
+        } elseif ($operator->isStateHead() && $operator->state_id) {
             $q->where('state_id', $operator->state_id);
         } elseif (! TerritoryScope::isUnrestricted($operator) && ! $operator->isPrivilegedOperator()) {
             return [];
@@ -200,6 +206,18 @@ class WeeklyCommissionSettle
                 $inner->where('users.district_id', $districtId);
                 if ($schema->hasColumn('fleet_owners', 'district_id')) {
                     $inner->orWhere('fleet_owners.district_id', $districtId);
+                }
+            });
+        } elseif ($operator->isStateHead() && $operator->state_id) {
+            $stateId = (int) $operator->state_id;
+            $districtIds = TerritoryScope::districtIdsForState($stateId);
+            $q->where(function ($inner) use ($stateId, $districtIds, $schema) {
+                $inner->where('users.state_id', $stateId);
+                if ($schema->hasColumn('fleet_owners', 'state_id')) {
+                    $inner->orWhere('fleet_owners.state_id', $stateId);
+                }
+                if ($districtIds !== [] && $schema->hasColumn('fleet_owners', 'district_id')) {
+                    $inner->orWhereIn('fleet_owners.district_id', $districtIds);
                 }
             });
         } elseif (! TerritoryScope::isUnrestricted($operator) && ! $operator->isPrivilegedOperator()) {

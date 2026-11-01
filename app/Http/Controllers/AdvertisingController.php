@@ -30,48 +30,40 @@ class AdvertisingController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name_1' => ['nullable', 'string', 'max:160'],
-            'name_2' => ['nullable', 'string', 'max:160'],
-            'name_3' => ['nullable', 'string', 'max:160'],
-            'link_1' => ['nullable', 'string', 'max:500'],
-            'link_2' => ['nullable', 'string', 'max:500'],
-            'link_3' => ['nullable', 'string', 'max:500'],
-            'banner_1' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
-            'banner_2' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
-            'banner_3' => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+        $data = $request->validate([
+            'name' => ['nullable', 'string', 'max:160'],
+            'link' => ['nullable', 'string', 'max:500'],
+            'banner' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:4096'],
+            'publish' => ['nullable'],
+            'budget_rupees' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $slots = [];
-        foreach ([1, 2, 3] as $n) {
-            if ($request->hasFile('banner_'.$n)) {
-                $slots[] = [
-                    'file' => $request->file('banner_'.$n),
-                    'title' => trim((string) $request->input('name_'.$n, '')),
-                    'link' => trim((string) $request->input('link_'.$n, '')),
-                ];
-            }
-        }
-        $published = 0;
-        foreach ($slots as $index => $slot) {
-            $row = $this->ads->create($request->user(), [
-                'title' => $slot['title'],
-                'cta_url' => $slot['link'],
-                'placement' => 'home',
+        $publish = $request->boolean('publish');
+        $live = collect($this->ads->workspace($request->user())['campaigns'])
+            ->where('status', 'published')
+            ->count();
+        if ($publish && $live >= 1 && (float) ($data['budget_rupees'] ?? 0) <= 0) {
+            return back()->withInput()->withErrors([
+                'budget_rupees' => 'A home banner is already published. Set a budget in rupees before adding another.',
             ]);
-            try {
-                $this->ads->uploadBanner($request->user(), $row['id'], $slot['file']);
-                $published++;
-            } catch (\Throwable $e) {
-                report($e);
-
-                return redirect()->route('ads.index')->withErrors([
-                    'banner_'.($index + 1) => $e->getMessage() ?: 'Could not upload banner '.($index + 1).'. Use JPEG, PNG, WebP, or GIF under 4 MB.',
-                ]);
-            }
         }
-        $label = $published === 1 ? '1 home banner is' : $published.' home banners are';
+        $row = $this->ads->create($request->user(), [
+            'title' => trim((string) ($data['name'] ?? '')),
+            'cta_url' => trim((string) ($data['link'] ?? '')),
+            'placement' => 'home',
+            'publish' => $publish,
+            'budget_rupees' => $data['budget_rupees'] ?? null,
+        ]);
+        try {
+            $this->ads->uploadBanner($request->user(), $row['id'], $request->file('banner'));
+        } catch (\Throwable $e) {
+            report($e);
 
-        return redirect()->route('ads.index')->with('status', $label.' live. The customer home shows the latest 3 and rotates them. Pull to refresh in the app.');
+            return redirect()->route('ads.index')->withErrors([
+                'banner' => $e->getMessage() ?: 'Could not upload this banner. Use JPEG, PNG, WebP, or GIF under 4 MB.',
+            ]);
+        }
+
+        return redirect()->route('ads.index')->with('status', $publish ? 'Banner published. The website home rotates published banners.' : 'Banner saved and kept off the home page.');
     }
 
     public function update(Request $request, int $ad): RedirectResponse
