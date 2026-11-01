@@ -11,22 +11,21 @@
 @endphp
 @if ($scheduleReminders !== [])
     <div class="schedule-alert">
-        <strong>Assign a driver now</strong>
-        <p>{{ count($scheduleReminders) }} travel, corporate, bulk, or ambulance booking{{ count($scheduleReminders) === 1 ? '' : 's' }} still need a driver.</p>
+        <strong>Scheduled bookings</strong>
+        <p>{{ count($scheduleReminders) }} customer schedule{{ count($scheduleReminders) === 1 ? '' : 's' }} across every service.</p>
         @foreach ($scheduleReminders as $reminder)
             @php
-                $desk = match (strtoupper((string) ($reminder['product'] ?? ''))) {
-                    'AMBULANCE' => route('ops.ambulance'),
-                    'TRAVEL', 'TOUR' => route('ops.tour-bookings'),
-                    'CORPORATE' => route('ops.corporate-plans'),
-                    'BULK' => route('ops.bulk-bookings'),
-                    default => route('ops.assign-drivers'),
-                };
+                $bookingUrl = !empty($reminder['id'])
+                    ? route('ops.bookings.show', $reminder['id'])
+                    : route('ops.assign-drivers');
             @endphp
-            <a href="{{ $desk }}">
-                Booking ID {{ $reminder['publicRef'] }} · {{ str_replace('_', ' ', $reminder['product']) }}
+            <a href="{{ $bookingUrl }}">
+                Booking ID {{ $reminder['id'] ?? $reminder['publicRef'] }}
+                · {{ $reminder['publicRef'] }}
+                · {{ str_replace('_', ' ', (string) ($reminder['product'] ?? '')) }}
                 · {{ $reminder['scheduledAt'] ?: 'Waiting for assignment' }}
-                · {{ $reminder['pickupText'] }}
+                · {{ $reminder['pickupText'] ?? '' }}
+                · {{ empty($reminder['driverId']) ? 'Needs a driver' : 'Driver assigned' }}
             </a>
         @endforeach
     </div>

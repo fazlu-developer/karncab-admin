@@ -818,9 +818,24 @@ class WorkspaceController extends Controller
     public function parcels(Request $request): View
     {
         abort_unless($request->user()?->can('parcels.view') || $request->user()?->can('platform.admin'), 403);
-        $rows = Schema::connection('platform')->hasTable('parcel_shipments')
-            ? DB::connection('platform')->table('parcel_shipments')->orderByDesc('id')->limit(200)->get()
-            : collect();
+        $rows = collect();
+        if (Schema::connection('platform')->hasTable('parcel_shipments')) {
+            $parcelQuery = DB::connection('platform')->table('parcel_shipments')->orderByDesc('id');
+            $term = trim((string) $request->query('q', ''));
+            if ($term !== '') {
+                $parcelQuery->where(function ($inner) use ($term) {
+                    $like = '%'.$term.'%';
+                    $inner->where('public_ref', 'like', $like)
+                        ->orWhere('pickup_text', 'like', $like)
+                        ->orWhere('drop_text', 'like', $like)
+                        ->orWhere('status', 'like', $like);
+                    if (ctype_digit($term)) {
+                        $inner->orWhere('id', (int) $term);
+                    }
+                });
+            }
+            $rows = $parcelQuery->paginate(20)->withQueryString();
+        }
 
         return view('ops.parcels', [
             'rows' => $rows,
@@ -875,7 +890,23 @@ class WorkspaceController extends Controller
     public function manualBookings(Request $request): View
     {
         abort_unless($request->user()?->can('bookings.view') || $request->user()?->can('platform.admin'), 403);
-        $rows = DB::connection('platform')->table('bookings')->orderByDesc('id')->limit(80)->get();
+        $rowsQuery = DB::connection('platform')->table('bookings');
+        \App\Platform\TerritoryScope::applyBookings($rowsQuery, $request->user());
+        $term = trim((string) $request->query('q', ''));
+        if ($term !== '') {
+            $rowsQuery->where(function ($inner) use ($term) {
+                $like = '%'.$term.'%';
+                $inner->where('public_ref', 'like', $like)
+                    ->orWhere('pickup_text', 'like', $like)
+                    ->orWhere('drop_text', 'like', $like)
+                    ->orWhere('status', 'like', $like)
+                    ->orWhere('product', 'like', $like);
+                if (ctype_digit($term)) {
+                    $inner->orWhere('id', (int) $term);
+                }
+            });
+        }
+        $rows = $rowsQuery->orderByDesc('id')->paginate(20)->withQueryString();
         $customers = DB::connection('platform')->table('users')->where('role', 'CUSTOMER')->orderByDesc('id')->limit(80)->get(['id', 'name', 'phone']);
         $districts = DB::connection('platform')->table('districts')->orderBy('name')->get(['id', 'name']);
 

@@ -61,3 +61,6 @@
         <p class="muted">{{ $empty }}</p>
     @endforelse
 </div>
+@if (is_object($docs) && method_exists($docs, 'links'))
+    <div style="margin-top:14px">{{ $docs->links('pagination.admin') }}</div>
+@endif

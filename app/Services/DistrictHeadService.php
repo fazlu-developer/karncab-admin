@@ -50,7 +50,44 @@ class DistrictHeadService
     {
         abort_unless($operator->can('dashboard.view'), 403);
         $ctx = $this->context($operator, $query);
-        $bookings = $this->db()->table('bookings')->where('district_id', $ctx['districtId']);
+
+        return [
+            'district' => $ctx,
+            'kpis' => $this->kpis($ctx),
+        ];
+    }
+
+    /**
+     * District bookings, revenue, and the 4% district share for a profile page.
+     *
+     * @return array<string, mixed>
+     */
+    public function earnings(int $districtId): array
+    {
+        $district = $this->db()->table('districts')->where('id', $districtId)->first();
+        if ($district === null) {
+            return [];
+        }
+        $stateName = (string) ($this->db()->table('states')->where('id', $district->state_id)->value('name') ?? '');
+
+        return [
+            'place' => $district->name.', '.$stateName,
+            'kpis' => $this->kpis([
+                'districtId' => (int) $district->id,
+                'districtName' => (string) $district->name,
+                'stateId' => (int) $district->state_id,
+                'stateName' => $stateName,
+            ]),
+        ];
+    }
+
+    /**
+     * @param  array{districtId: int, districtName: string, stateId: int, stateName: string}  $ctx
+     * @return array<string, float|int>
+     */
+    private function kpis(array $ctx): array
+    {
+        $bookings = $this->bookingsFor($ctx);
         $completed = (clone $bookings)->where('status', 'COMPLETED');
         $schema = Schema::connection('platform');
         $fareCol = $schema->hasColumn('bookings', 'final_fare_paise') ? 'final_fare_paise' : 'quote_paise';
@@ -58,20 +95,65 @@ class DistrictHeadService
         $month = (clone $completed)->where('created_at', '>=', now()->startOfMonth());
         $todayFare = (int) (clone $today)->sum($fareCol);
         $monthFare = (int) (clone $month)->sum($fareCol);
+        $allFare = (int) (clone $completed)->sum($fareCol);
+        $split = $this->splitMoney($completed, $allFare);
 
         return [
-            'district' => $ctx,
-            'kpis' => [
-                'bookings' => (clone $bookings)->count(),
-                'completed' => (clone $completed)->count(),
-                'revenueRupees' => ((int) (clone $completed)->sum($fareCol)) / 100,
-                'vehicles' => $this->vehicles($ctx['districtId'])->count(),
-                'drivers' => $this->drivers($ctx['districtId'])->count(),
-                'fleets' => $this->fleetQuery($ctx['districtId'])->count(),
-                'todayCommissionRupees' => $this->districtSharePaise($today, $todayFare) / 100,
-                'monthCommissionRupees' => $this->districtSharePaise($month, $monthFare) / 100,
-            ],
+            'bookings' => (clone $bookings)->count(),
+            'completed' => (clone $completed)->count(),
+            'revenueRupees' => $allFare / 100,
+            'vehicles' => $this->vehicles($ctx['districtId'])->count(),
+            'drivers' => $this->drivers($ctx['districtId'])->count(),
+            'fleets' => $this->fleetQuery($ctx['districtId'])->count(),
+            'todayCommissionRupees' => $this->districtSharePaise($today, $todayFare) / 100,
+            'monthCommissionRupees' => $this->districtSharePaise($month, $monthFare) / 100,
+            'districtEarningRupees' => $split['district'] / 100,
+            'commissionRupees' => $split['commission'] / 100,
+            'platformShareRupees' => $split['platform'] / 100,
         ];
+    }
+
+    /**
+     * @param  array{districtId: int, districtName: string}  $ctx
+     */
+    private function bookingsFor(array $ctx)
+    {
+        $name = $ctx['districtName'];
+
+        return $this->db()->table('bookings')->where(function ($query) use ($ctx, $name) {
+            $query->where('district_id', $ctx['districtId']);
+            if ($name !== '') {
+                $query->orWhere('pickup_text', 'like', '%'.$name.'%')
+                    ->orWhere('drop_text', 'like', '%'.$name.'%');
+            }
+        });
+    }
+
+    /**
+     * @return array{commission: int, district: int, fleet: int, platform: int}
+     */
+    private function splitMoney($completed, int $farePaise): array
+    {
+        $schema = Schema::connection('platform');
+        $commission = $schema->hasColumn('bookings', 'commission_paise')
+            ? (int) (clone $completed)->sum('commission_paise') : 0;
+        $district = $schema->hasColumn('bookings', 'district_head_commission_paise')
+            ? (int) (clone $completed)->sum('district_head_commission_paise') : 0;
+        $fleet = $schema->hasColumn('bookings', 'fleet_commission_paise')
+            ? (int) (clone $completed)->sum('fleet_commission_paise') : 0;
+        $platform = $schema->hasColumn('bookings', 'platform_commission_paise')
+            ? (int) (clone $completed)->sum('platform_commission_paise') : 0;
+        if ($commission === 0 && $farePaise > 0) {
+            $commission = (int) round($farePaise * FareCommissionSplit::TOTAL_PERCENT / 100);
+        }
+        if ($district === 0 && $farePaise > 0) {
+            $district = (int) round($farePaise * FareCommissionSplit::DISTRICT_PERCENT / 100);
+        }
+        if ($platform === 0 && $commission > 0) {
+            $platform = max(0, $commission - $district - $fleet);
+        }
+
+        return compact('commission', 'district', 'fleet', 'platform');
     }
 
     /**

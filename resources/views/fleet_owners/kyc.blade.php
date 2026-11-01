@@ -107,4 +107,7 @@
     @empty
         <section class="card"><p class="muted">No fleet owners yet.</p></section>
     @endforelse
+    @if (is_object($owners) && method_exists($owners, 'links'))
+        <div style="margin-top:14px">{{ $owners->links('pagination.admin') }}</div>
+    @endif
 @endsection

@@ -67,5 +67,6 @@
                 </tbody>
             </table>
         </div>
+        <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
     </section>
 @endsection

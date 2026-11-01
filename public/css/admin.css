@@ -170,7 +170,8 @@ label + input, label + select, label + textarea {
 .fare-line .btn { margin-bottom: 2px; }
 table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.data th { text-align: left; color: var(--muted); font-weight: 600; padding: 10px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-table.data td { padding: 12px 8px; border-bottom: 1px solid #eef2ef; vertical-align: middle; white-space: nowrap; overflow: visible; }
+table.data td { padding: 12px 8px; border-bottom: 1px solid #eef2ef; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
+.map-pin-label { background: #fff; border: 1px solid #d7e3dc; border-radius: 8px; color: #102216; font-weight: 700; font-size: 11px; padding: 2px 6px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 table.data td.cell-wrap, table.data td.cell-wrap .muted { white-space: normal; overflow-wrap: anywhere; word-break: break-word; max-width: 280px; line-height: 1.4; }
 .live-bookings-wrap { overflow: auto; }
 table.data tr:hover td { background: #f7faf8; }

@@ -292,6 +292,10 @@ class ModuleController extends Controller
             if ($key === 'id' && ! empty($row['publicRef'])) {
                 continue;
             }
+            if ($key === 'bookingId') {
+                $out['Booking ID'] = $this->cell($value);
+                continue;
+            }
             if (str_ends_with((string) $key, 'Id') && $key !== 'publicRef') {
                 continue;
             }

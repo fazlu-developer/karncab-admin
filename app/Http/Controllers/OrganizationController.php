@@ -219,7 +219,7 @@ class OrganizationController extends Controller
         } elseif ($actor?->isStateHead() && $actor->state_id) {
             $q->where('k.state_id', $actor->state_id);
         }
-        $docs = $q->limit(120)->get();
+        $docs = $q->paginate(20)->withQueryString();
 
         return view('organization.district-kyc', [
             'docs' => $docs,
@@ -304,8 +304,8 @@ class OrganizationController extends Controller
             ->when($selectedUserId > 0, fn ($query) => $query->where('k.user_id', $selectedUserId))
             ->orderByDesc('k.id')
             ->select($columns)
-            ->limit(120)
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return view('organization.state-kyc', compact('docs', 'heads', 'selectedUserId'));
     }

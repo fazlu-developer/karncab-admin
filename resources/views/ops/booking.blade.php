@@ -5,7 +5,7 @@
 
 @section('content')
     <p><a href="{{ route('ops.module', 'bookings') }}"><i data-lucide="arrow-left"></i> Back to bookings</a></p>
-    <h1>{{ $booking['publicRef'] ?? 'Booking' }}</h1>
+    <h1>Booking {{ $booking['bookingId'] ?? $booking['id'] ?? '' }} · {{ $booking['publicRef'] ?? 'Booking' }}</h1>
     @if (!empty($error))
         <p class="error">{{ $error }}</p>
     @endif
@@ -56,11 +56,19 @@
         <div class="table-wrap">
             <table class="data">
                 <tbody>
-                    @foreach (collect($booking)->except(['id', 'driverId', 'track', 'statusLog', 'paymentHistory', 'walletHistory', 'driverHistory', 'quoteSnapshot', 'navigation'])->all() as $key => $value)
+                    @foreach (collect($booking)->except(['id', 'driverId', 'customerId', 'track', 'statusLog', 'paymentHistory', 'walletHistory', 'driverHistory', 'quoteSnapshot', 'navigation'])->all() as $key => $value)
                         @if (!is_array($value))
                             <tr>
                                 <th style="width:220px;text-align:left">{{ ucwords(preg_replace('/([a-z])([A-Z])/', '$1 $2', str_replace('_', ' ', $key))) }}</th>
-                                <td class="cell-wrap">{{ is_bool($value) ? ($value ? 'Yes' : 'No') : ($value === null || $value === '' ? '—' : $value) }}</td>
+                                <td class="cell-wrap">
+                                    @if ($key === 'driver' && !empty($booking['driverId']))
+                                        <a href="{{ route('drivers.show', $booking['driverId']) }}">{{ $value }}</a>
+                                    @elseif ($key === 'customer' && !empty($booking['customerId']))
+                                        <a href="{{ route('users.show', $booking['customerId']) }}">{{ $value }}</a>
+                                    @else
+                                        {{ is_bool($value) ? ($value ? 'Yes' : 'No') : ($value === null || $value === '' ? '—' : $value) }}
+                                    @endif
+                                </td>
                             </tr>
                         @endif
                     @endforeach
@@ -70,7 +78,7 @@
     </section>
 
     @foreach ([
-        'statusLog' => 'Status log',
+        'statusLog' => 'Maintain logs',
         'paymentHistory' => 'Payment history',
         'walletHistory' => 'Wallet / commission log',
         'driverHistory' => 'Driver trip history',

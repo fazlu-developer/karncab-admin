@@ -26,6 +26,7 @@ class User extends Authenticatable
         'state_id',
         'district_id',
         'fleet_owner_id',
+        'access_note',
     ];
 
     protected $hidden = [

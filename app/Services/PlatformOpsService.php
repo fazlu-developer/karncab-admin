@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Platform\FareCommissionSplit;
 use App\Platform\GeoCatalog;
 use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
@@ -17,6 +18,12 @@ class PlatformOpsService
 {
     private const LIVE = [
         'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'ONGOING', 'STARTED',
+    ];
+
+    private const OPEN = [
+        'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING', 'PENDING', 'CONFIRMED',
+        'DRIVER_ACCEPTED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING',
+        'DRIVER_ARRIVED', 'TRIP_STARTED', 'OTP_VERIFIED', 'ONGOING', 'STARTED',
     ];
 
     public function dashboard(?User $operator = null, ?int $stateId = null, ?int $districtId = null): array
@@ -39,22 +46,37 @@ class PlatformOpsService
 
         $todayPaise = (int) (clone $completed)->where('created_at', '>=', $startToday)->sum('quote_paise');
         $monthPaise = (int) (clone $completed)->where('created_at', '>=', $startMonth)->sum('quote_paise');
-        $earnPaise = (int) $this->q('wallet_ledger')->where('account', 'DRIVER')->where('direction', 'CREDIT')->sum('amount_paise');
         $schema = Schema::connection('platform');
-        $commissionPaise = $schema->hasColumn('bookings', 'commission_paise')
-            ? (int) (clone $completed)->sum('commission_paise')
-            : (int) $this->q('wallet_ledger')->where('kind', 'commission')->where('direction', 'DEBIT')->sum('amount_paise');
-        $fleetSharePaise = (int) $this->q('wallet_ledger')
-            ->whereIn('account', ['FLEET_OWNER', 'FLEET'])
-            ->where('direction', 'CREDIT')
-            ->whereIn('kind', ['fleet_commission', 'commission'])
-            ->sum('amount_paise');
-        $platformLedger = (int) $this->q('wallet_ledger')
-            ->where('account', 'PLATFORM')
-            ->where('direction', 'CREDIT')
-            ->whereIn('kind', ['platform_commission', 'commission'])
-            ->sum('amount_paise');
-        $platformKeepPaise = $platformLedger > 0 ? $platformLedger : max(0, $commissionPaise - $fleetSharePaise);
+        $geoScoped = ($stateId || $districtId) && TerritoryScope::isUnrestricted($operator);
+        $fareCol = $schema->hasColumn('bookings', 'final_fare_paise') ? 'final_fare_paise' : 'quote_paise';
+        $farePaise = (int) (clone $completed)->sum($fareCol);
+        if ($geoScoped) {
+            $split = $this->territorySplit($completed, $farePaise);
+            $commissionPaise = $split['commission'];
+            $fleetSharePaise = $split['fleet'];
+            $districtSharePaise = $split['district'];
+            $platformKeepPaise = $split['platform'];
+            $earnPaise = max(0, $farePaise - $commissionPaise);
+        } else {
+            $earnPaise = (int) $this->q('wallet_ledger')->where('account', 'DRIVER')->where('direction', 'CREDIT')->sum('amount_paise');
+            $commissionPaise = $schema->hasColumn('bookings', 'commission_paise')
+                ? (int) (clone $completed)->sum('commission_paise')
+                : (int) $this->q('wallet_ledger')->where('kind', 'commission')->where('direction', 'DEBIT')->sum('amount_paise');
+            $fleetSharePaise = (int) $this->q('wallet_ledger')
+                ->whereIn('account', ['FLEET_OWNER', 'FLEET'])
+                ->where('direction', 'CREDIT')
+                ->whereIn('kind', ['fleet_commission', 'commission'])
+                ->sum('amount_paise');
+            $platformLedger = (int) $this->q('wallet_ledger')
+                ->where('account', 'PLATFORM')
+                ->where('direction', 'CREDIT')
+                ->whereIn('kind', ['platform_commission', 'commission'])
+                ->sum('amount_paise');
+            $platformKeepPaise = $platformLedger > 0 ? $platformLedger : max(0, $commissionPaise - $fleetSharePaise);
+            $districtSharePaise = $schema->hasColumn('bookings', 'district_head_commission_paise')
+                ? (int) (clone $completed)->sum('district_head_commission_paise')
+                : 0;
+        }
         $liveCustomersQuery = (clone $users)->where('role', 'CUSTOMER');
         if ($schema->hasColumn('users', 'last_seen_at')) {
             $liveCustomersQuery->where('last_seen_at', '>=', now()->subMinutes(5));
@@ -75,7 +97,7 @@ class PlatformOpsService
                 'liveCustomers' => $liveCount,
                 'totalDrivers' => (clone $drivers)->count(),
                 'onlineDrivers' => (clone $drivers)->where('online', 1)->count(),
-                'activeRides' => (clone $bookings)->whereIn('status', self::LIVE)->count(),
+                'activeRides' => (clone $bookings)->whereIn('status', self::OPEN)->count(),
                 'completedRides' => (clone $completed)->count(),
                 'cancelledRides' => (clone $bookings)->where('status', 'CANCELLED')->count(),
                 'todayRevenuePaise' => $todayPaise,
@@ -90,6 +112,7 @@ class PlatformOpsService
                 'fleetSettlementRupees' => $fleetSharePaise / 100,
                 'platformKeepPaise' => $platformKeepPaise,
                 'platformKeepRupees' => $platformKeepPaise / 100,
+                'districtEarningRupees' => $districtSharePaise / 100,
                 'parcelOrders' => (clone $parcels)->count(),
                 'corporateBookings' => (clone $bookings)->whereNotNull('corporate_account_id')->count(),
                 'bulkBookings' => $this->q('bulk_bookings')->count(),
@@ -111,6 +134,39 @@ class PlatformOpsService
                 'address' => $row->last_address ?? null,
             ])->all(),
         ];
+    }
+
+    /**
+     * Commission split for the bookings already limited to a state or district.
+     *
+     * @return array{commission: int, district: int, fleet: int, platform: int}
+     */
+    private function territorySplit($completed, int $farePaise): array
+    {
+        $schema = Schema::connection('platform');
+        $commission = $schema->hasColumn('bookings', 'commission_paise')
+            ? (int) (clone $completed)->sum('commission_paise')
+            : 0;
+        $district = $schema->hasColumn('bookings', 'district_head_commission_paise')
+            ? (int) (clone $completed)->sum('district_head_commission_paise')
+            : 0;
+        $fleet = $schema->hasColumn('bookings', 'fleet_commission_paise')
+            ? (int) (clone $completed)->sum('fleet_commission_paise')
+            : 0;
+        $platform = $schema->hasColumn('bookings', 'platform_commission_paise')
+            ? (int) (clone $completed)->sum('platform_commission_paise')
+            : 0;
+        if ($commission === 0 && $farePaise > 0) {
+            $commission = (int) round($farePaise * FareCommissionSplit::TOTAL_PERCENT / 100);
+        }
+        if ($district === 0 && $farePaise > 0) {
+            $district = (int) round($farePaise * FareCommissionSplit::DISTRICT_PERCENT / 100);
+        }
+        if ($platform === 0 && $commission > 0) {
+            $platform = max(0, $commission - $district - $fleet);
+        }
+
+        return compact('commission', 'district', 'fleet', 'platform');
     }
 
     /**
@@ -603,6 +659,9 @@ class PlatformOpsService
                     ->orWhere('bookings.pickup_text', 'like', "%{$term}%")
                     ->orWhere('bookings.drop_text', 'like', "%{$term}%")
                     ->orWhere('districts.name', 'like', "%{$term}%");
+                if (ctype_digit(trim((string) $term))) {
+                    $inner->orWhere('bookings.id', (int) $term);
+                }
             });
         }
         foreach (['customer' => 'customers.name', 'driver' => 'driver_users.name', 'vehicle' => 'vehicles.registration_no'] as $key => $col) {
@@ -613,7 +672,9 @@ class PlatformOpsService
         if (! empty($query['product'])) {
             $q->where('bookings.product', $query['product']);
         }
-        if (! empty($query['status'])) {
+        if (($query['status'] ?? '') === 'ACTIVE') {
+            $q->whereIn('bookings.status', self::OPEN);
+        } elseif (! empty($query['status'])) {
             $q->where('bookings.status', $query['status']);
         }
         if (! empty($query['districtId'])) {
@@ -672,6 +733,7 @@ class PlatformOpsService
 
             return [
                 'id' => (string) $row->id,
+                'bookingId' => (string) $row->id,
                 'publicRef' => $row->public_ref,
                 'product' => $row->product,
                 'status' => $row->status,
@@ -779,15 +841,50 @@ class PlatformOpsService
                 ]);
         }
         $farePaise = (int) ($row->final_fare_paise ?? $row->quote_paise ?? 0);
+        $quotePaise = (int) ($row->quote_paise ?? 0);
+        $rupees = fn ($paise) => '₹'.number_format(((int) $paise) / 100, 2);
+        $commissionPaise = (int) ($row->commission_paise ?? 0);
+        $districtPaise = (int) ($row->district_head_commission_paise ?? 0);
+        $platformPaise = (int) ($row->platform_commission_paise ?? 0);
+        $driverPaise = (int) ($row->driver_earning_paise ?? 0);
+        if ($commissionPaise === 0 && $farePaise > 0) {
+            $commissionPaise = (int) round($farePaise * FareCommissionSplit::TOTAL_PERCENT / 100);
+        }
+        if ($districtPaise === 0 && $farePaise > 0) {
+            $districtPaise = (int) round($farePaise * FareCommissionSplit::DISTRICT_PERCENT / 100);
+        }
+        if ($platformPaise === 0 && $commissionPaise > 0) {
+            $platformPaise = max(0, $commissionPaise - $districtPaise);
+        }
+        if ($driverPaise === 0 && $farePaise > 0) {
+            $driverPaise = max(0, $farePaise - $commissionPaise);
+        }
+        $advancePaise = (int) ($row->advance_paise ?? 0);
+        $balancePaise = (int) ($row->balance_paise ?? max(0, $farePaise - $advancePaise));
+        $milestones = [];
+        foreach ([
+            'created_at' => 'Booked',
+            'scheduled_at' => 'Scheduled for',
+            'accepted_at' => 'Driver accepted',
+            'started_at' => 'Trip started',
+            'completed_at' => 'Completed',
+            'cancelled_at' => 'Cancelled',
+        ] as $column => $label) {
+            if (! empty($row->{$column})) {
+                $milestones[] = ['Event' => $label, 'When' => (string) $row->{$column}];
+            }
+        }
 
         return [
             'id' => (string) $row->id,
+            'bookingId' => (string) $row->id,
             'publicRef' => $row->public_ref,
             'product' => $row->product,
             'status' => $row->status,
             'category' => $row->category ?? $row->vehicle_category ?? null,
             'customer' => $row->customer_name ?: '—',
             'customerPhone' => $row->customer_phone,
+            'customerId' => $row->customer_id ?? null,
             'driver' => $row->driver_name ?: 'Unassigned',
             'driverPhone' => $row->driver_phone,
             'vehicle' => $row->vehicle_reg,
@@ -796,15 +893,22 @@ class PlatformOpsService
             'state' => $row->state_name ?: '—',
             'pickup' => $row->pickup_text,
             'drop' => $row->drop_text,
-            'fareInr' => '₹'.number_format($farePaise / 100, 2),
+            'quoteInr' => $rupees($quotePaise),
+            'fareInr' => $rupees($farePaise),
+            'commissionInr' => $rupees($commissionPaise),
+            'districtEarningInr' => $rupees($districtPaise),
+            'platformShareInr' => $rupees($platformPaise),
+            'driverEarningInr' => $rupees($driverPaise),
+            'advancePaidInr' => $rupees($advancePaise),
+            'balanceInr' => $rupees($balancePaise),
             'scheduledAt' => $row->scheduled_at ?? null,
             'createdAt' => $row->created_at,
             'driverId' => $row->driver_id ?? null,
             'track' => $this->tripTrack((string) $row->status),
-            'statusLog' => $this->map($log, fn ($e) => [
+            'statusLog' => array_merge($milestones, $this->map($log, fn ($e) => [
                 'Event' => $e->action,
                 'When' => $e->created_at,
-            ]),
+            ])),
             'paymentHistory' => $this->map($payments, function ($pay) {
                 $paise = (int) ($pay->amount_paise ?? $pay->gross_paise ?? 0);
 
@@ -904,19 +1008,19 @@ class PlatformOpsService
      */
     public function scheduledAssignments(?User $operator = null, ?string $product = null): array
     {
-        $scheduledProducts = ['RENTAL', 'AIRPORT', 'RAILWAY', 'MULTI_STOP', 'OUTSTATION', 'TRAVEL', 'CORPORATE'];
         $q = $this->bookingsQuery($operator)
             ->leftJoin('users as customers', 'customers.id', '=', 'bookings.customer_id')
             ->leftJoin('drivers', 'drivers.id', '=', 'bookings.driver_id')
             ->leftJoin('users as driver_users', 'driver_users.id', '=', 'drivers.user_id')
             ->leftJoin('vehicles', 'vehicles.id', '=', 'bookings.vehicle_id')
-            ->where(function ($scope) use ($scheduledProducts) {
-                $scope->whereIn('bookings.product', $scheduledProducts)
-                    ->orWhere(function ($dated) {
-                        $dated->whereIn('bookings.product', ['ONE_WAY', 'ROUND_WAY', 'SCHEDULE'])
-                            ->whereNotNull('bookings.scheduled_at')
-                            ->where('bookings.scheduled_at', '>', now()->subHours(2));
-                    });
+            ->where(function ($scope) {
+                $scope->where(function ($dated) {
+                    $dated->whereNotNull('bookings.scheduled_at')
+                        ->where('bookings.scheduled_at', '>', now()->subHours(2));
+                })->orWhere(function ($desk) {
+                    $desk->whereIn('bookings.product', ['AMBULANCE', 'TRAVEL', 'CORPORATE', 'BULK', 'PARCEL'])
+                        ->whereNull('bookings.driver_id');
+                });
             })
             ->whereNotIn('bookings.status', ['COMPLETED', 'CUSTOMER_CANCELLED', 'DRIVER_CANCELLED', 'EXPIRED', 'CANCELLED'])
             ->orderBy('bookings.scheduled_at')
@@ -963,6 +1067,7 @@ class PlatformOpsService
         return [
             'remaining' => $remaining,
             'assigned' => $assigned,
+            'upcoming' => $rows,
             'drivers' => $this->assignableDrivers($operator),
         ];
     }
@@ -981,7 +1086,7 @@ class PlatformOpsService
         if (! in_array($role, ['SUPER_ADMIN', 'ADMIN', 'STATE_HEAD', 'DISTRICT_HEAD'], true)) {
             return [];
         }
-        $rows = $this->scheduledAssignments($operator)['remaining'] ?? [];
+        $rows = $this->scheduledAssignments($operator)['upcoming'] ?? [];
         $desk = $this->deskAssignAlerts($operator);
         $merged = [];
         $seen = [];
@@ -994,7 +1099,7 @@ class PlatformOpsService
             $merged[] = $row;
         }
 
-        return array_slice($merged, 0, 8);
+        return array_slice($merged, 0, 12);
     }
 
     /**

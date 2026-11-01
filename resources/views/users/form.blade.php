@@ -68,30 +68,7 @@
                 ])
                 <p class="muted" id="territory-hint">State Head needs one state. District Head and Fleet Owner need one district.</p>
             </div>
-            <div id="role-privileged">
-                <h3>Finance and system modules</h3>
-                <p class="muted">Super Admin always has these. Tick a module to show it for this Admin or Manager.</p>
-                <div class="perm-grid">
-                    @foreach (\App\Platform\PrivilegedModules::LABELS as $ability => $label)
-                        <label>
-                            <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
-                            {{ $label }}
-                        </label>
-                    @endforeach
-                </div>
-            </div>
-            <div id="role-permissions">
-                <h3>Menu access</h3>
-                <p class="muted" id="permission-hint">Tick the sidebar modules this login should see. State Head always has Dashboard and All users. Website enquiries, Old users and Withdraw requests stay with Super Admin / Admin.</p>
-                <div class="perm-grid">
-                    @foreach ($navPermissions ?? [] as $ability => $label)
-                        <label>
-                            <input type="checkbox" name="abilities[]" value="{{ $ability }}" @checked(in_array($ability, old('abilities', $granted), true))>
-                            {{ $label }}
-                        </label>
-                    @endforeach
-                </div>
-            </div>
+            <p class="muted">This login uses the permissions saved for the selected role. Change those on Roles. State Head and District Head only see their own area.</p>
             <div id="role-kyc">
                 <h3>KYC files</h3>
                 <p class="muted">State Head and District Head KYC uploaded here appears on their KYC page.</p>
@@ -112,8 +89,6 @@
             var district = document.querySelector('[name="district_id"]');
             var hint = document.getElementById('territory-hint');
             var geo = document.getElementById('role-geo');
-            var privileged = document.getElementById('role-privileged');
-            var perms = document.getElementById('role-permissions');
             var kyc = document.getElementById('role-kyc');
             if (!role) return;
             function show(el, on) {
@@ -134,8 +109,6 @@
                 var operator = value === 'ADMIN' || value === 'MANAGER';
                 var head = stateHead || districtHead;
                 show(geo, stateHead || districtHead || fleet || operator);
-                show(privileged, operator);
-                show(perms, operator || head);
                 show(kyc, head);
                 mark(state, stateHead || districtHead || fleet, 'State');
                 mark(district, districtHead || fleet, 'District');

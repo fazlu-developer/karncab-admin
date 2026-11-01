@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Platform\DistrictLocator;
+use App\Platform\FareCommissionSplit;
 use App\Platform\OperatorRole;
 use App\Platform\PrivilegedModules;
 use App\Platform\TerritoryScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
 class StateHeadService
@@ -56,6 +58,7 @@ class StateHeadService
         $ctx = $this->context($operator, isset($query['stateId']) ? (int) $query['stateId'] : null);
         $bookings = $this->bookings($ctx);
         $completed = (clone $bookings)->where('status', 'COMPLETED');
+        $money = $this->money($completed);
 
         return [
             'state' => $ctx,
@@ -69,16 +72,83 @@ class StateHeadService
                 'onlineDrivers' => $this->driversQuery($ctx)->where('drivers.online', 1)->count(),
                 'vehicles' => $this->vehiclesQuery($ctx)->count(),
                 'activeRides' => (clone $bookings)->whereIn('status', [
-                    'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'ONGOING', 'STARTED',
+                    'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING', 'PENDING', 'CONFIRMED',
+                    'DRIVER_ACCEPTED', 'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING',
+                    'DRIVER_ARRIVED', 'TRIP_STARTED', 'OTP_VERIFIED', 'ONGOING', 'STARTED',
                 ])->count(),
                 'completedRides' => (clone $completed)->count(),
                 'parcels' => $this->parcelsQuery($ctx)->count(),
                 'todayRevenueRupees' => ((int) (clone $completed)->where('created_at', '>=', now()->startOfDay())->sum('quote_paise')) / 100,
                 'monthlyRevenueRupees' => ((int) (clone $completed)->where('created_at', '>=', now()->startOfMonth())->sum('quote_paise')) / 100,
+                'commissionRupees' => $money['commission'] / 100,
+                'districtEarningRupees' => $money['district'] / 100,
+                'platformShareRupees' => $money['platform'] / 100,
                 'openComplaints' => $this->complaintsQuery($ctx)->whereNotIn('status', ['resolved', 'closed'])->count(),
             ],
             'districts' => $this->districtRows($ctx),
         ];
+    }
+
+    /**
+     * State bookings and commission for a state-head profile.
+     *
+     * @return array<string, mixed>
+     */
+    public function earnings(int $stateId): array
+    {
+        $state = $this->db()->table('states')->where('id', $stateId)->first();
+        if ($state === null) {
+            return [];
+        }
+        $ctx = [
+            'stateId' => (int) $state->id,
+            'stateName' => (string) $state->name,
+            'districtIds' => TerritoryScope::districtIdsForState((int) $state->id),
+        ];
+        $completed = (clone $this->bookings($ctx))->where('status', 'COMPLETED');
+        $money = $this->money($completed);
+        $fareCol = Schema::connection('platform')->hasColumn('bookings', 'final_fare_paise') ? 'final_fare_paise' : 'quote_paise';
+
+        return [
+            'place' => (string) $state->name,
+            'kpis' => [
+                'bookings' => (clone $this->bookings($ctx))->count(),
+                'completed' => (clone $completed)->count(),
+                'revenueRupees' => ((int) (clone $completed)->sum($fareCol)) / 100,
+                'commissionRupees' => $money['commission'] / 100,
+                'districtEarningRupees' => $money['district'] / 100,
+                'platformShareRupees' => $money['platform'] / 100,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{commission: int, district: int, fleet: int, platform: int}
+     */
+    private function money($completed): array
+    {
+        $schema = Schema::connection('platform');
+        $fareCol = $schema->hasColumn('bookings', 'final_fare_paise') ? 'final_fare_paise' : 'quote_paise';
+        $farePaise = (int) (clone $completed)->sum($fareCol);
+        $commission = $schema->hasColumn('bookings', 'commission_paise')
+            ? (int) (clone $completed)->sum('commission_paise') : 0;
+        $district = $schema->hasColumn('bookings', 'district_head_commission_paise')
+            ? (int) (clone $completed)->sum('district_head_commission_paise') : 0;
+        $fleet = $schema->hasColumn('bookings', 'fleet_commission_paise')
+            ? (int) (clone $completed)->sum('fleet_commission_paise') : 0;
+        $platform = $schema->hasColumn('bookings', 'platform_commission_paise')
+            ? (int) (clone $completed)->sum('platform_commission_paise') : 0;
+        if ($commission === 0 && $farePaise > 0) {
+            $commission = (int) round($farePaise * FareCommissionSplit::TOTAL_PERCENT / 100);
+        }
+        if ($district === 0 && $farePaise > 0) {
+            $district = (int) round($farePaise * FareCommissionSplit::DISTRICT_PERCENT / 100);
+        }
+        if ($platform === 0 && $commission > 0) {
+            $platform = max(0, $commission - $district - $fleet);
+        }
+
+        return compact('commission', 'district', 'fleet', 'platform');
     }
 
     /**

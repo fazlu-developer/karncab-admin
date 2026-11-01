@@ -13,19 +13,19 @@ use Illuminate\Support\Str;
  */
 class BulkDeskService
 {
-    public function rows(): array
+    public function rows()
     {
         $this->ensure();
         if (! Schema::connection('platform')->hasTable('bulk_bookings')) {
             return [];
         }
-        $jobs = $this->db()->table('bulk_bookings')->orderByDesc('id')->limit(80)->get();
-        $ids = $jobs->pluck('id')->all() ?: [0];
+        $jobs = $this->db()->table('bulk_bookings')->orderByDesc('id')->paginate(20)->withQueryString();
+        $ids = collect($jobs->items())->pluck('id')->all() ?: [0];
         $cabs = Schema::connection('platform')->hasTable('bulk_booking_cabs')
             ? $this->db()->table('bulk_booking_cabs')->whereIn('bulk_booking_id', $ids)->orderBy('cab_no')->get()->groupBy('bulk_booking_id')
             : collect();
 
-        return $jobs->map(function ($row) use ($cabs) {
+        return $jobs->through(function ($row) use ($cabs) {
             $fleet = $cabs->get($row->id, collect());
             $assigned = $fleet->filter(fn ($cab) => (int) ($cab->driver_id ?? 0) > 0)->count();
             $n = (int) ($row->vehicle_count ?? $fleet->count());
@@ -62,7 +62,7 @@ class BulkDeskService
                     'phase' => (string) ($cab->phase ?? 'idle'),
                 ])->all(),
             ];
-        })->all();
+        });
     }
 
     /**

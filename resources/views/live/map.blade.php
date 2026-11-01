@@ -51,7 +51,7 @@
     </form>
     <div id="live-map" class="map-canvas" style="height:560px"></div>
     <section class="card">
-        <p class="muted">Click a row to focus that vehicle on the map. Bike, auto and car icons match the registered type.</p>
+            <p class="muted">Every vehicle with a location stays on the map together. The number on each pin is the vehicle. Click a row to zoom to that one.</p>
         <div class="table-wrap">
             <table class="data" id="live-table">
                 <thead>
@@ -82,7 +82,13 @@
                             @endif
                         </td>
                         <td>{{ $row['lastUpdate'] ?: '—' }}</td>
-                        <td>{{ $row['currentBooking']['publicRef'] ?? '—' }}</td>
+                        <td>
+                            @if (!empty($row['currentBooking']['id']))
+                                <a href="{{ route('ops.bookings.show', $row['currentBooking']['id']) }}">{{ $row['currentBooking']['publicRef'] ?? 'Open' }}</a>
+                            @else
+                                —
+                            @endif
+                        </td>
                         <td>{{ $row['tripStatus'] }}</td>
                     </tr>
                 @empty
@@ -109,7 +115,9 @@
         const qFilter = @json($q ?? '');
         const familyFilter = @json($family ?? '');
         const lockedVehicle = @json((int) ($vehicleId ?? 0));
-        let focusId = lockedVehicle;
+        const focusQuery = @json((int) request('focus', 0));
+        const bookingBase = @json(url('/bookings'));
+        let focusId = lockedVehicle || focusQuery;
         let map, markers = {}, lastRows = [];
 
         function esc(value) {
@@ -174,7 +182,7 @@
                 `Type: ${esc(familyOf(row))} · ${esc(row.vehicleType || '—')}<br>` +
                 `Status: ${esc(row.statusLabel || row.driverStatus)}<br>` +
                 `Updated: ${esc(row.lastUpdate || '—')}<br>` +
-                `Booking: ${booking ? esc(booking.publicRef) + ' (' + esc(booking.status) + ')' : '—'}<br>` +
+                `Booking: ${booking ? '<a href="' + bookingBase + '/' + encodeURIComponent(booking.id) + '">' + esc(booking.publicRef) + '</a> (' + esc(booking.status) + ')' : '—'}<br>` +
                 (loc ? `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}${loc.stale ? ' (stale)' : ''}` : 'No fix');
         }
 
@@ -215,6 +223,12 @@
                 markers[id].setIcon(googleIcon(family, selected));
                 markers[id].setZIndex(selected ? 999 : 1);
                 markers[id].info.setContent(popupHtml(row));
+                markers[id].setLabel({
+                    text: String(row.vehicleNumber || row.vehicleId).slice(0, 12),
+                    color: '#102216',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                });
             } else {
                 if (!markers[id]) {
                     markers[id] = L.marker([loc.lat, loc.lng], { icon: leafletIcon(family, selected), zIndexOffset: selected ? 999 : 0 }).addTo(map);
@@ -224,6 +238,19 @@
                 markers[id].setIcon(leafletIcon(family, selected));
                 markers[id].setZIndexOffset(selected ? 999 : 0);
                 markers[id].bindPopup(popupHtml(row));
+                markers[id].bindTooltip(String(row.vehicleNumber || row.vehicleId), { permanent: true, direction: 'top', offset: [0, -16], className: 'map-pin-label' });
+            }
+        }
+
+        function fitAll() {
+            const points = lastRows.filter((row) => row.currentLocation);
+            if (!points.length || !map) return;
+            if (useGoogle) {
+                const bounds = new google.maps.LatLngBounds();
+                points.forEach((row) => bounds.extend({ lat: row.currentLocation.lat, lng: row.currentLocation.lng }));
+                map.fitBounds(bounds);
+            } else if (window.L) {
+                map.fitBounds(points.map((row) => [row.currentLocation.lat, row.currentLocation.lng]), { padding: [36, 36] });
             }
         }
 
@@ -284,7 +311,7 @@
                     <td>${esc(row.statusLabel || '')}</td>
                     <td>${loc ? loc.lat.toFixed(5) + ', ' + loc.lng.toFixed(5) + (loc.stale ? ' (stale)' : '') : '—'}</td>
                     <td>${esc(row.lastUpdate || '—')}</td>
-                    <td>${row.currentBooking ? esc(row.currentBooking.publicRef) : '—'}</td>
+                    <td>${row.currentBooking ? '<a href="' + bookingBase + '/' + encodeURIComponent(row.currentBooking.id) + '">' + esc(row.currentBooking.publicRef) + '</a>' : '—'}</td>
                     <td>${esc(row.tripStatus || '')}</td>
                 </tr>`;
             }).join('');
@@ -300,9 +327,11 @@
             });
             prune(ids);
             renderTable(lastRows);
-            if (follow && focusId) {
+            if (focusId && follow) {
                 const row = lastRows.find((item) => Number(item.vehicleId) === Number(focusId));
                 if (row && row.currentLocation) panToRow(row);
+            } else if (!focusId) {
+                fitAll();
             }
         }
 
@@ -327,7 +356,7 @@
         } else if (window.L) {
             initLeaflet(center);
         }
-        applyRows(seed, lockedVehicle > 0);
+        applyRows(seed, lockedVehicle > 0 || focusQuery > 0);
         setInterval(refresh, pollMs);
     </script>
 @endpush

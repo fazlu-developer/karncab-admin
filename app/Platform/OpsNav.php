@@ -40,7 +40,6 @@ final class OpsNav
             // Operations
             ['key' => 'bookings', 'label' => 'Bookings', 'icon' => 'calendar-check', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'assign-drivers', 'label' => 'Assign Drivers', 'icon' => 'user-plus', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.assign-drivers'],
-            ['key' => 'trips', 'label' => 'Trips', 'icon' => 'navigation', 'group' => 'Operations', 'ability' => 'bookings.view'],
             ['key' => 'map', 'label' => 'Live Tracking', 'icon' => 'radar', 'group' => 'Operations', 'ability' => 'tracking.view', 'route' => 'live.map'],
             ['key' => 'bulk', 'label' => 'Manual Booking', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.manual-bookings'],
             ['key' => 'bulk-bookings', 'label' => 'Bulk Bookings', 'icon' => 'layers', 'group' => 'Operations', 'ability' => 'bookings.manage', 'route' => 'ops.bulk-bookings'],
@@ -82,7 +81,6 @@ final class OpsNav
             ['key' => 'website-pages', 'label' => 'Website CMS', 'icon' => 'file-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.website-pages'],
             ['key' => 'branding', 'label' => 'Website & branding', 'icon' => 'image', 'group' => 'System', 'ability' => 'branding.view', 'route' => 'ops.branding'],
             ['key' => 'roles', 'label' => 'Roles', 'icon' => 'key-round', 'group' => 'System', 'ability' => 'roles.view', 'route' => 'ops.roles'],
-            ['key' => 'modules', 'label' => 'Manage modules', 'icon' => 'layout-grid', 'group' => 'System', 'ability' => 'roles.view', 'route' => 'ops.roles'],
             ['key' => 'settings', 'label' => 'Settings', 'icon' => 'sliders-horizontal', 'group' => 'System', 'ability' => 'settings.view', 'route' => 'ops.settings'],
             ['key' => 'audit', 'label' => 'Audit Logs', 'icon' => 'scroll-text', 'group' => 'System', 'ability' => 'platform.admin', 'route' => 'ops.audit'],
             ['key' => 'old-users', 'label' => 'Old users', 'icon' => 'history', 'group' => 'System', 'ability' => 'users.view', 'route' => 'old-users.index'],

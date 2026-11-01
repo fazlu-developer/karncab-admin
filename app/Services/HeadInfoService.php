@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use App\Support\PublicMedia;
 use App\Support\StoredUpload;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -39,25 +40,40 @@ class HeadInfoService
     /**
      * @return list<array<string, mixed>>
      */
+    public function page(int $perPage = 20): LengthAwarePaginator
+    {
+        $this->ensure();
+
+        return $this->listingQuery()
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn ($row) => $this->present($row));
+    }
+
     public function rows(): array
     {
         $this->ensure();
-        $db = DB::connection('platform');
 
-        return $db->table('head_info')
+        return $this->listingQuery()
+            ->get()
+            ->map(fn ($row) => $this->present($row))
+            ->all();
+    }
+
+    private function listingQuery()
+    {
+        return DB::connection('platform')->table('head_info')
             ->leftJoin('users', 'users.id', '=', 'head_info.user_id')
             ->leftJoin('states', 'states.id', '=', 'head_info.state_id')
             ->leftJoin('districts', 'districts.id', '=', 'head_info.district_id')
             ->orderByDesc('head_info.id')
-            ->get([
+            ->select([
                 'head_info.*',
                 'users.name as head_name',
                 'users.phone as head_phone',
                 'states.name as state_name',
                 'districts.name as district_name',
-            ])
-            ->map(fn ($row) => $this->present($row))
-            ->all();
+            ]);
     }
 
     /**

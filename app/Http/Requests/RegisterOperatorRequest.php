@@ -18,6 +18,7 @@ class RegisterOperatorRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::defaults()],
+            'comment' => ['nullable', 'string', 'max:500'],
         ];
     }
 }

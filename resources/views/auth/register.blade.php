@@ -25,7 +25,12 @@
             <label for="password_confirmation">Confirm password</label>
             <input id="password_confirmation" name="password_confirmation" type="password" required>
         </div>
-        <button class="btn" type="submit" style="width:100%;justify-content:center">Create account</button>
+        <div class="field">
+            <label for="comment">Comment</label>
+            <textarea id="comment" name="comment" rows="3" maxlength="500" placeholder="District, role, or why you need access">{{ old('comment') }}</textarea>
+            @error('comment') <div class="error">{{ $message }}</div> @enderror
+        </div>
+        <button class="btn" type="submit" style="width:100%;justify-content:center">Request access</button>
     </form>
     <p style="margin-top:16px"><a href="{{ route('login') }}">Already have access?</a></p>
 @endsection

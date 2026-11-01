@@ -35,38 +35,45 @@
     @if (!empty($error))
         <p class="error">{{ $error }}</p>
     @endif
+    @php
+        $territoryFilter = !empty($selectedDistrictId) ? 'district' : (!empty($selectedStateId) ? 'state' : null);
+        $kpiTiles = [
+            ['totalUsers', 'Total users', 'users', route('users.index')],
+            ['activeUsers', 'Using KarnaRide now', 'user-check', route('users.index')],
+            ['totalDrivers', 'Drivers', 'id-card', route('drivers.index')],
+            ['onlineDrivers', 'Online now', 'radio', route('drivers.index', ['online' => 1])],
+            ['activeRides', 'Active rides', 'navigation', route('ops.module', ['module' => 'bookings', 'status' => 'ACTIVE'])],
+            ['completedRides', 'Completed', 'circle-check', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['cancelledRides', 'Cancelled', 'circle-x', route('ops.module', ['module' => 'bookings', 'status' => 'CANCELLED'])],
+            ['todayRevenueRupees', 'Today ₹', 'banknote', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['monthlyRevenueRupees', 'Month ₹', 'wallet', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['commissionEarnedRupees', $territoryFilter ? ucfirst($territoryFilter).' commission ₹' : 'Platform commission ₹', 'percent', route('wallets.index')],
+            ['fleetSettlementRupees', 'Fleet share ₹', 'warehouse', route('fleet-owners.index')],
+            ['platformKeepRupees', $territoryFilter ? 'Platform share ₹' : 'Platform keep ₹', 'landmark', route('wallets.index')],
+            ['pendingKyc', 'Pending KYC', 'badge-alert', route('drivers.index', ['kyc' => 'pending'])],
+            ['pendingComplaints', 'Complaints', 'message-circle-warning', route('support.index')],
+            ...((auth()->user()?->isStateHead() || auth()->user()?->isDistrictHead()) ? [] : [['pendingLeads', 'Website enquiries', 'inbox', route('leads.index')]]),
+            ['activeAdvertisements', 'Ads live', 'megaphone', route('ads.index')],
+        ];
+        if ($territoryFilter) {
+            $kpiTiles[] = ['districtEarningRupees', ucfirst($territoryFilter).' earnings ₹', 'badge-percent', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])];
+        }
+    @endphp
     <div class="kpis">
-        @foreach ([
-            ['totalUsers', 'Total users', 'users'],
-            ['activeUsers', 'Using KarnaRide now', 'user-check'],
-            ['totalDrivers', 'Drivers', 'id-card'],
-            ['onlineDrivers', 'Online now', 'radio'],
-            ['activeRides', 'Active rides', 'navigation'],
-            ['completedRides', 'Completed', 'circle-check'],
-            ['cancelledRides', 'Cancelled', 'circle-x'],
-            ['todayRevenueRupees', "Today ₹", 'banknote'],
-            ['monthlyRevenueRupees', 'Month ₹', 'wallet'],
-            ['commissionEarnedRupees', 'Platform commission ₹', 'percent'],
-            ['fleetSettlementRupees', 'Fleet share ₹', 'warehouse'],
-            ['platformKeepRupees', 'Platform keep ₹', 'landmark'],
-            ['pendingKyc', 'Pending KYC', 'badge-alert'],
-            ['pendingComplaints', 'Complaints', 'message-circle-warning'],
-            ...((auth()->user()?->isStateHead() || auth()->user()?->isDistrictHead()) ? [] : [['pendingLeads', 'Website enquiries', 'inbox']]),
-            ['activeAdvertisements', 'Ads live', 'megaphone'],
-        ] as [$key, $label, $icon])
-            <div class="kpi">
+        @foreach ($kpiTiles as [$key, $label, $icon, $href])
+            <a class="kpi" href="{{ $href }}">
                 <div class="label"><i data-lucide="{{ $icon }}"></i> {{ $label }}</div>
                 <b>{{ $kpis[$key] ?? 0 }}</b>
-            </div>
+            </a>
         @endforeach
     </div>
     <section class="card" style="margin-bottom:18px">
         <h2>Needs a look</h2>
         <div class="kpis">
-            <div class="kpi"><div class="label">Withdraw requests</div><b>{{ $pulse['withdraws'] ?? 0 }}</b><div><a href="{{ route('withdrawals.index') }}">Open</a></div></div>
-            <div class="kpi"><div class="label">Corporate plans</div><b>{{ $pulse['corporate'] ?? 0 }}</b></div>
-            <div class="kpi"><div class="label">Bulk bookings</div><b>{{ $pulse['bulk'] ?? 0 }}</b></div>
-            <div class="kpi"><div class="label">Travel tickets</div><b>{{ $pulse['tours'] ?? 0 }}</b></div>
+            <a class="kpi" href="{{ route('withdrawals.index') }}"><div class="label">Withdraw requests</div><b>{{ $pulse['withdraws'] ?? 0 }}</b></a>
+            <a class="kpi" href="{{ route('ops.corporate-plans') }}"><div class="label">Corporate plans</div><b>{{ $pulse['corporate'] ?? 0 }}</b></a>
+            <a class="kpi" href="{{ route('ops.bulk-bookings') }}"><div class="label">Bulk bookings</div><b>{{ $pulse['bulk'] ?? 0 }}</b></a>
+            <a class="kpi" href="{{ route('ops.tour-bookings') }}"><div class="label">Travel tickets</div><b>{{ $pulse['tours'] ?? 0 }}</b></a>
         </div>
         @if (!empty($pulse['banners']))
             <h3>Live banners</h3>
@@ -122,7 +129,10 @@
             <tbody>
             @forelse ($liveRides ?? [] as $ride)
                 <tr>
-                    <td>{{ $ride->public_ref ?: ('#'.$ride->id) }}</td>
+                    <td>
+                        <a href="{{ route('ops.bookings.show', $ride->id) }}">{{ $ride->public_ref ?: ('#'.$ride->id) }}</a>
+                        <div><a href="{{ route('live.map', array_filter(['focus' => $ride->vehicle_id ?: null, 'q' => $ride->vehicle_reg ?: null])) }}">Track</a></div>
+                    </td>
                     <td>{{ str_replace('_', ' ', $ride->product) }}</td>
                     <td><span class="pill ok">{{ str_replace('_', ' ', $ride->status) }}</span></td>
                     <td>{{ $ride->customer ?: '—' }}<div class="muted">{{ $ride->customer_phone }}</div></td>

@@ -48,6 +48,33 @@
                 @endif
             </p>
         @endif
+        @if (!empty($territory['kpis']))
+            <h3>{{ $territory['kind'] }} figures · {{ $territory['place'] }}</h3>
+            <div class="kpis">
+                @foreach ([
+                    'bookings' => 'Bookings',
+                    'completed' => 'Completed',
+                    'revenueRupees' => 'Revenue ₹',
+                    'districtEarningRupees' => 'District earnings ₹',
+                    'commissionRupees' => 'Ride commission ₹',
+                    'platformShareRupees' => 'Platform share ₹',
+                ] as $key => $label)
+                    <div class="kpi">
+                        <div class="label">{{ $label }}</div>
+                        <b>{{ $territory['kpis'][$key] ?? 0 }}</b>
+                    </div>
+                @endforeach
+            </div>
+            <p><a href="{{ route('ops.module', array_filter([
+                'module' => 'bookings',
+                'status' => 'COMPLETED',
+                'districtId' => $territory['kind'] === 'District' ? ($user->district_id ?: $operator?->district_id) : null,
+                'stateId' => $territory['kind'] === 'State' ? ($user->state_id ?: $operator?->state_id) : null,
+            ])) }}">Open this territory's bookings</a></p>
+        @endif
+        @if ($operator && !empty($operator->access_note))
+            <p><strong>Access comment:</strong> {{ $operator->access_note }}</p>
+        @endif
         @if ($kyc !== [])
             <h3>KYC</h3>
             <ul>

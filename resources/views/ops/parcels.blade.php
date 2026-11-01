@@ -27,6 +27,14 @@
         </section>
     @endcan
     <section class="card">
+        <form method="GET" class="filters" style="margin-bottom:12px">
+            <div>
+                <label>Search</label>
+                <input name="q" value="{{ request('q') }}" placeholder="Parcel ID, ref, status, or place">
+            </div>
+            <div style="align-self:end"><button class="btn" type="submit">Search</button></div>
+        </form>
+        <div class="table-wrap">
         <table class="data">
             <thead><tr><th>ID</th><th>Ref</th><th>Status</th><th>Pickup</th><th>Drop</th><th>Quote</th><th></th></tr></thead>
             <tbody>
@@ -35,8 +43,8 @@
                     <td>{{ $row->id }}</td>
                     <td>{{ $row->public_ref ?? '—' }}</td>
                     <td>{{ $row->status ?? '—' }}</td>
-                    <td>{{ $row->pickup_text ?? '—' }}</td>
-                    <td>{{ $row->drop_text ?? '—' }}</td>
+                    <td class="cell-wrap">{{ $row->pickup_text ?? '—' }}</td>
+                    <td class="cell-wrap">{{ $row->drop_text ?? '—' }}</td>
                     <td>₹{{ number_format(((int) ($row->quote_paise ?? 0)) / 100, 0) }}</td>
                     <td>
                         @can('parcels.manage')
@@ -59,5 +67,9 @@
             @endforelse
             </tbody>
         </table>
+        </div>
+        @if (is_object($rows) && method_exists($rows, 'links'))
+            <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
+        @endif
     </section>
 @endsection

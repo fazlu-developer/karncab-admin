@@ -88,5 +88,8 @@
                 </tbody>
             </table>
         </div>
+        @if (is_object($rows) && method_exists($rows, 'links'))
+            <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
+        @endif
     </section>
 @endsection

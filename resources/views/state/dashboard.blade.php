@@ -23,24 +23,27 @@
     </div>
     <div class="kpis">
         @foreach ([
-            ['districts', 'Districts', 'map-pinned'],
-            ['districtHeads', 'District Heads', 'user-cog'],
-            ['franchises', 'Franchises', 'store'],
-            ['fleets', 'Fleets', 'warehouse'],
-            ['drivers', 'Drivers', 'id-card'],
-            ['onlineDrivers', 'Online drivers', 'radio'],
-            ['vehicles', 'Vehicles', 'car'],
-            ['activeRides', 'Active rides', 'navigation'],
-            ['completedRides', 'Completed', 'circle-check'],
-            ['parcels', 'Parcels', 'package'],
-            ['todayRevenueRupees', 'Today ₹', 'banknote'],
-            ['monthlyRevenueRupees', 'Month ₹', 'wallet'],
-            ['openComplaints', 'Open complaints', 'message-circle-warning'],
-        ] as [$key, $label, $icon])
-            <div class="kpi">
+            ['districts', 'Districts', 'map-pinned', route('state.section', 'districts')],
+            ['districtHeads', 'District Heads', 'user-cog', route('state.section', 'district-heads')],
+            ['franchises', 'Franchises', 'store', route('state.section', 'franchises')],
+            ['fleets', 'Fleets', 'warehouse', route('fleet-owners.index')],
+            ['drivers', 'Drivers', 'id-card', route('drivers.index')],
+            ['onlineDrivers', 'Online drivers', 'radio', route('drivers.index')],
+            ['vehicles', 'Vehicles', 'car', route('vehicles.index')],
+            ['activeRides', 'Active rides', 'navigation', route('ops.module', ['module' => 'bookings', 'status' => 'ACTIVE'])],
+            ['completedRides', 'Completed', 'circle-check', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['parcels', 'Parcels', 'package', route('ops.parcels')],
+            ['todayRevenueRupees', 'Today ₹', 'banknote', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['monthlyRevenueRupees', 'Month ₹', 'wallet', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['commissionRupees', 'Ride commission ₹', 'percent', route('wallets.index')],
+            ['districtEarningRupees', 'District earnings ₹', 'badge-percent', route('ops.module', ['module' => 'bookings', 'status' => 'COMPLETED'])],
+            ['platformShareRupees', 'Platform share ₹', 'landmark', route('wallets.index')],
+            ['openComplaints', 'Open complaints', 'message-circle-warning', route('support.index')],
+        ] as [$key, $label, $icon, $href])
+            <a class="kpi" href="{{ $href }}">
                 <div class="label"><i data-lucide="{{ $icon }}"></i> {{ $label }}</div>
                 <b>{{ $kpis[$key] ?? 0 }}</b>
-            </div>
+            </a>
         @endforeach
     </div>
     <section class="card">

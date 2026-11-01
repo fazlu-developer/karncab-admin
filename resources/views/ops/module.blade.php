@@ -25,7 +25,7 @@
     @if (($def['key'] ?? '') === 'bookings')
         <form class="card" method="GET">
             <div class="filters">
-                <div><label>Booking / customer / driver</label><input name="publicRef" value="{{ $query['publicRef'] ?? $query['q'] ?? '' }}" placeholder="Name, phone or booking ref"></div>
+                <div><label>Booking ID / customer / driver</label><input name="publicRef" value="{{ $query['publicRef'] ?? $query['q'] ?? '' }}" placeholder="Booking ID, ref, name or phone"></div>
                 <div><label>Customer</label><input name="customer" value="{{ $query['customer'] ?? '' }}"></div>
                 <div><label>Driver</label><input name="driver" value="{{ $query['driver'] ?? '' }}"></div>
                 <div><label>Vehicle</label><input name="vehicle" value="{{ $query['vehicle'] ?? '' }}"></div>

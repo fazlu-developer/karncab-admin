@@ -17,13 +17,13 @@ use Illuminate\Support\Str;
  */
 class TourDeskService
 {
-    public function rows(?string $bucket = null, ?string $search = null): array
+    public function rows(?string $bucket = null, ?string $search = null)
     {
         TravelPackageSchema::ensure('platform');
         if (! Schema::connection('platform')->hasTable('travel_bookings')) {
             return [];
         }
-        $q = $this->db()->table('travel_bookings')->orderByDesc('id')->limit(80);
+        $q = $this->db()->table('travel_bookings')->orderByDesc('id');
         $statuses = $this->bucketStatuses($bucket);
         if ($statuses) {
             $q->where(function ($inner) use ($statuses) {
@@ -47,7 +47,7 @@ class TourDeskService
             : collect();
         $drivers = $this->driverNames();
 
-        return $q->get()->map(function ($row) use ($packages, $drivers) {
+        return $q->paginate(20)->withQueryString()->through(function ($row) use ($packages, $drivers) {
             $pkg = $packages->get($row->package_id);
             $total = (int) ($row->quote_paise ?? 0);
             $platform = intdiv($total * 10, 100);
@@ -79,7 +79,7 @@ class TourDeskService
                 'driverName' => $drivers[(int) ($row->driver_id ?? 0)] ?? null,
                 'collectedRupees' => ((int) ($row->collected_outside_paise ?? 0)) / 100,
             ];
-        })->all();
+        });
     }
 
     public function approve(int $id): void

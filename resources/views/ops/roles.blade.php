@@ -5,7 +5,7 @@
     <div class="hero">
         <div>
             <h1><i data-lucide="key-round"></i> Roles, modules and permissions</h1>
-            <p class="muted">Create a module, then tick which actions each role may use. Super Admin always has every permission. Sidebar links follow <code>module.view</code>.</p>
+            <p class="muted">Set what Admin, Manager, State Head, and District Head can open. Super Admin always has every permission. A new user inherits the role you pick. State Head and District Head only see bookings, drivers, and vehicles in their own state or district.</p>
         </div>
     </div>
 
@@ -28,7 +28,7 @@
 
     <section class="card">
         <h2>Modules</h2>
-        <p class="muted">State Head, District Head, Manager, Franchise and Exclusive are not separate modules. Assign those people from All users. Their menu is the same admin menu, limited to what their account can open.</p>
+        <p class="muted">Admin, Manager, State Head, and District Head share this menu. What they can open is the permission set below. Create the person from All users and pick the role. Do not tick permissions on the user form.</p>
         <div class="table-wrap">
             <table class="data">
                 <thead><tr><th>Module</th><th>Permissions</th><th>Nav</th><th></th></tr></thead>
@@ -74,7 +74,17 @@
         <h2>Roles</h2>
         <div class="service-nav">
             @foreach ($roles as $role)
-                <a href="{{ route('ops.roles', ['role' => $role]) }}" class="{{ $selectedRole === $role ? 'active' : '' }}">{{ $role }}</a>
+                @php
+                    $roleLabel = match ($role) {
+                        'SUPER_ADMIN' => 'Super Admin',
+                        'ADMIN' => 'Admin',
+                        'MANAGER' => 'Manager',
+                        'STATE_HEAD' => 'State Head',
+                        'DISTRICT_HEAD' => 'District Head',
+                        default => str_replace('_', ' ', $role),
+                    };
+                @endphp
+                <a href="{{ route('ops.roles', ['role' => $role]) }}" class="{{ $selectedRole === $role ? 'active' : '' }}">{{ $roleLabel }}</a>
             @endforeach
         </div>
         @if ($locked)

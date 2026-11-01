@@ -49,7 +49,7 @@ class FleetOwnersController extends Controller
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
         return view('fleet_owners.kyc', [
-            'owners' => $this->fleets->all($request->user()),
+            'owners' => $this->fleets->list($request->user()),
         ]);
     }
 

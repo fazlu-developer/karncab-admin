@@ -82,5 +82,8 @@
                 </tbody>
             </table>
         </div>
+        @if (is_object($tours) && method_exists($tours, 'links'))
+            <div style="margin-top:14px">{{ $tours->links('pagination.admin') }}</div>
+        @endif
     </section>
 @endsection

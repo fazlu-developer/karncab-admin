@@ -64,7 +64,8 @@ class DashboardController extends Controller
             $liveRides = DB::connection('platform')->table('bookings as b')
                 ->leftJoin('users as c', 'c.id', '=', 'b.customer_id')
                 ->leftJoin('drivers as d', 'd.id', '=', 'b.driver_id')
-                ->leftJoin('users as du', 'du.id', '=', 'd.user_id');
+                ->leftJoin('users as du', 'du.id', '=', 'd.user_id')
+                ->leftJoin('vehicles as v', 'v.id', '=', 'b.vehicle_id');
             \App\Platform\TerritoryScope::applyBookings($liveRides, $request->user(), 'b');
             if ($selectedDistrictId && \App\Platform\TerritoryScope::isUnrestricted($request->user())) {
                 $liveRides->where('b.district_id', $selectedDistrictId);
@@ -81,7 +82,7 @@ class DashboardController extends Controller
                 ->limit(20)
                 ->get([
                     'b.id', 'b.public_ref', 'b.product', 'b.status', 'b.pickup_text', 'b.drop_text',
-                    'c.name as customer', 'c.phone as customer_phone', 'du.name as driver_name',
+                    'c.name as customer', 'c.phone as customer_phone', 'du.name as driver_name', 'b.vehicle_id', 'v.registration_no as vehicle_reg',
                 ]);
         } catch (Throwable) {
             $liveRides = collect();

@@ -9,9 +9,11 @@ use App\Platform\OperatorRole;
 use App\Platform\PlatformPermission;
 use App\Platform\TerritoryScope;
 use App\Services\DistrictHeadKycStore;
+use App\Services\DistrictHeadService;
 use App\Services\OperatorProvisioner;
 use App\Services\StateHeadKycStore;
 use App\Services\StateHeadSeat;
+use App\Services\StateHeadService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -121,7 +123,7 @@ class UsersController extends Controller
         $this->assertTerritory($data, null);
         $user = PlatformUser::query()->create($data);
         $this->saveRoleKyc($request, $user);
-        app(OperatorProvisioner::class)->sync($user, $password, $actor, (array) $request->input('abilities', []));
+        app(OperatorProvisioner::class)->sync($user, $password, $actor, []);
 
         return redirect()->route('users.show', $user)->with('status', $this->createdStatus($user));
     }
@@ -180,7 +182,36 @@ class UsersController extends Controller
             'user' => $platformUser,
             'operator' => $operator,
             'kyc' => $this->kycFor($platformUser),
+            'territory' => $this->territoryCard($platformUser, $operator),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function territoryCard(PlatformUser $user, ?User $operator): ?array
+    {
+        $role = strtoupper((string) $user->role);
+        if ($role === OperatorRole::DISTRICT_HEAD) {
+            $districtId = (int) ($user->district_id ?? $operator?->district_id ?? 0);
+            if ($districtId < 1) {
+                return null;
+            }
+            $card = app(DistrictHeadService::class)->earnings($districtId);
+
+            return $card === [] ? null : $card + ['kind' => 'District'];
+        }
+        if ($role === OperatorRole::STATE_HEAD) {
+            $stateId = (int) ($user->state_id ?? $operator?->state_id ?? 0);
+            if ($stateId < 1) {
+                return null;
+            }
+            $card = app(StateHeadService::class)->earnings($stateId);
+
+            return $card === [] ? null : $card + ['kind' => 'State'];
+        }
+
+        return null;
     }
 
     public function edit(Request $request, PlatformUser $platformUser): View
@@ -227,7 +258,7 @@ class UsersController extends Controller
             $platformUser->fresh(),
             is_string($password) && $password !== '' ? $password : null,
             $request->user(),
-            (array) $request->input('abilities', []),
+            [],
         );
 
         return redirect()->route('users.show', $platformUser)->with('status', 'User updated. Console login uses this email and password.');

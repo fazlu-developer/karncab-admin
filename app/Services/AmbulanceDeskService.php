@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AmbulanceDeskService
 {
-    public function rows(?string $bucket = null, ?string $search = null): array
+    public function rows(?string $bucket = null, ?string $search = null)
     {
         if (! Schema::connection('platform')->hasTable('bookings')) {
             return [];
         }
-        $q = $this->db()->table('bookings')->where('product', 'AMBULANCE')->orderByDesc('id')->limit(80);
+        $q = $this->db()->table('bookings')->where('product', 'AMBULANCE')->orderByDesc('id');
         $statuses = match ($bucket) {
             'waiting' => ['REQUESTED', 'PENDING', 'CONFIRMED'],
             'assigned' => ['DRIVER_ACCEPTED', 'ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'OTP_VERIFIED', 'TRIP_STARTED', 'STARTED'],
@@ -36,7 +36,7 @@ class AmbulanceDeskService
         }
         $drivers = $this->driverNames();
 
-        return $q->get()->map(function ($row) use ($drivers) {
+        return $q->paginate(20)->withQueryString()->through(function ($row) use ($drivers) {
             return [
                 'id' => (int) $row->id,
                 'publicRef' => $row->public_ref,
@@ -49,7 +49,7 @@ class AmbulanceDeskService
                 'driverName' => $drivers[(int) ($row->driver_id ?? 0)] ?? null,
                 'canAssign' => in_array(strtoupper((string) $row->status), ['REQUESTED', 'PENDING', 'CONFIRMED'], true) && empty($row->driver_id),
             ];
-        })->all();
+        });
     }
 
     /**

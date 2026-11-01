@@ -63,23 +63,35 @@
         </section>
     @endcan
     <section class="card">
-        <h2>Recent bookings</h2>
-        <table class="data">
-            <thead><tr><th>ID</th><th>Ref</th><th>Status</th><th>Product</th><th>Pickup</th><th>Drop</th></tr></thead>
-            <tbody>
-            @forelse ($rows as $row)
-                <tr>
-                    <td><a href="{{ route('ops.bookings.show', $row->id) }}">{{ $row->id }}</a></td>
-                    <td>{{ $row->public_ref }}</td>
-                    <td>{{ $row->status }}</td>
-                    <td>{{ $row->product }} / {{ $row->category ?? '' }}</td>
-                    <td>{{ $row->pickup_text }}</td>
-                    <td>{{ $row->drop_text }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="6" class="muted">No bookings yet.</td></tr>
-            @endforelse
-            </tbody>
-        </table>
+        <h2>Bookings</h2>
+        <form method="GET" class="filters" style="margin-bottom:12px">
+            <div>
+                <label>Search</label>
+                <input name="q" value="{{ request('q') }}" placeholder="Booking ID, ref, status, or place">
+            </div>
+            <div style="align-self:end"><button class="btn" type="submit">Search</button></div>
+        </form>
+        <div class="table-wrap">
+            <table class="data">
+                <thead><tr><th>ID</th><th>Ref</th><th>Status</th><th>Product</th><th>Pickup</th><th>Drop</th></tr></thead>
+                <tbody>
+                @forelse ($rows as $row)
+                    <tr>
+                        <td><a href="{{ route('ops.bookings.show', $row->id) }}">{{ $row->id }}</a></td>
+                        <td>{{ $row->public_ref }}</td>
+                        <td>{{ $row->status }}</td>
+                        <td>{{ $row->product }} / {{ $row->category ?? '' }}</td>
+                        <td class="cell-wrap">{{ $row->pickup_text }}</td>
+                        <td class="cell-wrap">{{ $row->drop_text }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6" class="muted">No bookings yet.</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if (is_object($rows) && method_exists($rows, 'links'))
+            <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
+        @endif
     </section>
 @endsection
