@@ -75,6 +75,11 @@
                     <button class="btn" type="submit">Resume</button>
                 </form>
             @endif
+            <form method="POST" action="{{ route('ads.destroy', $campaign['id']) }}" style="display:inline" onsubmit="return confirm('Delete this banner and its picture?')">
+                @csrf
+                @method('DELETE')
+                <button class="btn danger" type="submit">Delete banner</button>
+            </form>
         </section>
     @endif
 @endsection

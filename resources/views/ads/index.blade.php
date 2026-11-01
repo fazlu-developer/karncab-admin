@@ -22,18 +22,25 @@
     @if ($homeLive !== [])
         <section class="card">
             <h2>On the customer home now</h2>
-            <p class="muted">These are the latest 3 published banners. The app rotates them. Pause one to take it off the home.</p>
+            <p class="muted">These are the latest 3 published banners. The app rotates them. Pause hides one. Delete removes it and its picture.</p>
             <div style="display:flex;gap:16px;flex-wrap:wrap">
                 @foreach ($homeLive as $index => $row)
                     <div>
                         <img src="{{ str_starts_with($row['bannerUrl'], 'http') ? $row['bannerUrl'] : url($row['bannerUrl']) }}" alt="" style="width:220px;height:110px;object-fit:cover;border-radius:12px">
                         <p class="muted" style="margin:6px 0">{{ $index + 1 }}. {{ $row['campaign'] }}</p>
                         @if ($canReview)
-                            <form method="POST" action="{{ route('ads.pause', $row['id']) }}">
+                            <form method="POST" action="{{ route('ads.pause', $row['id']) }}" style="display:inline">
                                 @csrf
                                 <button class="btn ghost" type="submit">Pause</button>
                             </form>
                         @endif
+                        @can('advertising.edit')
+                            <form method="POST" action="{{ route('ads.destroy', $row['id']) }}" style="display:inline" onsubmit="return confirm('Delete this banner? It leaves the customer home.')">
+                                @csrf
+                                @method('DELETE')
+                                <button class="btn danger" type="submit">Delete</button>
+                            </form>
+                        @endcan
                     </div>
                 @endforeach
             </div>
@@ -130,7 +137,16 @@
                                 <td>{{ $row['impressions'] }}</td>
                                 <td>{{ $row['clicks'] }}</td>
                                 <td>₹{{ number_format($row['revenueRupees'], 2) }}</td>
-                                <td><a class="icon-btn" href="{{ route('ads.show', $row['id']) }}"><i data-lucide="eye"></i></a></td>
+                                <td>
+                                    <a class="icon-btn" href="{{ route('ads.show', $row['id']) }}"><i data-lucide="eye"></i></a>
+                                    @can('advertising.edit')
+                                        <form method="POST" action="{{ route('ads.destroy', $row['id']) }}" style="display:inline" onsubmit="return confirm('Delete this banner?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button class="btn danger" type="submit">Delete</button>
+                                        </form>
+                                    @endcan
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

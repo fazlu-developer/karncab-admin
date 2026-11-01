@@ -140,6 +140,13 @@ class AdvertisingController extends Controller
         return back()->with('status', 'Campaign resumed.');
     }
 
+    public function destroy(Request $request, int $ad): RedirectResponse
+    {
+        $this->ads->destroy($request->user(), $ad);
+
+        return redirect()->route('ads.index')->with('status', 'Banner deleted. It is off the customer home.');
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -130,16 +130,13 @@ class User extends Authenticatable
         if (in_array($ability, $granted, true)) {
             return true;
         }
+        // A box on the role screen is the whole permission. Older names such as users.write
+        // still follow the matching boxes. A different box must not turn this one back on.
+        if (in_array($ability, PlatformPermission::builtInCatalog(), true)) {
+            return false;
+        }
         foreach (PlatformPermission::expand($ability) as $canonical) {
             if (in_array($canonical, $granted, true)) {
-                return true;
-            }
-        }
-        foreach ($granted as $item) {
-            if ($ability === 'platform.admin') {
-                break;
-            }
-            if (in_array($ability, PlatformPermission::expand($item), true)) {
                 return true;
             }
         }

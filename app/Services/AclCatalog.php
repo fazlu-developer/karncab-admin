@@ -318,41 +318,6 @@ final class AclCatalog
                 $added = true;
             }
         }
-        $ensure = [
-            OperatorRole::MANAGER => ['users.view', 'state_head.view', 'tracking.view'],
-            OperatorRole::STATE_HEAD => [
-                'users.view', 'state_head.view', 'fleet.view', 'fleet.manage', 'fleet_owner.view',
-                'payments.view', 'wallet.view', 'tracking.view', 'bookings.view', 'bookings.manage',
-                'drivers.view', 'drivers.create', 'drivers.edit', 'vehicles.view', 'vehicles.edit',
-                'corporate.view', 'travel.view', 'parcels.view', 'parcels.manage',
-                'safety.view', 'complaints.manage', 'kyc.view',
-            ],
-            OperatorRole::DISTRICT_HEAD => [
-                'users.view', 'vehicles.view', 'bookings.view', 'bookings.manage', 'fleet.view', 'fleet.manage', 'fleet_owner.view',
-                'drivers.create', 'payments.view', 'commission.view', 'wallet.view', 'tracking.view',
-                'corporate.view', 'travel.view', 'parcels.view', 'parcels.manage', 'safety.view',
-            ],
-        ];
-        foreach ($ensure as $role => $abilities) {
-            if (! DB::table('acl_role_permissions')->where('role', $role)->exists()) {
-                continue;
-            }
-            foreach ($abilities as $ability) {
-                if (! DB::table('acl_abilities')->where('ability', $ability)->exists()) {
-                    continue;
-                }
-                if (DB::table('acl_role_permissions')->where('role', $role)->where('ability', $ability)->exists()) {
-                    continue;
-                }
-                DB::table('acl_role_permissions')->insert([
-                    'role' => $role,
-                    'ability' => $ability,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ]);
-                $added = true;
-            }
-        }
         if ($added) {
             self::flush();
         }

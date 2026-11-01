@@ -320,6 +320,24 @@ class AdvertisingService
         return $this->one($operator, $id);
     }
 
+    public function destroy(User $operator, int $id): void
+    {
+        abort_unless($operator->can('advertising.edit'), 403);
+        $row = $this->db()->table('ad_campaigns')->where('id', $id)->first();
+        abort_if($row === null, 404, 'Campaign not found');
+        if (! $operator->isPrivilegedOperator() && ! $this->owns($operator, $row)) {
+            abort(403, 'Cannot delete this campaign');
+        }
+        if (Schema::hasTable('ad_events') && Schema::hasColumn('ad_events', 'campaign_id')) {
+            $this->db()->table('ad_events')->where('campaign_id', $id)->delete();
+        }
+        StoredUpload::forget($row->banner_key ?? null);
+        if (isset($row->image_url)) {
+            StoredUpload::forget($row->image_url);
+        }
+        $this->db()->table('ad_campaigns')->where('id', $id)->delete();
+    }
+
     /**
      * @param  array<string, mixed>  $query
      * @return array<string, mixed>

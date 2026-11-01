@@ -193,6 +193,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::post('/ads/{ad}/review', [AdvertisingController::class, 'review'])->name('ads.review');
     Route::post('/ads/{ad}/pause', [AdvertisingController::class, 'pause'])->name('ads.pause');
     Route::post('/ads/{ad}/resume', [AdvertisingController::class, 'resume'])->name('ads.resume');
+    Route::delete('/ads/{ad}', [AdvertisingController::class, 'destroy'])->name('ads.destroy')->whereNumber('ad');
     Route::patch('/ads/{ad}', [AdvertisingController::class, 'update'])->name('ads.update');
     Route::get('/ads/{ad}', [AdvertisingController::class, 'show'])->name('ads.show');
     Route::get('/payments', [PaymentsController::class, 'index'])->name('payments.index');
