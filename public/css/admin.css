@@ -334,7 +334,8 @@ select.kc-select-native {
   white-space: nowrap;
 }
 .kc-select-option:hover,
-.kc-select-option.is-selected {
+.kc-select-option.is-selected,
+.kc-select-option.is-active {
   background: #3875d7;
   color: #fff;
 }

@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Ops;
 
 use App\Http\Controllers\Controller;
 use App\Platform\OpsNav;
+use App\Services\OrganizationAudit;
 use App\Services\PlatformOpsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Throwable;
 
@@ -239,6 +242,44 @@ class ModuleController extends Controller
             'error' => $error,
             'drivers' => $drivers,
         ]);
+    }
+
+    public function destroyBooking(Request $request, string $id): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage'), 403);
+        $db = DB::connection('platform');
+        $schema = Schema::connection('platform');
+        $row = $schema->hasTable('bookings') ? $db->table('bookings')->where('id', $id)->first() : null;
+        abort_unless($row, 404);
+        OrganizationAudit::record(
+            $request->user(),
+            'booking.delete',
+            'booking',
+            $id,
+            json_decode(json_encode($row), true),
+            ['deleted' => true],
+            'bookings',
+        );
+        try {
+            $db->transaction(function () use ($db, $schema, $id) {
+                foreach (['booking_driver_requests', 'booking_stops', 'booking_events', 'booking_locations', 'ride_ratings', 'trip_ratings', 'ratings'] as $table) {
+                    if ($schema->hasTable($table) && $schema->hasColumn($table, 'booking_id')) {
+                        $db->table($table)->where('booking_id', $id)->delete();
+                    }
+                }
+                if ($schema->hasTable('parcel_shipments') && $schema->hasColumn('parcel_shipments', 'booking_id')) {
+                    $db->table('parcel_shipments')->where('booking_id', $id)->delete();
+                }
+                if ($schema->hasTable('wallet_ledger') && $schema->hasColumn('wallet_ledger', 'booking_id')) {
+                    $db->table('wallet_ledger')->where('booking_id', $id)->update(['booking_id' => null]);
+                }
+                $db->table('bookings')->where('id', $id)->delete();
+            });
+        } catch (Throwable $exception) {
+            return back()->with('error', 'This booking could not be deleted. '.$exception->getMessage());
+        }
+
+        return redirect()->route('ops.module', 'bookings')->with('status', 'Booking deleted from the customer app and the driver app. The audit log keeps the record.');
     }
 
     public function announce(Request $request): RedirectResponse

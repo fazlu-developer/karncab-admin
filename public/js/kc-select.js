@@ -48,6 +48,35 @@
       list.appendChild(row);
     }
 
+    var activeIndex = -1;
+
+    function optionRows() {
+      return Array.prototype.filter.call(list.children, function (node) {
+        return node.classList.contains('kc-select-option');
+      });
+    }
+
+    function markActive(index) {
+      var rows = optionRows();
+      if (rows.length === 0) {
+        activeIndex = -1;
+        return;
+      }
+      if (index < 0) index = 0;
+      if (index >= rows.length) index = rows.length - 1;
+      activeIndex = index;
+      rows.forEach(function (row, i) {
+        row.classList.toggle('is-active', i === activeIndex);
+      });
+      rows[activeIndex].scrollIntoView({ block: 'nearest' });
+    }
+
+    function chooseActive() {
+      var rows = optionRows();
+      var row = rows[activeIndex] || rows[0];
+      if (row) row.click();
+    }
+
     function render() {
       var query = search.value.trim().toLowerCase();
       list.innerHTML = '';
@@ -68,30 +97,70 @@
         if (query !== '' && node.textContent.toLowerCase().indexOf(query) < 0) return;
         addOption(node);
       });
+      var rows = optionRows();
+      var selectedAt = 0;
+      rows.forEach(function (row, index) {
+        if (row.classList.contains('is-selected')) selectedAt = index;
+      });
+      markActive(rows.length ? selectedAt : -1);
     }
 
     function close() {
       panel.hidden = true;
       search.value = '';
+      activeIndex = -1;
     }
 
-    button.addEventListener('click', function () {
-      var open = panel.hidden;
+    function openPanel() {
       document.querySelectorAll('.kc-select-panel').forEach(function (other) {
         if (other !== panel) other.hidden = true;
       });
-      if (open) {
-        panel.hidden = false;
-        render();
-        search.focus();
+      panel.hidden = false;
+      render();
+      search.focus();
+    }
+
+    function onKeys(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        button.focus();
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (panel.hidden) {
+          openPanel();
+          return;
+        }
+        markActive(activeIndex + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (panel.hidden) {
+          openPanel();
+          return;
+        }
+        markActive(activeIndex - 1);
+        return;
+      }
+      if (event.key === 'Enter' && !panel.hidden) {
+        event.preventDefault();
+        chooseActive();
+      }
+    }
+
+    button.addEventListener('click', function () {
+      if (panel.hidden) {
+        openPanel();
       } else {
         close();
       }
     });
     search.addEventListener('input', render);
-    search.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape') close();
-    });
+    search.addEventListener('keydown', onKeys);
+    button.addEventListener('keydown', onKeys);
     document.addEventListener('click', function (event) {
       if (!wrap.contains(event.target)) close();
     });

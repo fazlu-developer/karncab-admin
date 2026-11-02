@@ -8,7 +8,7 @@
     <div class="hero">
         <div>
             <h1>{{ $wallet['ownerType'] }} #{{ $wallet['walletId'] }}</h1>
-            <p class="muted">User {{ $wallet['userId'] }} · {{ $wallet['ownerName'] }} · ₹{{ number_format($wallet['balanceRupees'], 2) }}</p>
+            <p class="muted">{{ $wallet['ownerName'] ?: 'User' }}@if (!empty($wallet['ownerPhone'])) · {{ $wallet['ownerPhone'] }}@endif · #{{ $wallet['userId'] }} · ₹{{ number_format($wallet['balanceRupees'], 2) }}</p>
         </div>
     </div>
     <section class="card">

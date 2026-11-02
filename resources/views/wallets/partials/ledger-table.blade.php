@@ -8,7 +8,7 @@
                     <th>Transaction ID</th>
                     <th>Wallet ID</th>
                     <th>Booking ID</th>
-                    <th>User ID</th>
+                    <th>Name / mobile</th>
                     <th>Type</th>
                     <th>Credit/Debit</th>
                     <th>Amount</th>
@@ -26,7 +26,7 @@
                         <td>{{ $row['transactionId'] }}</td>
                         <td>{{ $row['walletId'] }}</td>
                         <td>{{ $row['bookingId'] ?? '—' }}</td>
-                        <td>{{ $row['userId'] ?? '—' }}</td>
+                        <td>{{ $row['ownerName'] ?? '—' }}@if (!empty($row['ownerPhone']))<br><span class="muted">{{ $row['ownerPhone'] }}</span>@endif @if (!empty($row['userId']))<br><span class="muted">#{{ $row['userId'] }}</span>@endif</td>
                         <td>{{ $row['transactionType'] }}</td>
                         <td>{{ $row['direction'] }}</td>
                         <td>₹{{ number_format($row['amountRupees'], 2) }}</td>

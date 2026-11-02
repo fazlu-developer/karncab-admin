@@ -23,7 +23,7 @@ class RevenueBoardService
         $completed = $db->table('bookings as b')->where('b.status', 'COMPLETED');
         TerritoryScope::applyBookings($completed, $actor, 'b');
         if ($stateId && TerritoryScope::isUnrestricted($actor)) {
-            TerritoryScope::restrictBookingsToStateId($completed, $stateId, 'b');
+            $this->limitToStateDistricts($completed, $stateId);
         } elseif ($actor->isStateHead() && $actor->state_id) {
             $stateId = (int) $actor->state_id;
         } elseif ($actor->isDistrictHead() && $actor->state_id) {
@@ -91,6 +91,12 @@ class RevenueBoardService
             'fareRupees' => array_sum(array_column($states, 'fareRupees')),
             'commissionRupees' => array_sum(array_column($states, 'commissionRupees')),
         ];
+    }
+
+    private function limitToStateDistricts($query, int $stateId): void
+    {
+        $ids = TerritoryScope::districtIdsForState($stateId);
+        $query->whereIn('b.district_id', $ids === [] ? [0] : $ids);
     }
 
     /**

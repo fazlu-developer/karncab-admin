@@ -92,7 +92,7 @@ class WalletLedgerService
         $this->ensureSchema();
         $q = $this->scopedWallets($operator)
             ->leftJoin('users', 'users.id', '=', 'wallets.owner_user_id')
-            ->select('wallets.*', 'users.name as owner_name', 'users.email as owner_email', 'users.role as owner_role');
+            ->select('wallets.*', 'users.name as owner_name', 'users.phone as owner_phone', 'users.email as owner_email', 'users.role as owner_role');
         $type = $query['owner_type'] ?? $query['ownerType'] ?? null;
         if (is_string($type) && $type !== '') {
             $q->where('wallets.owner_type', $type);
@@ -169,7 +169,7 @@ class WalletLedgerService
         abort_unless($operator->can('wallet.view'), 403);
         $row = $this->scopedWallets($operator)
             ->leftJoin('users', 'users.id', '=', 'wallets.owner_user_id')
-            ->select('wallets.*', 'users.name as owner_name', 'users.email as owner_email', 'users.role as owner_role')
+            ->select('wallets.*', 'users.name as owner_name', 'users.phone as owner_phone', 'users.email as owner_email', 'users.role as owner_role')
             ->where('wallets.id', $id)
             ->first();
         abort_unless($row, 404, 'Wallet not found');
@@ -887,6 +887,7 @@ class WalletLedgerService
                 'wallets.owner_type',
                 'wallets.owner_user_id as wallet_owner_user_id',
                 'users.name as owner_name',
+                'users.phone as owner_phone',
             );
         if ($operator && ! TerritoryScope::isUnrestricted($operator)) {
             $ids = $this->scopedWallets($operator)->pluck('id');
@@ -912,6 +913,7 @@ class WalletLedgerService
             'ownerUserId' => $row->owner_user_id !== null ? (string) $row->owner_user_id : null,
             'userId' => $row->owner_user_id !== null ? (string) $row->owner_user_id : null,
             'ownerName' => $row->owner_name ?? null,
+            'ownerPhone' => $row->owner_phone ?? null,
             'ownerEmail' => $row->owner_email ?? null,
             'balancePaise' => (int) $row->balance_paise,
             'balanceRupees' => ((int) $row->balance_paise) / 100,
@@ -1257,6 +1259,8 @@ class WalletLedgerService
             'walletId' => $row->wallet_id !== null ? (string) $row->wallet_id : null,
             'bookingId' => isset($row->booking_id) && $row->booking_id ? (string) $row->booking_id : null,
             'userId' => $userId !== null ? (string) $userId : null,
+            'ownerName' => $row->owner_name ?? null,
+            'ownerPhone' => $row->owner_phone ?? null,
             'account' => $row->account ?? $row->owner_type ?? null,
             'transactionType' => $row->kind ?? 'trip',
             'kind' => $row->kind ?? 'trip',

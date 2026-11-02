@@ -77,11 +77,38 @@
         @endif
         @if ($kyc !== [])
             <h3>KYC</h3>
-            <ul>
+            <div class="kyc-list">
                 @foreach ($kyc as $doc)
-                    <li>{{ $doc->doc_type }} · {{ $doc->status }} · {{ $doc->original_name ?? $doc->path }}</li>
+                    @php
+                        $fileRoute = str_contains(strtoupper((string) $user->role), 'STATE')
+                            ? 'organization.state-kyc.file'
+                            : 'organization.district-kyc.file';
+                        $fileUrl = route($fileRoute, $doc->id);
+                        $ext = strtolower(pathinfo((string) ($doc->path ?? $doc->original_name ?? ''), PATHINFO_EXTENSION));
+                        $image = in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                        $pdf = $ext === 'pdf';
+                    @endphp
+                    <article class="kyc-row">
+                        <a class="kyc-preview" href="{{ $fileUrl }}" target="_blank" rel="noopener">
+                            @if ($image)
+                                <img src="{{ $fileUrl }}" alt="{{ $doc->doc_type }}" width="112" height="80" loading="lazy">
+                            @elseif ($pdf)
+                                <iframe src="{{ $fileUrl }}" title="{{ $doc->doc_type }}"></iframe>
+                            @else
+                                <span>File</span>
+                            @endif
+                        </a>
+                        <div class="kyc-meta">
+                            <strong>{{ $doc->doc_type }}</strong>
+                            <div class="muted">{{ $doc->original_name ?: ($doc->path ?: 'Document') }}</div>
+                            <span class="pill muted">{{ $doc->status }}</span>
+                        </div>
+                        <div class="kyc-actions">
+                            <a class="btn ghost" href="{{ $fileUrl }}" target="_blank" rel="noopener">Open</a>
+                        </div>
+                    </article>
                 @endforeach
-            </ul>
+            </div>
         @endif
         <p class="muted">Created {{ \App\Support\IndiaTime::format($user->created_at) }}</p>
     </section>

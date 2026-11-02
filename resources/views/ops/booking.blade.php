@@ -10,6 +10,15 @@
         <p class="error">{{ $error }}</p>
     @endif
     <p>{{ str_replace('_', ' ', (string) ($booking['product'] ?? '')) }} · {{ str_replace('_', ' ', (string) ($booking['status'] ?? '')) }}</p>
+    @can('bookings.manage')
+        @if (!empty($booking['id']))
+            <form method="POST" action="{{ route('ops.bookings.destroy', $booking['id']) }}" onsubmit="return confirm('Delete this booking permanently? It will disappear from the customer app and the driver app. The audit log keeps a copy.');">
+                @csrf
+                @method('DELETE')
+                <button class="btn" type="submit" style="background:#7f1d1d">Delete booking</button>
+            </form>
+        @endif
+    @endcan
     @if (empty($booking['driverId']) && in_array($booking['status'] ?? '', ['CONFIRMED', 'PENDING', 'SEARCHING', 'REQUESTED', 'DRIVER_SEARCHING'], true))
         @can('bookings.manage')
             <section class="card">

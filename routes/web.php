@@ -316,5 +316,6 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/ops/{module}/export', [ModuleController::class, 'export'])->name('ops.export');
     Route::get('/ops/{module}', [ModuleController::class, 'show'])->name('ops.module');
     Route::get('/bookings/{id}', [ModuleController::class, 'showBooking'])->name('ops.bookings.show');
+    Route::delete('/bookings/{id}', [ModuleController::class, 'destroyBooking'])->name('ops.bookings.destroy');
     Route::post('/notifications/announce', [ModuleController::class, 'announce'])->name('ops.notify');
 });

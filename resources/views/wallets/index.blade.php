@@ -161,7 +161,7 @@
                         <tr>
                             <th>Wallet ID</th>
                             <th>Account</th>
-                            <th>User ID</th>
+                            <th>Name / mobile</th>
                             <th>Owner</th>
                             <th>Balance</th>
                             <th></th>
@@ -172,7 +172,7 @@
                             <tr>
                                 <td>{{ $row['walletId'] }}</td>
                                 <td>{{ $row['ownerType'] }}</td>
-                                <td>{{ $row['userId'] }}</td>
+                                <td>{{ $row['ownerName'] ?: '—' }}@if (!empty($row['ownerPhone']))<br><span class="muted">{{ $row['ownerPhone'] }}</span>@endif @if (!empty($row['userId']))<br><span class="muted">#{{ $row['userId'] }}</span>@endif</td>
                                 <td>{{ $row['ownerName'] }}</td>
                                 <td>₹{{ number_format($row['balanceRupees'], 2) }}@if (($row['joiningCreditRupees'] ?? 0) > 0) · credit ₹{{ number_format($row['joiningCreditRupees'], 2) }}@endif @if (($row['frozenRupees'] ?? 0) > 0) · frozen ₹{{ number_format($row['frozenRupees'], 2) }}@endif</td>
                                 <td><a class="icon-btn" href="{{ route('wallets.show', $row['id']) }}"><i data-lucide="eye"></i></a></td>
