@@ -255,8 +255,30 @@
 
     <section class="card">
         <h2>Driver referrals</h2>
-        <p class="muted">Pending until KYC and the first completed ride. Eligible is ready to credit. Credited means the ₹ amount is in the referring driver’s wallet. Each referred driver is paid once.</p>
-        <table>
+        <p class="muted">Pending until KYC and the first completed ride. Eligible is ready to credit. Credited means the ₹ amount is in the referring driver’s wallet. Each referred driver is paid once. {{ $driverReferrals->total() }} matching.</p>
+        <form method="GET" class="filters" style="margin-bottom:12px">
+            @foreach (request()->except(['ref_q', 'ref_status', 'ref_page']) as $key => $value)
+                @if (is_string($value) || is_numeric($value))
+                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                @endif
+            @endforeach
+            <div>
+                <label>Search</label>
+                <input name="ref_q" value="{{ request('ref_q') }}" placeholder="Code, driver name, or ride ID">
+            </div>
+            <div>
+                <label>Credit status</label>
+                <select name="ref_status">
+                    <option value="">All</option>
+                    @foreach (['pending' => 'Pending', 'eligible' => 'Eligible', 'paid' => 'Credited', 'credited' => 'Credited', 'reversed' => 'Reversed'] as $value => $label)
+                        <option value="{{ $value }}" @selected(request('ref_status') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div style="align-self:end"><button class="btn" type="submit">Filter</button></div>
+        </form>
+        <div class="table-wrap">
+        <table class="data">
             <thead>
                 <tr>
                     <th>Referral code</th>
@@ -278,16 +300,49 @@
                         <td>{{ in_array($row->status, ['paid', 'credited'], true) ? 'Credited' : ucfirst((string) $row->status) }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="muted">No driver referrals yet.</td></tr>
+                    <tr><td colspan="6" class="muted">No driver referrals match this filter.</td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
+        <div style="margin-top:14px">{{ $driverReferrals->links('pagination.admin') }}</div>
     </section>
 
     <section class="card">
         <h2>Incentive ledger</h2>
-        <p class="muted">Paid ₹{{ number_format(($incentiveTotals['paidPaise'] ?? 0) / 100, 0) }} · {{ $incentiveTotals['count'] ?? 0 }} rows · pending {{ $incentiveTotals['pending'] ?? 0 }} · reversed {{ $incentiveTotals['reversed'] ?? 0 }}</p>
-        <table>
+        <p class="muted">Paid ₹{{ number_format(($incentiveTotals['paidPaise'] ?? 0) / 100, 0) }} · {{ $incentiveTotals['count'] ?? 0 }} rows · pending {{ $incentiveTotals['pending'] ?? 0 }} · reversed {{ $incentiveTotals['reversed'] ?? 0 }} · showing {{ $incentives->total() }} matching</p>
+        <form method="GET" class="filters" style="margin-bottom:12px">
+            @foreach (request()->except(['inc_q', 'inc_kind', 'inc_status', 'inc_page']) as $key => $value)
+                @if (is_string($value) || is_numeric($value))
+                    <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                @endif
+            @endforeach
+            <div>
+                <label>Search</label>
+                <input name="inc_q" value="{{ request('inc_q') }}" placeholder="Name, mobile, user ID, or kind">
+            </div>
+            <div>
+                <label>Kind</label>
+                <select name="inc_kind">
+                    <option value="">All</option>
+                    @foreach ($incentiveKinds as $kind)
+                        <option value="{{ $kind }}" @selected(request('inc_kind') === $kind)>{{ $kind }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label>Status</label>
+                <select name="inc_status">
+                    <option value="">All</option>
+                    @foreach (['paid', 'pending', 'eligible', 'credited', 'reversed'] as $status)
+                        <option value="{{ $status }}" @selected(request('inc_status') === $status)>{{ ucfirst($status) }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div style="align-self:end"><button class="btn" type="submit">Filter</button></div>
+        </form>
+        <div class="table-wrap">
+        <table class="data">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -302,16 +357,21 @@
                 @forelse ($incentives as $row)
                     <tr>
                         <td>{{ $row->id }}</td>
-                        <td>{{ $row->user_id }}</td>
+                        <td>
+                            <div>{{ $row->user_name ?: '—' }}</div>
+                            <div class="muted">{{ $row->user_phone ?: '—' }} · ID {{ $row->user_id }}</div>
+                        </td>
                         <td>{{ $row->kind }}</td>
                         <td>{{ number_format(((int) $row->amount_paise) / 100, 0) }}</td>
                         <td>{{ $row->status }}</td>
                         <td>{{ \App\Support\IndiaTime::format($row->created_at) }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="muted">No incentives posted yet.</td></tr>
+                    <tr><td colspan="6" class="muted">No incentives match this filter.</td></tr>
                 @endforelse
             </tbody>
         </table>
+        </div>
+        <div style="margin-top:14px">{{ $incentives->links('pagination.admin') }}</div>
     </section>
 @endsection

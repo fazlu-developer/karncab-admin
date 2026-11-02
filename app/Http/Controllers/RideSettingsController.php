@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\TerritoryBonusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -51,13 +52,14 @@ class RideSettingsController extends Controller
             'territoryBonuses' => $this->bonuses->list(),
             'states' => $db->table('states')->orderBy('name')->get(),
             'districts' => $db->table('districts')->orderBy('name')->get(),
-            'incentives' => $db->getSchemaBuilder()->hasTable('incentives')
-                ? $db->table('incentives')->orderByDesc('id')->limit(80)->get()
+            'incentives' => $this->incentiveLedger($db, $request),
+            'incentiveKinds' => $db->getSchemaBuilder()->hasTable('incentives')
+                ? $db->table('incentives')->distinct()->orderBy('kind')->pluck('kind')
                 : collect(),
             'advancePayment' => $this->advancePayment($db),
             'advancePercents' => $this->advancePercents($db),
             'servicePayments' => json_decode((string) ($db->table('system_settings')->where('key', 'service_payment_configs')->value('value') ?? '{}'), true) ?: [],
-            'driverReferrals' => $this->driverReferrals($db),
+            'driverReferrals' => $this->driverReferrals($db, $request),
             'incentiveTotals' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? [
                     'paidPaise' => (int) $db->table('incentives')->where('status', 'paid')->sum('amount_paise'),
@@ -130,29 +132,102 @@ class RideSettingsController extends Controller
 
     /**
      * @param  \Illuminate\Database\Connection  $db
-     * @return \Illuminate\Support\Collection<int, object>
      */
-    private function driverReferrals($db)
+    private function driverReferrals($db, Request $request): LengthAwarePaginator
     {
         if (! $db->getSchemaBuilder()->hasTable('incentives')) {
-            return collect();
+            return $this->emptyPage($request, 'ref_page');
         }
-        $code = $db->getSchemaBuilder()->hasColumn('users', 'referral_code') ? 'referrer.referral_code' : DB::raw('null as referral_code');
-
-        return $db->table('incentives as i')
+        $hasCode = $db->getSchemaBuilder()->hasColumn('users', 'referral_code');
+        $code = $hasCode ? 'referrer.referral_code' : DB::raw('null as referral_code');
+        $q = $db->table('incentives as i')
             ->leftJoin('users as referrer', 'referrer.id', '=', 'i.user_id')
             ->leftJoin('users as referred', 'referred.id', '=', 'i.related_user_id')
-            ->where('i.kind', 'driver_referral')
-            ->orderByDesc('i.id')
-            ->limit(100)
-            ->get([
+            ->where('i.kind', 'driver_referral');
+        $search = trim((string) $request->query('ref_q', ''));
+        if ($search !== '') {
+            $like = '%'.$search.'%';
+            $q->where(function ($inner) use ($like, $search, $hasCode) {
+                $inner->where('referrer.name', 'like', $like)
+                    ->orWhere('referred.name', 'like', $like);
+                if ($hasCode) {
+                    $inner->orWhere('referrer.referral_code', 'like', $like);
+                }
+                if (ctype_digit($search)) {
+                    $inner->orWhere('i.booking_id', (int) $search)
+                        ->orWhere('i.user_id', (int) $search);
+                }
+            });
+        }
+        $status = trim((string) $request->query('ref_status', ''));
+        if ($status !== '') {
+            $q->where('i.status', $status);
+        }
+
+        return $q->orderByDesc('i.id')
+            ->paginate(15, [
+                'i.id',
                 'i.amount_paise',
                 'i.status',
                 'i.booking_id',
                 'referrer.name as referrer_name',
                 $code,
                 'referred.name as referred_name',
-            ]);
+            ], 'ref_page')
+            ->withQueryString();
+    }
+
+    /**
+     * @param  \Illuminate\Database\Connection  $db
+     */
+    private function incentiveLedger($db, Request $request): LengthAwarePaginator
+    {
+        if (! $db->getSchemaBuilder()->hasTable('incentives')) {
+            return $this->emptyPage($request, 'inc_page');
+        }
+        $q = $db->table('incentives as i')
+            ->leftJoin('users as u', 'u.id', '=', 'i.user_id');
+        $search = trim((string) $request->query('inc_q', ''));
+        if ($search !== '') {
+            $like = '%'.$search.'%';
+            $q->where(function ($inner) use ($like, $search) {
+                $inner->where('i.kind', 'like', $like)
+                    ->orWhere('i.note', 'like', $like)
+                    ->orWhere('u.name', 'like', $like)
+                    ->orWhere('u.phone', 'like', $like);
+                if (ctype_digit($search)) {
+                    $inner->orWhere('i.id', (int) $search)->orWhere('i.user_id', (int) $search);
+                }
+            });
+        }
+        $kind = trim((string) $request->query('inc_kind', ''));
+        if ($kind !== '') {
+            $q->where('i.kind', $kind);
+        }
+        $status = trim((string) $request->query('inc_status', ''));
+        if ($status !== '') {
+            $q->where('i.status', $status);
+        }
+
+        return $q->orderByDesc('i.id')->paginate(15, [
+            'i.id',
+            'i.user_id',
+            'u.name as user_name',
+            'u.phone as user_phone',
+            'i.kind',
+            'i.amount_paise',
+            'i.status',
+            'i.created_at',
+        ], 'inc_page')->withQueryString();
+    }
+
+    private function emptyPage(Request $request, string $pageName): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator([], 0, 15, 1, [
+            'path' => $request->url(),
+            'pageName' => $pageName,
+            'query' => $request->query(),
+        ]);
     }
 
     public function update(Request $request): RedirectResponse
