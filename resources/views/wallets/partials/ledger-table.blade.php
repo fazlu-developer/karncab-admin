@@ -1,4 +1,4 @@
-@if ($rows === [])
+@if (count($rows) === 0)
     <p class="muted">No ledger rows.</p>
 @else
     <div class="table-wrap">
@@ -41,4 +41,7 @@
             </tbody>
         </table>
     </div>
+    @if (is_object($rows) && method_exists($rows, 'links'))
+        <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
+    @endif
 @endif

@@ -133,41 +133,48 @@
             return 'CAR';
         }
 
-        function iconSvg(family, selected) {
-            const ring = selected ? '#b45309' : 'transparent';
+        function iconSvg(family, selected, heading) {
+            const ring = selected ? '#f5c518' : 'transparent';
+            const turn = Number.isFinite(Number(heading)) ? Number(heading) : 0;
+            let body;
             if (family === 'BIKE') {
-                return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 64 64">
-                    <circle cx="32" cy="32" r="30" fill="#fff7ed" stroke="${ring}" stroke-width="4"/>
-                    <circle cx="18" cy="46" r="8" fill="#111" stroke="#f59e0b" stroke-width="3"/>
-                    <circle cx="48" cy="46" r="8" fill="#111" stroke="#f59e0b" stroke-width="3"/>
-                    <path d="M18 46 L30 26 h12 L48 46" stroke="#111" stroke-width="3" fill="none"/>
-                    <path d="M30 26 L38 14 h10" stroke="#111" stroke-width="3" fill="none"/>
-                    <circle cx="38" cy="14" r="3.5" fill="#f59e0b"/>
-                </svg>`;
+                body = `<circle cx="32" cy="14" r="6" fill="#111"/><circle cx="32" cy="14" r="2.2" fill="#d0d4da"/>
+                    <circle cx="32" cy="50" r="7" fill="#111"/><circle cx="32" cy="50" r="2.4" fill="#d0d4da"/>
+                    <rect x="28" y="16" width="8" height="30" rx="4" fill="#1a1a1a"/>
+                    <rect x="22" y="28" width="20" height="12" rx="4" fill="#111"/>`;
+            } else if (family === 'AUTO') {
+                body = `<rect x="16" y="22" width="32" height="34" rx="6" fill="#f5c518" stroke="#1a1a1a" stroke-width="1.5"/>
+                    <rect x="18" y="10" width="28" height="22" rx="7" fill="#e6a100" stroke="#1a1a1a" stroke-width="1.5"/>
+                    <rect x="22" y="14" width="20" height="10" rx="3" fill="#9fd4f0"/>
+                    <rect x="12" y="28" width="6" height="10" rx="2" fill="#111"/><rect x="46" y="28" width="6" height="10" rx="2" fill="#111"/>
+                    <rect x="12" y="44" width="6" height="10" rx="2" fill="#111"/><rect x="46" y="44" width="6" height="10" rx="2" fill="#111"/>`;
+            } else {
+                body = `<ellipse cx="32" cy="58" rx="16" ry="4" fill="rgba(0,0,0,.28)"/>
+                    <rect x="8" y="16" width="7" height="12" rx="2.5" fill="#1a1a1a"/><rect x="49" y="16" width="7" height="12" rx="2.5" fill="#1a1a1a"/>
+                    <rect x="8" y="40" width="7" height="12" rx="2.5" fill="#1a1a1a"/><rect x="49" y="40" width="7" height="12" rx="2.5" fill="#1a1a1a"/>
+                    <circle cx="11.5" cy="22" r="1.6" fill="#d8d8d8"/><circle cx="52.5" cy="22" r="1.6" fill="#d8d8d8"/>
+                    <circle cx="11.5" cy="46" r="1.6" fill="#d8d8d8"/><circle cx="52.5" cy="46" r="1.6" fill="#d8d8d8"/>
+                    <rect x="16" y="8" width="32" height="50" rx="12" fill="#f7f8fa" stroke="#1b7a32" stroke-width="1.6"/>
+                    <rect x="20" y="16" width="24" height="11" rx="3" fill="#6aa8cc"/>
+                    <rect x="20" y="29" width="24" height="12" rx="3" fill="#e7eaee"/>
+                    <rect x="20" y="43" width="24" height="7" rx="2" fill="#8ebcd4"/>
+                    <rect x="20" y="10" width="8" height="3" rx="1" fill="#fff4c2"/><rect x="36" y="10" width="8" height="3" rx="1" fill="#fff4c2"/>
+                    <rect x="20" y="52" width="8" height="3" rx="1" fill="#e10600"/><rect x="36" y="52" width="8" height="3" rx="1" fill="#e10600"/>
+                    <rect x="12" y="24" width="5" height="4" rx="1.5" fill="#dfe3e8"/><rect x="47" y="24" width="5" height="4" rx="1.5" fill="#dfe3e8"/>`;
             }
-            if (family === 'AUTO') {
-                return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 64 64">
-                    <circle cx="32" cy="32" r="30" fill="#fffbeb" stroke="${ring}" stroke-width="4"/>
-                    <path d="M14 42 h36 v-10 l-10-12 H24 L14 32 z" fill="#facc15" stroke="#111" stroke-width="2"/>
-                    <path d="M24 20 h16 v10 H24 z" fill="#eab308"/>
-                    <circle cx="22" cy="46" r="6" fill="#111"/><circle cx="44" cy="46" r="6" fill="#111"/>
-                </svg>`;
-            }
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="30" fill="#eff6ff" stroke="${ring}" stroke-width="4"/>
-                <path d="M12 38 h40 v8 H12 z" fill="#2563eb"/>
-                <path d="M18 38 l6-12 h16 l6 12" fill="#1d4ed8"/>
-                <circle cx="22" cy="48" r="5" fill="#111"/><circle cx="42" cy="48" r="5" fill="#111"/>
+            return `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="31" fill="none" stroke="${ring}" stroke-width="3"/>
+                <g transform="rotate(${turn} 32 32)">${body}</g>
             </svg>`;
         }
 
-        function iconUrl(family, selected) {
-            return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(iconSvg(family, selected));
+        function iconUrl(family, selected, heading) {
+            return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(iconSvg(family, selected, heading));
         }
 
-        function leafletIcon(family, selected) {
+        function leafletIcon(family, selected, heading) {
             return L.icon({
-                iconUrl: iconUrl(family, selected),
+                iconUrl: iconUrl(family, selected, heading),
                 iconSize: selected ? [48, 48] : [40, 40],
                 iconAnchor: selected ? [24, 24] : [20, 20],
                 popupAnchor: [0, -18],
@@ -195,10 +202,10 @@
             map = new google.maps.Map(document.getElementById('live-map'), { center: { lat: center[0], lng: center[1] }, zoom: 8 });
         }
 
-        function googleIcon(family, selected) {
+        function googleIcon(family, selected, heading) {
             const size = selected ? 48 : 40;
             return {
-                url: iconUrl(family, selected),
+                url: iconUrl(family, selected, heading),
                 scaledSize: new google.maps.Size(size, size),
                 anchor: new google.maps.Point(size / 2, size / 2),
             };
@@ -212,7 +219,7 @@
             const family = familyOf(row);
             if (useGoogle) {
                 if (!markers[id]) {
-                    markers[id] = new google.maps.Marker({ map, position: { lat: loc.lat, lng: loc.lng }, icon: googleIcon(family, selected) });
+                    markers[id] = new google.maps.Marker({ map, position: { lat: loc.lat, lng: loc.lng }, icon: googleIcon(family, selected, loc.heading) });
                     markers[id].info = new google.maps.InfoWindow();
                     markers[id].addListener('click', () => {
                         focusVehicle(Number(row.vehicleId), false);
@@ -220,7 +227,7 @@
                     });
                 }
                 markers[id].setPosition({ lat: loc.lat, lng: loc.lng });
-                markers[id].setIcon(googleIcon(family, selected));
+                markers[id].setIcon(googleIcon(family, selected, loc.heading));
                 markers[id].setZIndex(selected ? 999 : 1);
                 markers[id].info.setContent(popupHtml(row));
                 markers[id].setLabel({
@@ -231,11 +238,11 @@
                 });
             } else {
                 if (!markers[id]) {
-                    markers[id] = L.marker([loc.lat, loc.lng], { icon: leafletIcon(family, selected), zIndexOffset: selected ? 999 : 0 }).addTo(map);
+                    markers[id] = L.marker([loc.lat, loc.lng], { icon: leafletIcon(family, selected, loc.heading), zIndexOffset: selected ? 999 : 0 }).addTo(map);
                     markers[id].on('click', () => focusVehicle(Number(row.vehicleId), false));
                 }
                 markers[id].setLatLng([loc.lat, loc.lng]);
-                markers[id].setIcon(leafletIcon(family, selected));
+                markers[id].setIcon(leafletIcon(family, selected, loc.heading));
                 markers[id].setZIndexOffset(selected ? 999 : 0);
                 markers[id].bindPopup(popupHtml(row));
                 markers[id].bindTooltip(String(row.vehicleNumber || row.vehicleId), { permanent: true, direction: 'top', offset: [0, -16], className: 'map-pin-label' });

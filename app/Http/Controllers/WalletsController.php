@@ -19,8 +19,8 @@ class WalletsController extends Controller
         $canCredit = $operator?->can('payments.edit') || $operator?->can('platform.admin');
 
         return view('wallets.index', [
-            'wallets' => $this->wallets->wallets($operator, $request->query()),
-            'ledger' => $this->wallets->ledger($operator, $request->query()),
+            'wallets' => $this->wallets->wallets($operator, $request->query(), true),
+            'ledger' => $this->wallets->ledger($operator, $request->query(), true),
             'accounts' => WalletLedgerService::ACCOUNTS,
             'query' => $request->query(),
             'canCredit' => $canCredit,
@@ -36,7 +36,7 @@ class WalletsController extends Controller
     public function show(Request $request, int $wallet): View
     {
         return view('wallets.show', [
-            'wallet' => $this->wallets->wallet($request->user(), $wallet),
+            'wallet' => $this->wallets->wallet($request->user(), $wallet, true),
         ]);
     }
 

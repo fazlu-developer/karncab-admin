@@ -8,6 +8,7 @@ use App\Platform\FareCommissionSplit;
 use App\Platform\FleetDhShare;
 use App\Platform\OperatorRole;
 use App\Platform\TerritoryScope;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -84,9 +85,9 @@ class WalletLedgerService
 
     /**
      * @param  array<string, mixed>  $query
-     * @return list<array<string, mixed>>
+     * @return list<array<string, mixed>>|LengthAwarePaginator
      */
-    public function wallets(?User $operator, array $query = []): array
+    public function wallets(?User $operator, array $query = [], bool $paginate = false): array|LengthAwarePaginator
     {
         abort_unless($operator?->can('wallet.view'), 403);
         $this->ensureSchema();
@@ -100,7 +101,14 @@ class WalletLedgerService
             $q->where('wallets.owner_type', '!=', 'PLATFORM');
         }
 
-        return $q->orderByDesc('wallets.id')->limit(200)->get()->map(fn ($row) => $this->presentWallet($row))->all();
+        $q->orderByDesc('wallets.id');
+        if (! $paginate) {
+            return $q->limit(200)->get()->map(fn ($row) => $this->presentWallet($row))->all();
+        }
+        $page = $q->paginate(25, ['*'], 'wallets_page')->withQueryString();
+        $page->setCollection($page->getCollection()->map(fn ($row) => $this->presentWallet($row)));
+
+        return $page;
     }
 
     /**
@@ -164,7 +172,7 @@ class WalletLedgerService
     /**
      * @return array<string, mixed>
      */
-    public function wallet(User $operator, int $id): array
+    public function wallet(User $operator, int $id, bool $paginateLedger = false): array
     {
         abort_unless($operator->can('wallet.view'), 403);
         $row = $this->scopedWallets($operator)
@@ -175,15 +183,22 @@ class WalletLedgerService
         abort_unless($row, 404, 'Wallet not found');
 
         return $this->presentWallet($row) + [
-            'ledger' => $this->ledgerQuery($operator)->where('wallet_ledger.wallet_id', $id)->orderByDesc('wallet_ledger.id')->limit(80)->get()->map(fn ($entry) => $this->presentLedger($entry))->all(),
+            'ledger' => $paginateLedger
+                ? tap(
+                    $this->ledgerQuery($operator)->where('wallet_ledger.wallet_id', $id)->orderByDesc('wallet_ledger.id')->paginate(25, ['*'], 'page')->withQueryString(),
+                    function (LengthAwarePaginator $page) {
+                        $page->setCollection($page->getCollection()->map(fn ($entry) => $this->presentLedger($entry)));
+                    }
+                )
+                : $this->ledgerQuery($operator)->where('wallet_ledger.wallet_id', $id)->orderByDesc('wallet_ledger.id')->limit(80)->get()->map(fn ($entry) => $this->presentLedger($entry))->all(),
         ];
     }
 
     /**
      * @param  array<string, mixed>  $query
-     * @return list<array<string, mixed>>
+     * @return list<array<string, mixed>>|LengthAwarePaginator
      */
-    public function ledger(User $operator, array $query = []): array
+    public function ledger(User $operator, array $query = [], bool $paginate = false): array|LengthAwarePaginator
     {
         abort_unless($operator->can('wallet.view'), 403);
         $q = $this->ledgerQuery($operator);
@@ -224,7 +239,14 @@ class WalletLedgerService
             });
         }
 
-        return $q->orderByDesc('wallet_ledger.id')->limit(80)->get()->map(fn ($row) => $this->presentLedger($row))->all();
+        $q->orderByDesc('wallet_ledger.id');
+        if (! $paginate) {
+            return $q->limit(80)->get()->map(fn ($row) => $this->presentLedger($row))->all();
+        }
+        $page = $q->paginate(25, ['*'], 'ledger_page')->withQueryString();
+        $page->setCollection($page->getCollection()->map(fn ($row) => $this->presentLedger($row)));
+
+        return $page;
     }
 
     /**

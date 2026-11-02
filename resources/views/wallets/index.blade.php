@@ -152,7 +152,7 @@
             </div>
             <button class="btn ghost" type="submit">Filter</button>
         </form>
-        @if ($wallets === [])
+        @if (count($wallets) === 0)
             <p class="muted">No wallets in your territory yet.</p>
         @else
             <div class="table-wrap">
@@ -181,6 +181,7 @@
                     </tbody>
                 </table>
             </div>
+            <div style="margin-top:14px">{{ $wallets->links('pagination.admin') }}</div>
         @endif
     </section>
 
