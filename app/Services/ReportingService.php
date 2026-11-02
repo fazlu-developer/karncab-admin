@@ -7,7 +7,7 @@ use App\Platform\PaymentLifecycle;
 use App\Platform\ReportCatalog;
 use App\Platform\TerritoryScope;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -563,17 +563,17 @@ class ReportingService
     /**
      * @param  array<string, mixed>  $query
      */
-    private function from(array $query): Carbon
+    private function from(array $query): CarbonInterface
     {
-        return ! empty($query['from']) ? Carbon::parse((string) $query['from'])->startOfDay() : now()->subDays(30)->startOfDay();
+        return ! empty($query['from']) ? now()->parse((string) $query['from'])->startOfDay() : now()->subDays(30)->startOfDay();
     }
 
     /**
      * @param  array<string, mixed>  $query
      */
-    private function to(array $query): Carbon
+    private function to(array $query): CarbonInterface
     {
-        return ! empty($query['to']) ? Carbon::parse((string) $query['to'])->endOfDay() : now()->endOfDay();
+        return ! empty($query['to']) ? now()->parse((string) $query['to'])->endOfDay() : now()->endOfDay();
     }
 
     /**
