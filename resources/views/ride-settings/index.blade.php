@@ -25,6 +25,14 @@
                 <input name="driver_search_radius_km" type="number" step="0.5" min="1" max="100" value="{{ $radiusKm }}" required>
             </div>
             <div>
+                <label>Radius steps (km)</label>
+                <input name="driver_search_radius_steps" type="text" value="{{ $radiusSteps }}" placeholder="5,10,15,20">
+            </div>
+            <div>
+                <label>GPS freshness (seconds)</label>
+                <input name="driver_location_stale_seconds" type="number" min="30" max="3600" value="{{ $staleSeconds }}">
+            </div>
+            <div>
                 <label>Ride request timeout (seconds)</label>
                 <input name="ride_request_timeout_seconds" type="number" min="10" max="900" value="{{ $timeoutSeconds }}" required>
             </div>
@@ -66,6 +74,36 @@
             @endforeach
             </div>
             <button class="btn" type="submit" style="margin-top:12px">Save advance payment</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Company collection and driver settlement</h2>
+        <p class="muted">Bulk, corporate, and tour payments stay with KarnaRide. Driver advance here is only a cap. Admin records each payout on the booking. Nothing is transferred automatically.</p>
+        <form method="POST" action="{{ route('ride-settings.update') }}">
+            @csrf
+            @method('PUT')
+            <input type="hidden" name="service_payment_form" value="1">
+            <input type="hidden" name="driver_search_radius_km" value="{{ $radiusKm }}">
+            <input type="hidden" name="ride_request_timeout_seconds" value="{{ $timeoutSeconds }}">
+            @foreach (['BULK' => 'Bulk booking', 'CORPORATE' => 'Corporate', 'TRAVEL' => 'Tour & Travel'] as $key => $label)
+                <div class="filters" style="align-items:end">
+                    <strong style="min-width:140px">{{ $label }}</strong>
+                    <div>
+                        <label>Customer advance %</label>
+                        <input name="svc_advance_{{ $key }}" type="number" min="0" max="100" value="{{ $servicePayments[$key]['advancePercent'] ?? 0 }}">
+                    </div>
+                    <div>
+                        <label>Driver payable %</label>
+                        <input name="svc_driver_{{ $key }}" type="number" min="0" max="100" value="{{ $servicePayments[$key]['driverPayablePercent'] ?? 90 }}">
+                    </div>
+                    <div>
+                        <label>Driver advance cap %</label>
+                        <input name="svc_driver_advance_{{ $key }}" type="number" min="0" max="100" value="{{ $servicePayments[$key]['driverAdvancePercent'] ?? 0 }}">
+                    </div>
+                </div>
+            @endforeach
+            <button class="btn" type="submit" style="margin-top:12px">Save settlement rules</button>
         </form>
     </section>
 

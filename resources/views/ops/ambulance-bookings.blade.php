@@ -43,6 +43,7 @@
                         <th>Pickup</th>
                         <th>Hospital</th>
                         <th>Status</th>
+                        <th>Collection</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -66,7 +67,21 @@
                         <td>
                             {{ $row['status'] }}
                             @if ($row['driverName'])<div class="muted">{{ $row['driverName'] }}</div>@endif
-                            <div class="muted">Fare ₹0</div>
+                            <div class="muted">Booked fare ₹0</div>
+                        </td>
+                        <td>
+                            @if (!empty($row['collection']))
+                                ₹{{ number_format(($row['collection']['amountPaise'] ?? 0) / 100, 2) }}
+                                <div class="muted">{{ $row['collection']['method'] ?? '' }} · {{ str_replace('_', ' ', $row['collection']['status'] ?? '') }}</div>
+                                @if (($row['collection']['status'] ?? '') === 'DRIVER_REPORTED_PENDING_VERIFICATION')
+                                    <form method="POST" action="{{ route('ops.ambulance.verify', $row['id']) }}">
+                                        @csrf
+                                        <button class="btn" type="submit">Verify</button>
+                                    </form>
+                                @endif
+                            @else
+                                <span class="muted">—</span>
+                            @endif
                         </td>
                         <td>
                             @if ($row['canAssign'])
@@ -83,7 +98,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="muted">No ambulance bookings in this list.</td></tr>
+                    <tr><td colspan="7" class="muted">No ambulance bookings in this list.</td></tr>
                 @endforelse
                 </tbody>
             </table>

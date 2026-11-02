@@ -408,6 +408,14 @@ class WorkspaceController extends Controller
         return back()->with('status', 'Ambulance driver assigned. The driver and customer are notified.');
     }
 
+    public function verifyAmbulanceCollection(Request $request, int $booking): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage') || $request->user()?->can('platform.admin'), 403);
+        app(\App\Services\AmbulanceDeskService::class)->verifyCollection($booking, (int) $request->user()->id);
+
+        return back()->with('status', 'Driver-reported collection verified. The original amount was not changed.');
+    }
+
     public function storeTravel(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->can('travel.edit') || $request->user()?->can('platform.admin'), 403);

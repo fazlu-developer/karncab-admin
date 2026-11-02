@@ -237,11 +237,44 @@ class ModuleController extends Controller
             $error = $exception->getMessage();
         }
 
+        $settlements = [];
+        if ($error === null && ! empty($booking['id'])) {
+            try {
+                $settlements = app(\App\Services\DriverSettlementService::class)->rows((int) $booking['id']);
+            } catch (Throwable $exception) {
+                $error = $exception->getMessage();
+            }
+        }
+
         return view('ops.booking', [
             'booking' => $booking,
             'error' => $error,
             'drivers' => $drivers,
+            'settlements' => $settlements,
         ]);
+    }
+
+    public function settleDriver(Request $request, string $id): RedirectResponse
+    {
+        abort_unless($request->user()?->can('bookings.manage'), 403);
+        $data = $request->validate([
+            'amount_rupees' => ['required', 'numeric', 'min:1'],
+            'method' => ['required', 'in:UPI,BANK,CASH'],
+            'reference' => ['required', 'string', 'max:80'],
+        ]);
+        try {
+            app(\App\Services\DriverSettlementService::class)->record(
+                $request->user(),
+                (int) $id,
+                (int) round(((float) $data['amount_rupees']) * 100),
+                $data['method'],
+                $data['reference'],
+            );
+        } catch (Throwable $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('status', 'Driver settlement recorded. No automatic transfer was sent.');
     }
 
     public function destroyBooking(Request $request, string $id): RedirectResponse

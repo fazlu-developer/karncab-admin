@@ -20,6 +20,8 @@ class RideSettingsController extends Controller
             ?? $db->table('system_settings')->where('key', 'driver_offer_radius_km')->value('value')
             ?? '20';
         $timeout = $db->table('system_settings')->where('key', 'ride_request_timeout_seconds')->value('value') ?? '600';
+        $steps = $db->table('system_settings')->where('key', 'driver_search_radius_steps')->value('value') ?? '5,10,15,20';
+        $stale = $db->table('system_settings')->where('key', 'driver_location_stale_seconds')->value('value') ?? '3600';
 
         $bonusOn = $db->table('system_settings')->where('key', 'driver_welcome_bonus_enabled')->value('value');
         $bonusRupees = $db->table('system_settings')->where('key', 'driver_welcome_bonus_rupees')->value('value');
@@ -30,6 +32,8 @@ class RideSettingsController extends Controller
 
         return view('ride-settings.index', [
             'radiusKm' => (float) $radius,
+            'radiusSteps' => (string) $steps,
+            'staleSeconds' => (int) $stale,
             'timeoutSeconds' => (int) $timeout,
             'driverWelcomeBonusEnabled' => $bonusOn === null || in_array(strtolower((string) $bonusOn), ['1', 'true', 'yes', ''], true),
             'driverWelcomeBonusRupees' => is_numeric($bonusRupees) ? (int) $bonusRupees : 100,
@@ -52,6 +56,7 @@ class RideSettingsController extends Controller
                 : collect(),
             'advancePayment' => $this->advancePayment($db),
             'advancePercents' => $this->advancePercents($db),
+            'servicePayments' => json_decode((string) ($db->table('system_settings')->where('key', 'service_payment_configs')->value('value') ?? '{}'), true) ?: [],
             'driverReferrals' => $this->driverReferrals($db),
             'incentiveTotals' => $db->getSchemaBuilder()->hasTable('incentives')
                 ? [
@@ -155,6 +160,8 @@ class RideSettingsController extends Controller
         abort_unless($request->user()?->can('platform.admin') || $request->user()?->can('fare.manage'), 403);
         $data = $request->validate([
             'driver_search_radius_km' => ['required', 'numeric', 'min:1', 'max:100'],
+            'driver_search_radius_steps' => ['nullable', 'string', 'max:80'],
+            'driver_location_stale_seconds' => ['nullable', 'integer', 'min:30', 'max:3600'],
             'ride_request_timeout_seconds' => ['required', 'integer', 'min:10', 'max:900'],
             'driver_welcome_bonus_enabled' => ['nullable', 'boolean'],
             'driver_welcome_bonus_rupees' => ['nullable', 'integer', 'min:0', 'max:100000'],
@@ -175,6 +182,27 @@ class RideSettingsController extends Controller
             'driver_offer_radius_km' => (string) $data['driver_search_radius_km'],
             'ride_request_timeout_seconds' => (string) $data['ride_request_timeout_seconds'],
         ];
+        if ($request->filled('driver_search_radius_steps')) {
+            $settings['driver_search_radius_steps'] = preg_replace('/[^0-9.,]/', '', (string) $data['driver_search_radius_steps']) ?: '5,10,15,20';
+        }
+        if ($request->filled('driver_location_stale_seconds')) {
+            $settings['driver_location_stale_seconds'] = (string) $data['driver_location_stale_seconds'];
+        }
+        if ($request->boolean('service_payment_form')) {
+            $configs = [];
+            foreach (['BULK', 'CORPORATE', 'TRAVEL'] as $product) {
+                $advance = max(0, min(100, (int) $request->input('svc_advance_'.$product, 0)));
+                $driver = max(0, min(100, (int) $request->input('svc_driver_'.$product, 90)));
+                $configs[$product] = [
+                    'advancePercent' => $advance,
+                    'driverPayablePercent' => $driver,
+                    'driverAdvancePercent' => max(0, min(100, (int) $request->input('svc_driver_advance_'.$product, 0))),
+                    'balanceMilestone' => 'after_complete',
+                    'companyCollects' => true,
+                ];
+            }
+            $settings['service_payment_configs'] = json_encode($configs);
+        }
         if ($request->has('driver_welcome_bonus_rupees')) {
             $settings['driver_welcome_bonus_enabled'] = $request->boolean('driver_welcome_bonus_enabled') ? '1' : '0';
             $settings['driver_welcome_bonus_rupees'] = (string) ($data['driver_welcome_bonus_rupees'] ?? 100);

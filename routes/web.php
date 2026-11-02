@@ -272,6 +272,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/ops/tour-bookings', [WorkspaceController::class, 'tourBookings'])->name('ops.tour-bookings');
     Route::get('/ops/ambulance', [WorkspaceController::class, 'ambulanceBookings'])->name('ops.ambulance');
     Route::post('/ops/ambulance/{booking}/assign', [WorkspaceController::class, 'assignAmbulance'])->name('ops.ambulance.assign')->whereNumber('booking');
+    Route::post('/ops/ambulance/{booking}/verify', [WorkspaceController::class, 'verifyAmbulanceCollection'])->name('ops.ambulance.verify')->whereNumber('booking');
     Route::post('/ops/travel', [WorkspaceController::class, 'storeTravel'])->name('ops.travel.store');
     Route::put('/ops/travel/{package}', [WorkspaceController::class, 'updateTravel'])->name('ops.travel.update')->whereNumber('package');
     Route::post('/ops/travel/bookings/{booking}/approve', [WorkspaceController::class, 'approveTour'])->name('ops.travel.approve')->whereNumber('booking');
@@ -316,6 +317,7 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::get('/ops/{module}/export', [ModuleController::class, 'export'])->name('ops.export');
     Route::get('/ops/{module}', [ModuleController::class, 'show'])->name('ops.module');
     Route::get('/bookings/{id}', [ModuleController::class, 'showBooking'])->name('ops.bookings.show');
+    Route::post('/bookings/{id}/settlement', [ModuleController::class, 'settleDriver'])->name('ops.bookings.settle');
     Route::delete('/bookings/{id}', [ModuleController::class, 'destroyBooking'])->name('ops.bookings.destroy');
     Route::post('/notifications/announce', [ModuleController::class, 'announce'])->name('ops.notify');
 });

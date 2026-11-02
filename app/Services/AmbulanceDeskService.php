@@ -37,6 +37,9 @@ class AmbulanceDeskService
         $drivers = $this->driverNames();
 
         return $q->paginate(20)->withQueryString()->through(function ($row) use ($drivers) {
+            $snapshot = json_decode((string) ($row->quote_snapshot ?? ''), true);
+            $collection = is_array($snapshot) && is_array($snapshot['ambulanceCollection'] ?? null) ? $snapshot['ambulanceCollection'] : null;
+
             return [
                 'id' => (int) $row->id,
                 'publicRef' => $row->public_ref,
@@ -48,6 +51,7 @@ class AmbulanceDeskService
                 'photo' => $row->patient_photo_url ?? null,
                 'driverName' => $drivers[(int) ($row->driver_id ?? 0)] ?? null,
                 'canAssign' => in_array(strtoupper((string) $row->status), ['REQUESTED', 'PENDING', 'CONFIRMED'], true) && empty($row->driver_id),
+                'collection' => $collection,
             ];
         });
     }
@@ -100,6 +104,25 @@ class AmbulanceDeskService
         $ref = $row->public_ref ?: ('#'.$id);
         $this->notify((int) $row->customer_id, 'Ambulance assigned', 'An ambulance is on the way for '.$ref.'.', 'ambulance_assigned');
         $this->notify($userId, 'Ambulance job', 'You are assigned to emergency '.$ref.'. Open the job and go to pickup.', 'ambulance_assigned');
+    }
+
+    public function verifyCollection(int $id, int $adminId): void
+    {
+        $row = $this->db()->table('bookings')->where('id', $id)->where('product', 'AMBULANCE')->first();
+        abort_unless($row, 404, 'Ambulance booking not found.');
+        $snapshot = json_decode((string) ($row->quote_snapshot ?? ''), true);
+        abort_unless(is_array($snapshot) && is_array($snapshot['ambulanceCollection'] ?? null), 422, 'No driver collection to verify.');
+        $collection = $snapshot['ambulanceCollection'];
+        abort_unless(($collection['status'] ?? '') === 'DRIVER_REPORTED_PENDING_VERIFICATION', 422, 'This collection is already verified.');
+        $collection['status'] = 'VERIFIED';
+        $collection['verifiedAt'] = now()->toIso8601String();
+        $collection['verifiedBy'] = $adminId;
+        $snapshot['ambulanceCollection'] = $collection;
+        $snapshot['collectionAdjustments'] = is_array($snapshot['collectionAdjustments'] ?? null) ? $snapshot['collectionAdjustments'] : [];
+        $this->db()->table('bookings')->where('id', $id)->update([
+            'quote_snapshot' => json_encode($snapshot),
+            'updated_at' => now(),
+        ]);
     }
 
     private function notify(int $userId, string $title, string $body, string $event): void

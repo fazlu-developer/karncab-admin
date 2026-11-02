@@ -46,6 +46,39 @@
             </section>
         @endcan
     @endif
+    @can('bookings.manage')
+        @if (!empty($booking['id']) && !empty($booking['driverId']))
+            <section class="card">
+                <h2>Driver settlement</h2>
+                <p class="muted">Customer money stays in the company account. This form only records a payout you have already sent. It does not transfer money.</p>
+                @foreach ($settlements ?? [] as $settlement)
+                    <p>Payable ₹{{ number_format($settlement->payable_paise / 100, 2) }} · Paid ₹{{ number_format($settlement->paid_paise / 100, 2) }} · {{ str_replace('_', ' ', $settlement->status) }}</p>
+                @endforeach
+                <form method="POST" action="{{ route('ops.bookings.settle', $booking['id']) }}">
+                    @csrf
+                    <div class="filters">
+                        <div>
+                            <label>Amount (₹)</label>
+                            <input name="amount_rupees" type="number" min="1" step="1" required>
+                        </div>
+                        <div>
+                            <label>Method</label>
+                            <select name="method">
+                                <option value="UPI">UPI</option>
+                                <option value="BANK">Bank</option>
+                                <option value="CASH">Cash</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>UTR / reference</label>
+                            <input name="reference" required maxlength="80">
+                        </div>
+                        <button class="btn" type="submit">Record settlement</button>
+                    </div>
+                </form>
+            </section>
+        @endif
+    @endcan
     @php $track = $booking['track'] ?? []; @endphp
     @if (!empty($track['cancelled']))
         <div class="steps">
