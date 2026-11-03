@@ -87,7 +87,7 @@ final class LiveFix
             return true;
         }
 
-        return self::metersBetween((float) $prev['lat'], (float) $prev['lng'], $lat, $lng) >= 40;
+        return self::metersBetween((float) $prev['lat'], (float) $prev['lng'], $lat, $lng) >= 12;
     }
 
     public static function isStale(?string $recordedAt, ?int $nowMs = null): bool

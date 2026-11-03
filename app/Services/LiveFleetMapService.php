@@ -110,7 +110,10 @@ class LiveFleetMapService
                 'hasActiveDelivery' => $hasParcel,
             ]);
             $counts[$resolved['status']]++;
-            $fix = $row->driver_id ? ($hot[(int) $row->driver_id] ?? $this->fallbackFix($row, $user, $driver)) : $this->fallbackFix($row, $user, $driver);
+            $fix = $this->newerFix(
+                $row->driver_id ? ($hot[(int) $row->driver_id] ?? null) : null,
+                $this->fallbackFix($row, $user, $driver),
+            );
             $booking = $trips['rows'][(int) $row->id] ?? ($row->driver_id ? ($trips['driverRows'][(int) $row->driver_id] ?? null) : null);
             $item = [
                 'vehicleId' => (int) $row->id,
@@ -309,29 +312,49 @@ class LiveFleetMapService
     private function readWithFallback(int $driverId, ?int $userId): ?array
     {
         $hot = $this->store->get($driverId);
-        if ($hot) {
-            return $hot;
-        }
         if (! $userId) {
-            return null;
+            return $hot;
         }
         $user = $this->db()->table('users')->where('id', $userId)->first();
         if (! $user || $user->last_lat === null || $user->last_lng === null) {
-            return null;
+            return $hot;
         }
 
-        return LiveFix::make(
+        $fallback = LiveFix::make(
             $driverId,
             null,
             null,
             $user->district_id ? (int) $user->district_id : null,
             (float) $user->last_lat,
             (float) $user->last_lng,
-            null,
-            null,
+            isset($user->last_heading) ? (float) $user->last_heading : null,
+            isset($user->last_speed) ? (float) $user->last_speed : null,
             'last_known',
             $user->location_updated_at ? strtotime((string) $user->location_updated_at) * 1000 : 0,
         );
+
+        return $this->newerFix($hot, $fallback);
+    }
+
+    /**
+     * The map follows whichever fix was recorded later. A stale cache entry must not hide a newer GPS write.
+     *
+     * @param  array<string, mixed>|null  $hot
+     * @param  array<string, mixed>|null  $fallback
+     * @return array<string, mixed>|null
+     */
+    private function newerFix(?array $hot, ?array $fallback): ?array
+    {
+        if ($hot === null) {
+            return $fallback;
+        }
+        if ($fallback === null) {
+            return $hot;
+        }
+        $hotAt = strtotime((string) ($hot['recordedAt'] ?? '')) ?: 0;
+        $fallbackAt = strtotime((string) ($fallback['recordedAt'] ?? '')) ?: 0;
+
+        return $fallbackAt >= $hotAt ? $fallback : $hot;
     }
 
     /**
@@ -339,12 +362,16 @@ class LiveFleetMapService
      */
     private function fallbackFix(object $vehicle, ?object $user, ?object $driver): ?array
     {
-        $lat = $user->last_lat ?? $vehicle->last_lat ?? null;
-        $lng = $user->last_lng ?? $vehicle->last_lng ?? null;
+        $userAt = ($user && $user->location_updated_at) ? (strtotime((string) $user->location_updated_at) ?: 0) : 0;
+        $vehicleAt = $vehicle->last_fix_at ? (strtotime((string) $vehicle->last_fix_at) ?: 0) : 0;
+        $userHasFix = $user && $user->last_lat !== null && $user->last_lng !== null;
+        $useUser = $userHasFix && ($userAt >= $vehicleAt || $vehicle->last_lat === null);
+        $lat = $useUser ? $user->last_lat : ($vehicle->last_lat ?? ($userHasFix ? $user->last_lat : null));
+        $lng = $useUser ? $user->last_lng : ($vehicle->last_lng ?? ($userHasFix ? $user->last_lng : null));
         if ($lat === null || $lng === null) {
             return null;
         }
-        $at = $vehicle->last_fix_at ?? $user->location_updated_at ?? null;
+        $at = $useUser ? ($user->location_updated_at ?? null) : ($vehicle->last_fix_at ?? $user->location_updated_at ?? null);
 
         return [
             'lat' => (float) $lat,
