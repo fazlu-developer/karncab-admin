@@ -81,7 +81,78 @@ class OldUsersService
         $phoneList = array_keys($registeredPhones);
         $perPage = in_array($perPage, [25, 50, 100], true) ? $perPage : 25;
 
-        $query = DB::connection('platform')->table('old_users')->orderByDesc('source_id');
+        $query = $this->filtered($q, $role, $tag, $phoneList)->orderByDesc('source_id');
+
+        $paginator = $query->paginate($perPage)->withQueryString();
+        $paginator->getCollection()->transform(function ($row) use ($registeredPhones) {
+            $phone = $this->digits((string) ($row->phone ?? ''));
+            $match = $phone !== '' ? ($registeredPhones[$phone] ?? null) : null;
+
+            return [
+                'id' => (int) $row->id,
+                'sourceId' => (int) $row->source_id,
+                'name' => $row->name,
+                'phone' => $row->phone,
+                'email' => $row->email,
+                'gender' => $row->gender,
+                'city' => $row->city,
+                'district' => $row->district,
+                'state' => $row->state,
+                'roleId' => (int) $row->role_id,
+                'oldRole' => $row->old_role,
+                'registered' => $match !== null,
+                'platformRole' => $match['role'] ?? null,
+                'platformName' => $match['name'] ?? null,
+                'sourceCreatedAt' => $row->source_created_at,
+            ];
+        });
+
+        return ['rows' => $paginator, 'counts' => $this->counts($phoneList)];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function exportRows(string $q = '', string $role = '', string $tag = ''): array
+    {
+        $this->ensureTable();
+        $registeredPhones = $this->platformPhones();
+        $phoneList = array_keys($registeredPhones);
+        $rows = $this->filtered($q, $role, $tag, $phoneList)->orderByDesc('source_id')->limit(20000)->get();
+        $out = [];
+        foreach ($rows as $row) {
+            $phone = $this->digits((string) ($row->phone ?? ''));
+            $match = $phone !== '' ? ($registeredPhones[$phone] ?? null) : null;
+            $dial = $phone;
+            if (strlen($dial) === 10) {
+                $dial = '91'.$dial;
+            }
+            $out[] = [
+                'sourceId' => (int) $row->source_id,
+                'name' => (string) $row->name,
+                'role' => (string) $row->old_role,
+                'roleId' => (int) $row->role_id,
+                'phone' => (string) ($row->phone ?? ''),
+                'dial' => $dial,
+                'email' => (string) ($row->email ?? ''),
+                'city' => (string) ($row->city ?? ''),
+                'district' => (string) ($row->district ?? ''),
+                'state' => (string) ($row->state ?? ''),
+                'gender' => (string) ($row->gender ?? ''),
+                'registered' => $match !== null ? 'Registered' : 'Not registered',
+                'platformRole' => (string) ($match['role'] ?? ''),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<string>  $phoneList
+     */
+    private function filtered(string $q, string $role, string $tag, array $phoneList)
+    {
+        $query = DB::connection('platform')->table('old_users');
         if ($q !== '') {
             $like = '%'.addcslashes($q, '%_\\').'%';
             $query->where(function ($inner) use ($q, $like) {
@@ -122,31 +193,7 @@ class OldUsersService
             });
         }
 
-        $paginator = $query->paginate($perPage)->withQueryString();
-        $paginator->getCollection()->transform(function ($row) use ($registeredPhones) {
-            $phone = $this->digits((string) ($row->phone ?? ''));
-            $match = $phone !== '' ? ($registeredPhones[$phone] ?? null) : null;
-
-            return [
-                'id' => (int) $row->id,
-                'sourceId' => (int) $row->source_id,
-                'name' => $row->name,
-                'phone' => $row->phone,
-                'email' => $row->email,
-                'gender' => $row->gender,
-                'city' => $row->city,
-                'district' => $row->district,
-                'state' => $row->state,
-                'roleId' => (int) $row->role_id,
-                'oldRole' => $row->old_role,
-                'registered' => $match !== null,
-                'platformRole' => $match['role'] ?? null,
-                'platformName' => $match['name'] ?? null,
-                'sourceCreatedAt' => $row->source_created_at,
-            ];
-        });
-
-        return ['rows' => $paginator, 'counts' => $this->counts($phoneList)];
+        return $query;
     }
 
     public function purgeTestRows(): int

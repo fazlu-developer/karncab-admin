@@ -5,6 +5,16 @@
     @php
         $photo = fn (?string $path) => \App\Support\PublicMedia::presentMediaUrl($path) ?? '';
         $pickedFor = fn ($row) => \App\Http\Controllers\Ops\WorkspaceController::selectedVehicleKeys($row);
+        $familyIcon = function ($key) {
+            return match (strtoupper((string) $key)) {
+                'BIKE' => 'bike',
+                'AUTO' => 'bus',
+                'CAR' => 'car',
+                'LOADING' => 'truck',
+                'AMBULANCE' => 'ambulance',
+                default => 'shapes',
+            };
+        };
     @endphp
     <div class="hero">
         <div>
@@ -20,6 +30,14 @@
         <div><b>3. Types</b><span>Mini, Scooty, Truck… shown after the category</span></div>
     </div>
 
+    <div class="kc-tabs" id="service-sections" data-kc-tabs>
+        <div class="kc-tabbar" role="tablist">
+            <button class="kc-tab on" type="button" data-kc-tab="services"><i data-lucide="layout-grid"></i> Customer services</button>
+            <button class="kc-tab" type="button" data-kc-tab="categories"><i data-lucide="layers"></i> Driver categories</button>
+            <button class="kc-tab" type="button" data-kc-tab="types"><i data-lucide="car"></i> Vehicle types</button>
+            <button class="kc-tab" type="button" data-kc-tab="offers"><i data-lucide="badge-percent"></i> Home offers</button>
+        </div>
+        <div class="kc-panel" data-kc-panel="services">
     <section class="card">
         <h2>1. Customer services</h2>
         <p class="muted">Customer home fetches this list live. <b>On app</b> = show the tile, untick = hide it. <b>Under maintenance</b> keeps the tile, and a tap in the chosen state or district shows “We are working”. The same service stays open everywhere you do not tick. Leave both lists empty to pause it in every area.</p>
@@ -85,14 +103,22 @@
                         @if ($src)
                             <label class="inline"><input type="checkbox" name="remove_image" value="1"> Remove photo</label>
                         @endif
-                        @foreach ($vehicleFamilies as $family)
-                            <p class="catalog-family">{{ $family['label'] }}</p>
-                            <div class="catalog-checks">
-                                @foreach ($family['types'] as $type)
-                                    <label class="inline"><input type="checkbox" name="vehicle_keys[]" value="{{ $type['key'] }}" @checked(in_array($type['key'], $picked, true))> {{ $type['label'] }}</label>
+                        <div class="kc-tabs" id="service-vehicles-{{ $row->id }}" data-kc-tabs>
+                            <div class="kc-tabbar" role="tablist">
+                                @foreach ($vehicleFamilies as $index => $family)
+                                    <button class="kc-tab {{ $index === 0 ? 'on' : '' }}" type="button" data-kc-tab="{{ $family['key'] }}"><i data-lucide="{{ $familyIcon($family['key']) }}"></i> {{ $family['label'] }}</button>
                                 @endforeach
                             </div>
-                        @endforeach
+                            @foreach ($vehicleFamilies as $index => $family)
+                                <div class="kc-panel" data-kc-panel="{{ $family['key'] }}" @if($index !== 0) hidden @endif>
+                                    <div class="catalog-checks">
+                                        @foreach ($family['types'] as $type)
+                                            <label class="inline"><input type="checkbox" name="vehicle_keys[]" value="{{ $type['key'] }}" @checked(in_array($type['key'], $picked, true))> {{ $type['label'] }}</label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
                         <div class="catalog-actions">
                             <button class="btn" type="submit">Save</button>
                         </div>
@@ -101,7 +127,8 @@
             @endforeach
         </div>
     </section>
-
+        </div>
+        <div class="kc-panel" data-kc-panel="categories" hidden>
     <section class="card">
         <h2>2. Driver categories (Bike, Auto, Car, Loading)</h2>
         <p class="muted">Onboarding first screen. Photo is optional — the app uses its own Bike/Auto/Car/Loading picture if empty.</p>
@@ -130,7 +157,8 @@
             @endforeach
         </div>
     </section>
-
+        </div>
+        <div class="kc-panel" data-kc-panel="types" hidden>
     <section class="card">
         <h2>3. Vehicle types</h2>
         <p class="muted">Second onboarding screen and the customer quote list. Upload a photo per type, or leave empty for the app default (bike.png, sedan.png, …).</p>
@@ -156,8 +184,14 @@
             <label class="inline" style="align-self:end"><input type="checkbox" name="active" value="1" checked> Active</label>
             <button class="btn" type="submit">Add type</button>
         </form>
-        @foreach ($vehicleFamilies as $family)
-            <h3 style="margin:18px 0 8px">{{ $family['label'] }}</h3>
+        <div class="kc-tabs" id="vehicle-type-tabs" data-kc-tabs>
+            <div class="kc-tabbar" role="tablist">
+                @foreach ($vehicleFamilies as $index => $family)
+                    <button class="kc-tab {{ $index === 0 ? 'on' : '' }}" type="button" data-kc-tab="type-{{ $family['key'] }}"><i data-lucide="{{ $familyIcon($family['key']) }}"></i> {{ $family['label'] }}</button>
+                @endforeach
+            </div>
+        @foreach ($vehicleFamilies as $index => $family)
+            <div class="kc-panel" data-kc-panel="type-{{ $family['key'] }}" @if($index !== 0) hidden @endif>
             <div class="catalog-grid catalog-grid-4">
                 @foreach ($family['types'] as $type)
                     @php $tsrc = $photo($type['image_url'] ?? ''); @endphp
@@ -197,8 +231,12 @@
                     </article>
                 @endforeach
             </div>
+            </div>
         @endforeach
+        </div>
     </section>
+        </div>
+        <div class="kc-panel" data-kc-panel="offers" hidden>
 
     <section class="card">
         <h2>Home offers</h2>
@@ -237,4 +275,6 @@
             </table>
         @endif
     </section>
+        </div>
+    </div>
 @endsection

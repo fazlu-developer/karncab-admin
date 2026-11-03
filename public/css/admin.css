@@ -237,6 +237,12 @@ table.data tr:hover td { background: #f7faf8; }
 label.inline { display: inline-flex !important; align-items: center; gap: 6px; margin: 0 8px 8px 0; color: var(--ink); font-size: 14px; }
 label.inline input { width: 18px; height: 18px; min-height: 18px; margin: 0; }
 .catalog-actions { display: flex; gap: 8px; margin-top: 8px; }
+.kc-tabbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.kc-tab { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.kc-tab svg { width: 16px; height: 16px; }
+.kc-tab.on { background: #1b7a32; color: #fff; border-color: #1b7a32; }
+.kc-panel[hidden] { display: none !important; }
+.kc-saving { opacity: .65; pointer-events: none; }
 .catalog-add { margin-top: 16px; }
 .catalog-add summary { cursor: pointer; font-weight: 700; margin-bottom: 10px; }
 .filters > .kc-select { flex: 1 1 220px; min-width: 200px; }

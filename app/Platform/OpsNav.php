@@ -24,6 +24,7 @@ final class OpsNav
             ['key' => 'users', 'label' => 'All users', 'icon' => 'users', 'group' => 'Organization', 'ability' => 'users.view', 'route' => 'users.index'],
             ['key' => 'territory-heads', 'label' => 'State & district heads', 'icon' => 'user-cog', 'group' => 'Organization', 'ability' => 'territory_heads.view', 'route' => 'organization.heads'],
             ['key' => 'territory-contacts', 'label' => 'Territory contacts', 'icon' => 'phone', 'group' => 'Organization', 'ability' => 'territory_contacts.view', 'route' => 'territory-contacts.index'],
+            ['key' => 'joining', 'label' => 'Joining letters', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'joining.view', 'route' => 'joining.index'],
             ['key' => 'state-kyc', 'label' => 'State Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'state_kyc.view', 'route' => 'organization.state-kyc'],
             ['key' => 'district-kyc', 'label' => 'District Head KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'district_kyc.view', 'route' => 'organization.district-kyc'],
             ['key' => 'fleet-kyc', 'label' => 'Fleet Owner KYC', 'icon' => 'file-badge', 'group' => 'Organization', 'ability' => 'fleet_kyc.view', 'route' => 'fleet-owners.kyc'],

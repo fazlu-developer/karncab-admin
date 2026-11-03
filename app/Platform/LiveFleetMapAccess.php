@@ -27,7 +27,8 @@ final class LiveFleetMapAccess
     ];
 
     public const LIVE_TRIPS = [
-        'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED', 'ONGOING', 'STARTED',
+        'ASSIGNED', 'DRIVER_ASSIGNED', 'DRIVER_ACCEPTED', 'DRIVER_ARRIVING', 'DRIVER_ARRIVED',
+        'OTP_VERIFIED', 'TRIP_STARTED', 'RENTAL_IN_USE', 'ONGOING', 'STARTED',
     ];
 
     public const LIVE_PARCELS = [

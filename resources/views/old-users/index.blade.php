@@ -15,10 +15,13 @@
                 · Role 3 = customer, role 2 = driver. Tag = already on the new KarnaRide app or not.
             </p>
         </div>
-        <form method="POST" action="{{ route('old-users.import') }}">
-            @csrf
-            <button class="btn" type="submit"><i data-lucide="download"></i> Import from old DB</button>
-        </form>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a class="btn" href="{{ route('old-users.export', request()->query()) }}"><i data-lucide="file-spreadsheet"></i> Download Excel</a>
+            <form method="POST" action="{{ route('old-users.import') }}">
+                @csrf
+                <button class="btn ghost" type="submit"><i data-lucide="download"></i> Import from old DB</button>
+            </form>
+        </div>
     </div>
 
     @if (session('status'))

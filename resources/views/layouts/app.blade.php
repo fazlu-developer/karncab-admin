@@ -74,6 +74,7 @@
 <script>window.KarnaRideGeo = @json($kcGeo ?? ['states' => [], 'districts' => []]);</script>
 <script src="{{ asset('js/geo-select.js') }}"></script>
 <script src="{{ asset('js/kc-select.js') }}?v={{ filemtime(public_path('js/kc-select.js')) }}"></script>
+<script src="{{ asset('js/admin-instant.js') }}?v={{ filemtime(public_path('js/admin-instant.js')) }}"></script>
 <script>
 document.addEventListener('input', function (event) {
     var id = event.target.getAttribute('data-table-filter');

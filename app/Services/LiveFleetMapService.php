@@ -349,8 +349,8 @@ class LiveFleetMapService
         return [
             'lat' => (float) $lat,
             'lng' => (float) $lng,
-            'heading' => null,
-            'speed' => null,
+            'heading' => isset($user->last_heading) ? (float) $user->last_heading : null,
+            'speed' => isset($user->last_speed) ? (float) $user->last_speed : null,
             'tripStatus' => $vehicle->status,
             'recordedAt' => $at ? (string) $at : null,
             'driverId' => $driver->id ?? null,

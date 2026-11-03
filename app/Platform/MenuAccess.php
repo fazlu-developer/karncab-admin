@@ -84,6 +84,7 @@ final class MenuAccess
             'ops.settings' => 'settings.view',
             'ops.audit' => 'audit.view',
             'old-users.' => 'old_users.view',
+            'joining.' => 'joining.view',
             'live.map' => 'tracking.view',
             'district.settings' => 'fleet_commission.view',
             'district.fleet-cut' => 'fleet_commission.view',

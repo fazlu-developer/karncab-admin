@@ -57,4 +57,5 @@
   } else {
     bindAll();
   }
+  document.addEventListener('kc:page', bindAll);
 })();

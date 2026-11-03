@@ -105,6 +105,7 @@ final class PlatformPermission
             'website_pages.view',
             'audit.view',
             'old_users.view',
+            'joining.view',
             'fleet_commission.view',
         ];
     }

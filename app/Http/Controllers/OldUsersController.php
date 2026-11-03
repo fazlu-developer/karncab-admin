@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Services\OldUsersService;
+use App\Support\SimpleXlsx;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class OldUsersController extends Controller
@@ -31,6 +33,45 @@ class OldUsersController extends Controller
             'source' => $this->oldUsers->resolveLegacyDatabase(),
             'sources' => $this->oldUsers->discoverLegacyCounts(),
             'purgedTest' => $removed,
+        ]);
+    }
+
+    public function export(Request $request): Response
+    {
+        abort_unless($request->user()?->can('users.view') || $request->user()?->can('platform.admin') || $request->user()?->can('old_users.view'), 403);
+        $rows = $this->oldUsers->exportRows(
+            trim((string) $request->query('q', '')),
+            strtoupper((string) $request->query('role', '')),
+            (string) $request->query('tag', ''),
+        );
+        $sheet = [];
+        foreach ($rows as $row) {
+            $dial = (string) $row['dial'];
+            $sheet[] = [
+                (string) $row['sourceId'],
+                (string) $row['name'],
+                (string) $row['role'],
+                (string) $row['roleId'],
+                (string) $row['phone'],
+                $dial !== '' ? '=HYPERLINK("tel:+'.$dial.'","Call")' : '',
+                $dial !== '' ? '=HYPERLINK("https://wa.me/'.$dial.'","WhatsApp")' : '',
+                (string) $row['email'],
+                (string) $row['city'],
+                (string) $row['district'],
+                (string) $row['state'],
+                (string) $row['gender'],
+                (string) $row['registered'],
+                (string) $row['platformRole'],
+            ];
+        }
+        $binary = SimpleXlsx::binary([
+            'Old ID', 'Name', 'Role', 'Role ID', 'Phone', 'Call', 'WhatsApp', 'Email', 'City', 'District', 'State', 'Gender', 'New app', 'Platform role',
+        ], $sheet);
+        $name = 'KarnaRide-Old-Users-'.now()->format('Y-m-d').'.xlsx';
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$name.'"',
         ]);
     }
 
