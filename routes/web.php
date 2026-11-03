@@ -118,8 +118,17 @@ Route::middleware(['auth', 'ability'])->group(function () {
     Route::put('/territory-contacts/{contact}', [\App\Http\Controllers\TerritoryContactsController::class, 'update'])->name('territory-contacts.update');
     Route::delete('/territory-contacts/{contact}', [\App\Http\Controllers\TerritoryContactsController::class, 'destroy'])->name('territory-contacts.destroy');
     Route::get('/organization/states', [OrganizationController::class, 'states'])->name('organization.states');
+    Route::get('/joining', [JoiningController::class, 'index'])->name('joining.index');
+    Route::post('/joining', [JoiningController::class, 'store'])->name('joining.store');
+    Route::put('/joining/{joining}', [JoiningController::class, 'update'])->name('joining.update')->whereNumber('joining');
+    Route::delete('/joining/{joining}', [JoiningController::class, 'destroy'])->name('joining.destroy')->whereNumber('joining');
+    Route::get('/joining/{joining}/letter.pdf', [JoiningController::class, 'pdf'])->name('joining.pdf')->whereNumber('joining');
     Route::get('/joining/{joining}/letter.docx', [JoiningController::class, 'docx'])->name('joining.docx')->whereNumber('joining');
     Route::get('/joining/{joining}/preview', [JoiningController::class, 'preview'])->name('joining.preview')->whereNumber('joining');
+    Route::post('/joining/letterhead', [JoiningController::class, 'saveLetterhead'])->name('joining.letterhead');
+    Route::post('/joining/designations', [JoiningController::class, 'storeDesignation'])->name('joining.designations.store');
+    Route::put('/joining/designations/{designation}', [JoiningController::class, 'updateDesignation'])->name('joining.designations.update')->whereNumber('designation');
+    Route::delete('/joining/designations/{designation}', [JoiningController::class, 'destroyDesignation'])->name('joining.designations.destroy')->whereNumber('designation');
     Route::get('/joining/letterhead-file/{kind}', [JoiningController::class, 'letterheadFile'])->name('joining.letterhead.file')->where('kind', 'logo|header|signature|coi|gst');
     Route::post('/organization/states', [OrganizationController::class, 'storeState'])->name('organization.states.store');
     Route::put('/organization/states/{state}', [OrganizationController::class, 'updateState'])->name('organization.states.update')->whereNumber('state');

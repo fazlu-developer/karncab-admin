@@ -195,6 +195,9 @@ final class OpsNav
         if (($item['route'] ?? '') === 'revenue.index') {
             return request()->routeIs('revenue.*');
         }
+        if (($item['route'] ?? '') === 'joining.index') {
+            return request()->routeIs('joining.*');
+        }
         if (($item['route'] ?? '') === 'organization.states') {
             return request()->routeIs('organization.states*');
         }
