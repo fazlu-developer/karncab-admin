@@ -9,6 +9,12 @@
         </div>
     </div>
 
+    <div class="kc-tabs" id="contact-tabs" data-kc-tabs data-kc-open="{{ ($filters['q'] ?? '') !== '' ? 'saved' : 'add' }}">
+        <div class="kc-tabbar" role="tablist">
+            <button type="button" class="kc-tab {{ ($filters['q'] ?? '') === '' ? 'on' : '' }}" data-kc-tab="add">Add a head</button>
+            <button type="button" class="kc-tab {{ ($filters['q'] ?? '') !== '' ? 'on' : '' }}" data-kc-tab="saved">Saved contacts</button>
+        </div>
+        <div class="kc-panel" data-kc-panel="add" @if (($filters['q'] ?? '') !== '') hidden @endif>
     <section class="card">
         <h2>Add a head</h2>
         <form method="POST" action="{{ route('territory-contacts.store') }}" enctype="multipart/form-data">
@@ -17,9 +23,17 @@
             <button class="btn" type="submit">Save contact</button>
         </form>
     </section>
-
+        </div>
+        <div class="kc-panel" data-kc-panel="saved" @if (($filters['q'] ?? '') === '') hidden @endif>
     <section class="card">
         <h2>Saved contacts</h2>
+        <form class="filters" method="GET" action="{{ route('territory-contacts.index') }}" style="margin:12px 0">
+            <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search name, phone, email, state, district, address">
+            <button class="btn ghost" type="submit">Search</button>
+            @if (($filters['q'] ?? '') !== '')
+                <a class="btn ghost" href="{{ route('territory-contacts.index') }}">Reset</a>
+            @endif
+        </form>
         <div class="table-wrap">
             <table class="data">
                 <thead>
@@ -69,4 +83,6 @@
         </div>
         <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
     </section>
+        </div>
+    </div>
 @endsection

@@ -233,15 +233,33 @@ class VehiclesController extends Controller
         uasort($byDistrict, function (array $a, array $b) {
             return [$a['state'], $a['district']] <=> [$b['state'], $b['district']];
         });
+        $filters = ['q' => trim((string) $request->query('q', ''))];
+        $rows = array_values($byDistrict);
+        if ($filters['q'] !== '') {
+            $needle = mb_strtolower($filters['q']);
+            $rows = array_values(array_filter($rows, function (array $row) use ($needle) {
+                return str_contains(mb_strtolower($row['district'].' '.$row['state']), $needle);
+            }));
+        }
+        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
+        $perPage = 20;
+        $pager = new \Illuminate\Pagination\LengthAwarePaginator(
+            array_slice($rows, ($page - 1) * $perPage, $perPage),
+            count($rows),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()],
+        );
 
         return view('vehicles.districts', [
-            'rows' => array_values($byDistrict),
+            'rows' => $pager,
+            'filters' => $filters,
             'totals' => [
-                'bike' => collect($byDistrict)->sum('bike'),
-                'auto' => collect($byDistrict)->sum('auto'),
-                'car' => collect($byDistrict)->sum('car'),
-                'other' => collect($byDistrict)->sum('other'),
-                'total' => collect($byDistrict)->sum('total'),
+                'bike' => collect($rows)->sum('bike'),
+                'auto' => collect($rows)->sum('auto'),
+                'car' => collect($rows)->sum('car'),
+                'other' => collect($rows)->sum('other'),
+                'total' => collect($rows)->sum('total'),
             ],
         ]);
     }

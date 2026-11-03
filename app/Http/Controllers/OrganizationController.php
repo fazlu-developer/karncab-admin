@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -21,8 +22,14 @@ class OrganizationController extends Controller
     public function heads(Request $request, TerritoryDirectory $directory): View
     {
         abort_unless($request->user()?->can('territory_heads.view'), 403);
+        $data = $directory->heads($request->user());
+        $q = trim((string) $request->query('q', ''));
 
-        return view('organization.heads', $directory->heads($request->user()));
+        return view('organization.heads', [
+            'states' => $this->paginateRows($this->filterHeadRows($data['states'], $q), 15, 'state_page'),
+            'districts' => $this->paginateRows($this->filterHeadRows($data['districts'], $q), 15, 'district_page'),
+            'filters' => ['q' => $q],
+        ]);
     }
 
     public function states(Request $request): View
@@ -36,9 +43,20 @@ class OrganizationController extends Controller
         } elseif ($actor?->isDistrictHead() && $actor->state_id) {
             $states->where('id', $actor->state_id);
         }
-        $states = $states->get();
+        $filters = ['q' => trim((string) $request->query('q', ''))];
+        if ($filters['q'] !== '') {
+            $term = '%'.$filters['q'].'%';
+            $hasCode = Schema::connection('platform')->hasColumn('states', 'code');
+            $states->where(function ($inner) use ($term, $hasCode) {
+                $inner->where('name', 'like', $term);
+                if ($hasCode) {
+                    $inner->orWhere('code', 'like', $term);
+                }
+            });
+        }
+        $states = $states->paginate(20)->withQueryString();
 
-        return view('organization.states', compact('states'));
+        return view('organization.states', compact('states', 'filters'));
     }
 
     public function storeState(Request $request): RedirectResponse
@@ -220,11 +238,18 @@ class OrganizationController extends Controller
         } elseif ($actor?->isStateHead() && $actor->state_id) {
             $q->where('k.state_id', $actor->state_id);
         }
-        $docs = $q->paginate(20)->withQueryString();
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'status' => (string) $request->query('status', ''),
+            'doc_type' => (string) $request->query('doc_type', ''),
+        ];
+        $this->filterKyc($q, $filters, 'd.name');
+        $docs = $q->paginate(15)->withQueryString();
 
         return view('organization.district-kyc', [
             'docs' => $docs,
             'heads' => $heads,
+            'filters' => $filters,
             'canUploadForOthers' => $actor && $actor->role !== 'DISTRICT_HEAD',
         ]);
     }
@@ -292,6 +317,12 @@ class OrganizationController extends Controller
         StateHeadKycStore::ensureTable();
         $heads = StateHeadKycStore::headsFor($request->user());
         $selectedUserId = (int) $request->query('user_id', 0);
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'status' => (string) $request->query('status', ''),
+            'doc_type' => (string) $request->query('doc_type', ''),
+            'user_id' => $selectedUserId,
+        ];
         $columns = [
             'k.id', 'k.user_id', 'k.doc_type', 'k.path', 'k.status', 'k.created_at',
             'u.name as user_name', 'u.email as user_email', 's.name as state_name',
@@ -305,11 +336,11 @@ class OrganizationController extends Controller
             ->when($request->user()?->isStateHead() && $request->user()->state_id, fn ($query) => $query->where('k.state_id', $request->user()->state_id))
             ->when($selectedUserId > 0, fn ($query) => $query->where('k.user_id', $selectedUserId))
             ->orderByDesc('k.id')
-            ->select($columns)
-            ->paginate(20)
-            ->withQueryString();
+            ->select($columns);
+        $this->filterKyc($docs, $filters, 's.name');
+        $docs = $docs->paginate(15)->withQueryString();
 
-        return view('organization.state-kyc', compact('docs', 'heads', 'selectedUserId'));
+        return view('organization.state-kyc', compact('docs', 'heads', 'selectedUserId', 'filters'));
     }
 
     public function storeStateKyc(Request $request): RedirectResponse
@@ -429,6 +460,69 @@ class OrganizationController extends Controller
             'photo_url' => $path,
             'updated_at' => now(),
         ]));
+    }
+
+    /**
+     * @param  list<object>  $rows
+     * @return list<object>
+     */
+    private function filterHeadRows(array $rows, string $q): array
+    {
+        if ($q === '') {
+            return $rows;
+        }
+        $needle = mb_strtolower($q);
+
+        return array_values(array_filter($rows, function ($row) use ($needle) {
+            $hay = mb_strtolower(implode(' ', [
+                $row->name ?? '',
+                $row->code ?? '',
+                $row->state_name ?? '',
+                $row->head_name ?? '',
+                $row->head_phone ?? '',
+                $row->head_email ?? '',
+            ]));
+
+            return str_contains($hay, $needle);
+        }));
+    }
+
+    /**
+     * @param  list<object>  $rows
+     */
+    private function paginateRows(array $rows, int $perPage, string $pageName): LengthAwarePaginator
+    {
+        $page = LengthAwarePaginator::resolveCurrentPage($pageName);
+
+        return new LengthAwarePaginator(
+            array_slice($rows, ($page - 1) * $perPage, $perPage),
+            count($rows),
+            $perPage,
+            $page,
+            ['path' => request()->url(), 'pageName' => $pageName, 'query' => request()->query()],
+        );
+    }
+
+    /**
+     * @param  array{q: string, status: string, doc_type: string}  $filters
+     */
+    private function filterKyc($query, array $filters, string $placeColumn): void
+    {
+        if ($filters['q'] !== '') {
+            $term = '%'.$filters['q'].'%';
+            $query->where(function ($inner) use ($term, $placeColumn) {
+                $inner->where('u.name', 'like', $term)
+                    ->orWhere('u.email', 'like', $term)
+                    ->orWhere('k.doc_type', 'like', $term)
+                    ->orWhere($placeColumn, 'like', $term);
+            });
+        }
+        if (in_array($filters['status'], ['submitted', 'verified', 'rejected'], true)) {
+            $query->where('k.status', $filters['status']);
+        }
+        if (in_array($filters['doc_type'], ['PAN', 'AADHAAR', 'APPOINTMENT', 'ADDRESS', 'GST', 'PHOTO'], true)) {
+            $query->where('k.doc_type', $filters['doc_type']);
+        }
     }
 
     private function districtSaveError(QueryException $exception): RedirectResponse

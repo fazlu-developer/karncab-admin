@@ -13,7 +13,7 @@
     </div>
 
     <div class="kpis">
-        <div class="kpi"><div class="label">Districts</div><b>{{ count($rows) }}</b></div>
+        <div class="kpi"><div class="label">Districts</div><b>{{ $rows->total() }}</b></div>
         <div class="kpi"><div class="label">Bike</div><b>{{ $totals['bike'] }}</b></div>
         <div class="kpi"><div class="label">Auto</div><b>{{ $totals['auto'] }}</b></div>
         <div class="kpi"><div class="label">Car</div><b>{{ $totals['car'] }}</b></div>
@@ -21,7 +21,14 @@
     </div>
 
     <section class="card">
-        <div class="table-wrap">
+        <form class="filters" method="GET">
+            <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search district or state">
+            <button class="btn ghost" type="submit">Search</button>
+            @if (($filters['q'] ?? '') !== '')
+                <a class="btn ghost" href="{{ route('vehicles.districts') }}">Reset</a>
+            @endif
+        </form>
+        <div class="table-wrap" style="margin-top:12px">
             <table class="data">
                 <thead>
                     <tr>
@@ -57,5 +64,6 @@
                 </tbody>
             </table>
         </div>
+        <div style="margin-top:14px">{{ $rows->links('pagination.admin') }}</div>
     </section>
 @endsection

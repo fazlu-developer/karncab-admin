@@ -50,17 +50,7 @@
 
     <section class="card">
         <h2>Submitted files</h2>
-        <form method="GET" action="{{ route('organization.state-kyc') }}" class="filters" style="align-items:end;margin-bottom:14px">
-            <div>
-                <label>Show documents for</label>
-                <select name="user_id" onchange="this.form.submit()">
-                    <option value="">All State Heads</option>
-                    @foreach ($heads as $head)
-                        <option value="{{ $head->id }}" @selected((int) ($selectedUserId ?? 0) === (int) $head->id)>{{ $head->name }} · {{ $head->email }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </form>
+        @include('organization.partials.kyc-filters', ['filters' => $filters, 'heads' => $heads])
         @include('organization.partials.kyc-files', [
             'docs' => $docs,
             'fileRoute' => 'organization.state-kyc.file',

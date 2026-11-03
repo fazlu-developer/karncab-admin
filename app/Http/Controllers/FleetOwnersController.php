@@ -48,8 +48,18 @@ class FleetOwnersController extends Controller
     {
         abort_unless($request->user()?->can('fleet_kyc.view'), 403);
 
+        $actor = $request->user();
+        $filters = [
+            'q' => $request->get('q'),
+            'status' => $request->get('status'),
+            'state_id' => $request->integer('state_id') ?: null,
+            'district_id' => $request->integer('district_id') ?: null,
+        ];
+
         return view('fleet_owners.kyc', [
-            'owners' => $this->fleets->list($request->user()),
+            'owners' => $this->fleets->list($actor, $filters),
+            'filters' => $filters,
+            'canSwitchGeo' => $actor?->isPrivilegedOperator() || $actor?->isStateHead(),
         ]);
     }
 

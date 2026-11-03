@@ -37,14 +37,26 @@ class HeadInfoService
         });
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    public function page(int $perPage = 20): LengthAwarePaginator
+    public function page(int $perPage = 20, string $search = ''): LengthAwarePaginator
     {
         $this->ensure();
+        $query = $this->listingQuery();
+        $search = trim($search);
+        if ($search !== '') {
+            $like = '%'.$search.'%';
+            $query->where(function ($inner) use ($like) {
+                $inner->where('users.name', 'like', $like)
+                    ->orWhere('users.phone', 'like', $like)
+                    ->orWhere('head_info.email', 'like', $like)
+                    ->orWhere('head_info.support_phone', 'like', $like)
+                    ->orWhere('head_info.connect_phone', 'like', $like)
+                    ->orWhere('head_info.address', 'like', $like)
+                    ->orWhere('states.name', 'like', $like)
+                    ->orWhere('districts.name', 'like', $like);
+            });
+        }
 
-        return $this->listingQuery()
+        return $query
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn ($row) => $this->present($row));

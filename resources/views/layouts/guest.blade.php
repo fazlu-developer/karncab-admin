@@ -7,7 +7,7 @@
     <link rel="icon" href="{{ $kcBrand['icoUrl'] ?? asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" href="{{ $kcBrand['faviconUrl'] ?? asset('favicon-32.png') }}">
     <link rel="apple-touch-icon" href="{{ $kcBrand['faviconUrl'] ?? asset('apple-touch-icon.png') }}">
-    <link rel="stylesheet" href="{{ asset('css/admin.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/admin.css') }}?v={{ filemtime(public_path('css/admin.css')) }}">
 </head>
 <body>
     <div class="guest-body">
@@ -30,5 +30,6 @@
     </div>
     <script src="https://unpkg.com/lucide@0.469.0"></script>
     <script>window.lucide && lucide.createIcons();</script>
+    <script src="{{ asset('js/admin-instant.js') }}?v={{ filemtime(public_path('js/admin-instant.js')) }}"></script>
 </body>
 </html>

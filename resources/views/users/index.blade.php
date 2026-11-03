@@ -126,7 +126,7 @@
                 if (open) search.focus();
             });
             document.addEventListener('click', function (event) {
-                if (!button.parentElement.contains(event.target)) {
+                if (!button.isConnected || !button.parentElement || !button.parentElement.contains(event.target)) {
                     box.setAttribute('hidden', '');
                     button.setAttribute('aria-expanded', 'false');
                 }

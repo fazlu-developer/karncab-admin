@@ -16,8 +16,11 @@ class TerritoryContactsController extends Controller
     {
         abort_unless($request->user()?->can('territory_contacts.view') || $request->user()?->can('platform.admin'), 403);
 
+        $q = trim((string) $request->query('q', ''));
+
         return view('territory-contacts.index', [
-            'rows' => $this->heads->page(),
+            'rows' => $this->heads->page(15, $q),
+            'filters' => ['q' => $q],
             'stateHeads' => NamePicker::users($request->user(), 'STATE_HEAD'),
             'districtHeads' => NamePicker::users($request->user(), 'DISTRICT_HEAD'),
         ]);

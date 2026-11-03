@@ -30,6 +30,13 @@
         </section>
     @endcan
     <section class="card">
+        <form class="filters" method="GET" action="{{ route('organization.states') }}" style="margin-bottom:12px">
+            <input name="q" value="{{ $filters['q'] ?? '' }}" placeholder="Search state name or code">
+            <button class="btn ghost" type="submit">Search</button>
+            @if (($filters['q'] ?? '') !== '')
+                <a class="btn ghost" href="{{ route('organization.states') }}">Reset</a>
+            @endif
+        </form>
         <table class="data">
             <thead><tr><th>ID</th><th>Photo</th><th>Name</th><th>Code</th><th>Status</th><th></th></tr></thead>
             <tbody>
@@ -42,7 +49,7 @@
                     <td>{{ $state->status ?? 'ACTIVE' }}</td>
                     <td>
                         @can('state.update')
-                            <form method="POST" action="{{ route('organization.states.update', $state->id) }}" class="filters" style="margin:0" enctype="multipart/form-data">
+                            <form method="POST" action="{{ route('organization.states.update', $state->id) }}" class="row-edit" enctype="multipart/form-data">
                                 @csrf
                                 @method('PUT')
                                 <input name="name" value="{{ $state->name }}" required>
@@ -62,5 +69,6 @@
             @endforelse
             </tbody>
         </table>
+        <div style="margin-top:14px">{{ $states->links('pagination.admin') }}</div>
     </section>
 @endsection

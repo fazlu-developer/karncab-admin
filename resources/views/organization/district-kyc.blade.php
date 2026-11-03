@@ -52,6 +52,7 @@
 
     <section class="card">
         <h2>Submitted files</h2>
+        @include('organization.partials.kyc-filters', ['filters' => $filters, 'heads' => []])
         @include('organization.partials.kyc-files', [
             'docs' => $docs,
             'fileRoute' => 'organization.district-kyc.file',
